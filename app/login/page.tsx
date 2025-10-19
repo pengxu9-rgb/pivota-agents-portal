@@ -21,10 +21,10 @@ export default function AgentLoginPage() {
     try {
       const response = await agentApi.login(email, password);
       
-      if (response.success && response.user.role === 'agent') {
+      if (response.status === 'success' && response.user.role === 'agent') {
         console.log('✅ Agent login successful');
         router.push('/dashboard');
-      } else if (response.success) {
+      } else if (response.status === 'success') {
         setError('Access denied. This portal is for AI Agents only.');
       } else {
         setError(response.detail || 'Invalid credentials');
@@ -128,3 +128,4 @@ export default function AgentLoginPage() {
     </div>
   );
 }
+

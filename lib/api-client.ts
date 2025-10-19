@@ -54,8 +54,8 @@ class AgentApiClient {
   }
 
   async login(email: string, password: string) {
-    const response = await this.client.post('/api/auth/login', { email, password });
-    if (response.data.success && response.data.token) {
+    const response = await this.client.post('/auth/signin', { email, password });
+    if (response.data.status === 'success' && response.data.token) {
       localStorage.setItem('agent_token', response.data.token);
       localStorage.setItem('agent_user', JSON.stringify(response.data.user));
       localStorage.setItem('agent_id', response.data.user.agent_id || response.data.user.id);
@@ -106,3 +106,4 @@ class AgentApiClient {
 }
 
 export const agentApi = new AgentApiClient();
+
