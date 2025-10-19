@@ -13,6 +13,7 @@ import {
   LogOut,
   BarChart3,
   Zap,
+  Store,
 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
 
@@ -156,23 +157,50 @@ export default function AgentDashboard() {
           </div>
 
           {/* Quick Links */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Link
+              href="/merchants"
+              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow block"
+            >
+              <Store className="w-8 h-8 text-blue-600 mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">My Merchants</h3>
+              <p className="text-sm text-gray-600">Manage assigned merchants</p>
+            </Link>
+
+            <Link
+              href="/orders"
+              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow block"
+            >
+              <ShoppingCart className="w-8 h-8 text-green-600 mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Orders</h3>
+              <p className="text-sm text-gray-600">Track and manage orders</p>
+            </Link>
+
+            <Link
+              href="/wallet"
+              className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow block"
+            >
+              <DollarSign className="w-8 h-8 text-orange-600 mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Wallet</h3>
+              <p className="text-sm text-gray-600">Commission earnings</p>
+            </Link>
+
             <Link
               href="/integration"
               className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow block"
             >
-              <Code className="w-8 h-8 text-blue-600 mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Integration Guide</h3>
-              <p className="text-sm text-gray-600">API documentation and code examples</p>
+              <Code className="w-8 h-8 text-purple-600 mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">API Guide</h3>
+              <p className="text-sm text-gray-600">Integration documentation</p>
             </Link>
 
             <Link
               href="/analytics"
               className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow block"
             >
-              <BarChart3 className="w-8 h-8 text-purple-600 mb-3" />
+              <BarChart3 className="w-8 h-8 text-blue-600 mb-3" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Analytics</h3>
-              <p className="text-sm text-gray-600">Detailed performance insights</p>
+              <p className="text-sm text-gray-600">Performance insights</p>
             </Link>
 
             <Link
@@ -181,7 +209,7 @@ export default function AgentDashboard() {
             >
               <Settings className="w-8 h-8 text-slate-600 mb-3" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Settings</h3>
-              <p className="text-sm text-gray-600">Manage your agent configuration</p>
+              <p className="text-sm text-gray-600">Agent configuration</p>
             </Link>
           </div>
 
