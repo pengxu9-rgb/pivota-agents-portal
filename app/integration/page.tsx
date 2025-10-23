@@ -40,7 +40,7 @@ order = client.create_order(
     customer_email="customer@example.com"
 )
 
-print(f"Order created: {order['order_id']}")`,
+print(f"Order created: " + "{order['order_id']}")`,
     full: `from pivota_agent import PivotaClient
 
 client = PivotaClient(api_key="YOUR_API_KEY")
@@ -81,103 +81,92 @@ order = client.create_order(
     }
 )
 
-print(f"✅ Order {order['order_id']} created successfully!")
-print(f"💰 Total: ${order['total']}")`
+print(f"✅ Order " + "{order['order_id']}" + " created successfully!")
+print(f"💰 Total: $" + "{order['total']}")`
   },
   typescript: {
     install: 'npm install pivota-agent',
-    quickstart: `import { PivotaClient } from 'pivota-agent';
-
-// Initialize client
-const client = new PivotaClient({
-  apiKey: 'YOUR_API_KEY'
-});
-
-// Search products
-const products = await client.searchProducts({
-  query: 'laptop',
-  merchantId: 'merch_6b90dc9838d5fd9c'
-});
-
-// Create order
-const order = await client.createOrder({
-  merchantId: 'merch_6b90dc9838d5fd9c',
-  items: [{
-    productId: products[0].id,
-    quantity: 1
-  }],
-  customerEmail: 'customer@example.com'
-});
-
-console.log(\`Order created: \${order.orderId}\`);`,
-    full: `import { PivotaClient } from 'pivota-agent';
-
-const client = new PivotaClient({
-  apiKey: 'YOUR_API_KEY'
-});
-
-async function main() {
-  // 1. List available merchants
-  const merchants = await client.listMerchants();
-  console.log(\`Found \${merchants.length} merchants\`);
-
-  // 2. Search products
-  const products = await client.searchProducts({
-    query: 'coffee mug',
-    merchantId: merchants[0].merchantId,
-    limit: 10
-  });
-
-  // 3. Get product details
-  const product = await client.getProduct({
-    productId: products[0].id,
-    merchantId: merchants[0].merchantId
-  });
-
-  // 4. Create an order
-  const order = await client.createOrder({
-    merchantId: merchants[0].merchantId,
-    items: [{
-      productId: product.id,
-      quantity: 2,
-      price: product.price
-    }],
-    customerEmail: 'customer@example.com',
-    shippingAddress: {
-      name: 'John Doe',
-      line1: '123 Main St',
-      city: 'San Francisco',
-      state: 'CA',
-      postalCode: '94102',
-      country: 'US'
-    }
-  });
-
-  console.log(\`✅ Order \${order.orderId} created successfully!\`);
-  console.log(\`💰 Total: $\${order.total}\`);
-}
-
-main().catch(console.error);`
+    quickstart: 'import { PivotaClient } from \'pivota-agent\';\n\n' +
+      '// Initialize client\n' +
+      'const client = new PivotaClient({\n' +
+      '  apiKey: \'YOUR_API_KEY\'\n' +
+      '});\n\n' +
+      '// Search products\n' +
+      'const products = await client.searchProducts({\n' +
+      '  query: \'laptop\',\n' +
+      '  merchantId: \'merch_6b90dc9838d5fd9c\'\n' +
+      '});\n\n' +
+      '// Create order\n' +
+      'const order = await client.createOrder({\n' +
+      '  merchantId: \'merch_6b90dc9838d5fd9c\',\n' +
+      '  items: [{\n' +
+      '    productId: products[0].id,\n' +
+      '    quantity: 1\n' +
+      '  }],\n' +
+      '  customerEmail: \'customer@example.com\'\n' +
+      '});\n\n' +
+      'console.log(`Order created: ${order.orderId}`);',
+    full: 'import { PivotaClient } from \'pivota-agent\';\n\n' +
+      'const client = new PivotaClient({\n' +
+      '  apiKey: \'YOUR_API_KEY\'\n' +
+      '});\n\n' +
+      'async function main() {\n' +
+      '  // 1. List available merchants\n' +
+      '  const merchants = await client.listMerchants();\n' +
+      '  console.log(`Found ${merchants.length} merchants`);\n\n' +
+      '  // 2. Search products\n' +
+      '  const products = await client.searchProducts({\n' +
+      '    query: \'coffee mug\',\n' +
+      '    merchantId: merchants[0].merchantId,\n' +
+      '    limit: 10\n' +
+      '  });\n\n' +
+      '  // 3. Get product details\n' +
+      '  const product = await client.getProduct({\n' +
+      '    productId: products[0].id,\n' +
+      '    merchantId: merchants[0].merchantId\n' +
+      '  });\n\n' +
+      '  // 4. Create an order\n' +
+      '  const order = await client.createOrder({\n' +
+      '    merchantId: merchants[0].merchantId,\n' +
+      '    items: [{\n' +
+      '      productId: product.id,\n' +
+      '      quantity: 2,\n' +
+      '      price: product.price\n' +
+      '    }],\n' +
+      '    customerEmail: \'customer@example.com\',\n' +
+      '    shippingAddress: {\n' +
+      '      name: \'John Doe\',\n' +
+      '      line1: \'123 Main St\',\n' +
+      '      city: \'San Francisco\',\n' +
+      '      state: \'CA\',\n' +
+      '      postalCode: \'94102\',\n' +
+      '      country: \'US\'\n' +
+      '    }\n' +
+      '  });\n\n' +
+      '  console.log(`✅ Order ${order.orderId} created successfully!`);\n' +
+      '  console.log(`💰 Total: $${order.total}`);\n' +
+      '}\n\n' +
+      'main().catch(console.error);'
   },
   api: {
     auth: `curl https://web-production-fedb.up.railway.app/agent/v1/merchants \\
   -H "x-api-key: YOUR_API_KEY"`
   },
   mcp: {
-    config: `{
-  "mcpServers": {
-    "pivota": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "pivota-mcp-server"
-      ],
-      "env": {
-        "PIVOTA_API_KEY": "YOUR_API_KEY"
-      }
-    }
-  }
-}`
+    config: '{\n' +
+      '  "mcpServers": {\n' +
+      '    "pivota": {\n' +
+      '      "command": "npx",\n' +
+      '      "args": [\n' +
+      '        "-y",\n' +
+      '        "pivota-mcp-server"\n' +
+      '      ],\n' +
+      '      "env": {\n' +
+      '        "PIVOTA_API_KEY": "YOUR_API_KEY"\n' +
+      '      }\n' +
+      '    }\n' +
+      '  }\n' +
+      '}'
   }
 };
 
@@ -385,12 +374,12 @@ export default function IntegrationPage() {
                     <h2 className="text-lg font-semibold text-gray-900">3. Complete Example</h2>
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 relative max-h-96 overflow-y-auto">
-                    <button
+                  <button
                       onClick={() => copyCode(CODE_EXAMPLES.typescript.full, 'full-example-ts')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
-                    >
+                  >
                       {copiedCode === 'full-example-ts' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
+                  </button>
                     <pre className="text-sm text-gray-100 whitespace-pre-wrap">{CODE_EXAMPLES.typescript.full}</pre>
                   </div>
                 </div>
@@ -558,15 +547,15 @@ export default function IntegrationPage() {
                   </div>
                 </div>
 
-                <div>
+            <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">2. Add Pivota MCP server:</p>
-                  <div className="bg-gray-900 rounded-lg p-4 relative">
-                    <button
+              <div className="bg-gray-900 rounded-lg p-4 relative">
+                <button
                       onClick={() => copyCode(CODE_EXAMPLES.mcp.config, 'mcp-config')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'mcp-config' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
+                </button>
                     <pre className="text-sm text-gray-100 whitespace-pre-wrap">{CODE_EXAMPLES.mcp.config}</pre>
                   </div>
                 </div>
@@ -641,15 +630,15 @@ export default function IntegrationPage() {
                     <span className="font-medium">Claude:</span> &quot;✅ Order created successfully! Order ID: ord_abc123. 
                     Total: $15.99. You&apos;ll receive a confirmation email shortly.&quot;
                   </p>
-                </div>
               </div>
             </div>
+          </div>
 
             {/* Resources */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
               <div className="flex items-start space-x-3">
                 <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div>
+              <div>
                   <h3 className="font-semibold text-blue-900 mb-2">MCP Resources</h3>
                   <div className="space-y-2">
                     <a
@@ -662,19 +651,19 @@ export default function IntegrationPage() {
                     </a>
                     <a
                       href="https://github.com/your-org/pivota-mcp-server"
-                      target="_blank"
+                  target="_blank"
                       className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                    >
+                >
                       Pivota MCP Server on GitHub
                       <ExternalLink className="w-3 h-3 ml-1" />
-                    </a>
+                </a>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         )}
-      </div>
+        </div>
     </div>
   );
 }
