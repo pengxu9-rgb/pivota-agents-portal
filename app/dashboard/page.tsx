@@ -374,68 +374,39 @@ export default function AgentDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Agent Header Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Top Status Bar */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm">Connected</span>
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-gray-700">Connected</span>
               </div>
-              <div className="border-l border-white/20 pl-4">
-                <h1 className="text-xl font-semibold">{agentInfo?.name}</h1>
-                <p className="text-sm opacity-90">Agent ID: {agentInfo?.agent_id}</p>
-              </div>
-              <div className="border-l border-white/20 pl-4">
-                <p className="text-sm">Last activity: {agentInfo?.last_activity}</p>
-              </div>
-              <div className="border-l border-white/20 pl-4 flex items-center space-x-2">
-                <span className="text-sm">API Key:</span>
-                <code className="bg-white/10 px-2 py-1 rounded text-xs">
-                  {showApiKey ? 'pk_live_1234...89ab' : '••••••••pk_live_1234'}
-                </code>
-                <button
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="p-1 hover:bg-white/10 rounded"
-                >
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={copyApiKey}
-                  className="p-1 hover:bg-white/10 rounded"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
+              <div className="text-sm text-gray-600">
+                Last activity: <span className="font-medium text-gray-900">{agentInfo?.last_activity}</span>
               </div>
             </div>
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowApiKeyModal(true)}
-                className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
+                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
               >
                 <Key className="w-4 h-4" />
                 <span>Manage API Keys</span>
               </button>
               <button
                 onClick={refreshMetrics}
-                className={`p-2 hover:bg-white/10 rounded-lg transition-colors ${refreshing ? 'animate-spin' : ''}`}
+                className={`p-2 hover:bg-gray-100 rounded-lg transition-colors ${refreshing ? 'animate-spin' : ''}`}
               >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
+                <RefreshCw className="w-4 h-4 text-gray-600" />
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="px-6 py-8">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
