@@ -126,19 +126,25 @@ class AgentApiClient {
 
   async getApiKeys() {
     const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}/api-keys`);
+    const userRaw = localStorage.getItem('agent_user');
+    const agentOrEmail = agentId || (userRaw ? JSON.parse(userRaw).email : '');
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentOrEmail)}/api-keys`);
     return response.data;
   }
 
   async createApiKey(name: string) {
     const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.post(`/agents/${agentId}/api-keys`, { name });
+    const userRaw = localStorage.getItem('agent_user');
+    const agentOrEmail = agentId || (userRaw ? JSON.parse(userRaw).email : '');
+    const response = await this.client.post(`/agents/${encodeURIComponent(agentOrEmail)}/api-keys`, { name });
     return response.data;
   }
 
   async revokeApiKey(keyId: string) {
     const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.delete(`/agents/${agentId}/api-keys/${keyId}`);
+    const userRaw = localStorage.getItem('agent_user');
+    const agentOrEmail = agentId || (userRaw ? JSON.parse(userRaw).email : '');
+    const response = await this.client.delete(`/agents/${encodeURIComponent(agentOrEmail)}/api-keys/${keyId}`);
     return response.data;
   }
 
