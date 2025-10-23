@@ -18,6 +18,169 @@ import {
   Plug
 } from 'lucide-react';
 
+// Code examples as constants to avoid JSX parsing issues
+const CODE_EXAMPLES = {
+  python: {
+    install: 'pip install pivota-agent',
+    quickstart: `from pivota_agent import PivotaClient
+
+# Initialize client
+client = PivotaClient(api_key="YOUR_API_KEY")
+
+# Search products
+products = client.search_products(
+    query="laptop",
+    merchant_id="merch_6b90dc9838d5fd9c"
+)
+
+# Create order
+order = client.create_order(
+    merchant_id="merch_6b90dc9838d5fd9c",
+    items=[{"product_id": products[0]["id"], "quantity": 1}],
+    customer_email="customer@example.com"
+)
+
+print(f"Order created: {order['order_id']}")`,
+    full: `from pivota_agent import PivotaClient
+
+client = PivotaClient(api_key="YOUR_API_KEY")
+
+# 1. List available merchants
+merchants = client.list_merchants()
+print(f"Found {len(merchants)} merchants")
+
+# 2. Search products
+products = client.search_products(
+    query="coffee mug",
+    merchant_id=merchants[0]["merchant_id"],
+    limit=10
+)
+
+# 3. Get product details
+product = client.get_product(
+    product_id=products[0]["id"],
+    merchant_id=merchants[0]["merchant_id"]
+)
+
+# 4. Create an order
+order = client.create_order(
+    merchant_id=merchants[0]["merchant_id"],
+    items=[{
+        "product_id": product["id"],
+        "quantity": 2,
+        "price": product["price"]
+    }],
+    customer_email="customer@example.com",
+    shipping_address={
+        "name": "John Doe",
+        "line1": "123 Main St",
+        "city": "San Francisco",
+        "state": "CA",
+        "postal_code": "94102",
+        "country": "US"
+    }
+)
+
+print(f"✅ Order {order['order_id']} created successfully!")
+print(f"💰 Total: ${order['total']}")`
+  },
+  typescript: {
+    install: 'npm install pivota-agent',
+    quickstart: `import { PivotaClient } from 'pivota-agent';
+
+// Initialize client
+const client = new PivotaClient({
+  apiKey: 'YOUR_API_KEY'
+});
+
+// Search products
+const products = await client.searchProducts({
+  query: 'laptop',
+  merchantId: 'merch_6b90dc9838d5fd9c'
+});
+
+// Create order
+const order = await client.createOrder({
+  merchantId: 'merch_6b90dc9838d5fd9c',
+  items: [{
+    productId: products[0].id,
+    quantity: 1
+  }],
+  customerEmail: 'customer@example.com'
+});
+
+console.log(\`Order created: \${order.orderId}\`);`,
+    full: `import { PivotaClient } from 'pivota-agent';
+
+const client = new PivotaClient({
+  apiKey: 'YOUR_API_KEY'
+});
+
+async function main() {
+  // 1. List available merchants
+  const merchants = await client.listMerchants();
+  console.log(\`Found \${merchants.length} merchants\`);
+
+  // 2. Search products
+  const products = await client.searchProducts({
+    query: 'coffee mug',
+    merchantId: merchants[0].merchantId,
+    limit: 10
+  });
+
+  // 3. Get product details
+  const product = await client.getProduct({
+    productId: products[0].id,
+    merchantId: merchants[0].merchantId
+  });
+
+  // 4. Create an order
+  const order = await client.createOrder({
+    merchantId: merchants[0].merchantId,
+    items: [{
+      productId: product.id,
+      quantity: 2,
+      price: product.price
+    }],
+    customerEmail: 'customer@example.com',
+    shippingAddress: {
+      name: 'John Doe',
+      line1: '123 Main St',
+      city: 'San Francisco',
+      state: 'CA',
+      postalCode: '94102',
+      country: 'US'
+    }
+  });
+
+  console.log(\`✅ Order \${order.orderId} created successfully!\`);
+  console.log(\`💰 Total: $\${order.total}\`);
+}
+
+main().catch(console.error);`
+  },
+  api: {
+    auth: `curl https://web-production-fedb.up.railway.app/agent/v1/merchants \\
+  -H "x-api-key: YOUR_API_KEY"`
+  },
+  mcp: {
+    config: `{
+  "mcpServers": {
+    "pivota": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "pivota-mcp-server"
+      ],
+      "env": {
+        "PIVOTA_API_KEY": "YOUR_API_KEY"
+      }
+    }
+  }
+}`
+  }
+};
+
 export default function IntegrationPage() {
   const router = useRouter();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -46,8 +209,6 @@ export default function IntegrationPage() {
     setCopiedCode(id);
     setTimeout(() => setCopiedCode(null), 2000);
   };
-
-  const apiKey = 'pk_live_YOUR_API_KEY';
 
   const tabs = [
     { id: 'sdk', label: 'SDK Integration', icon: Package },
@@ -135,19 +296,13 @@ export default function IntegrationPage() {
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 relative">
                     <button
-                      onClick={() => copyCode('pip install pivota-agent', 'install-py')}
+                      onClick={() => copyCode(CODE_EXAMPLES.python.install, 'install-py')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'install-py' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
-                    <pre className="text-sm text-gray-100">pip install pivota-agent</pre>
+                    <pre className="text-sm text-gray-100">{CODE_EXAMPLES.python.install}</pre>
                   </div>
-                  <p className="text-sm text-gray-600 mt-3">
-                    Or download from{' '}
-                    <a href="https://github.com/your-org/pivota-sdk-python" className="text-purple-600 hover:underline" target="_blank">
-                      GitHub
-                    </a>
-                  </p>
                 </div>
 
                 {/* Quick Start */}
@@ -158,54 +313,12 @@ export default function IntegrationPage() {
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 relative">
                     <button
-                      onClick={() => copyCode(`from pivota_agent import PivotaClient
-
-# Initialize client
-client = PivotaClient(api_key="${apiKey}")
-
-# Search products
-products = client.search_products(
-    query="laptop",
-    merchant_id="merch_6b90dc9838d5fd9c"
-)
-
-# Create order
-order = client.create_order(
-    merchant_id="merch_6b90dc9838d5fd9c",
-    items=[{
-        "product_id": products[0]["id"],
-        "quantity": 1
-    }],
-    customer_email="customer@example.com"
-)
-
-print(f"Order created: {order['order_id']}")`, 'quickstart-py')}
+                      onClick={() => copyCode(CODE_EXAMPLES.python.quickstart, 'quickstart-py')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'quickstart-py' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
-                    <pre className="text-sm text-gray-100 overflow-x-auto whitespace-pre-wrap">{`from pivota_agent import PivotaClient
-
-# Initialize client
-client = PivotaClient(api_key="${apiKey}")
-
-# Search products
-products = client.search_products(
-    query="laptop",
-    merchant_id="merch_6b90dc9838d5fd9c"
-)
-
-# Create order
-order = client.create_order(
-    merchant_id="merch_6b90dc9838d5fd9c",
-    items=[{
-        "product_id": products[0]["id"],
-        "quantity": 1
-    }],
-    customer_email="customer@example.com"
-)
-
-print(f"Order created: {order['order_id']}")`}</pre>
+                    <pre className="text-sm text-gray-100 overflow-x-auto whitespace-pre-wrap">{CODE_EXAMPLES.python.quickstart}</pre>
                   </div>
                 </div>
 
@@ -217,94 +330,12 @@ print(f"Order created: {order['order_id']}")`}</pre>
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 relative max-h-96 overflow-y-auto">
                     <button
-                      onClick={() => copyCode(`from pivota_agent import PivotaClient
-
-client = PivotaClient(api_key="${apiKey}")
-
-# 1. List available merchants
-merchants = client.list_merchants()
-print(f"Found {len(merchants)} merchants")
-
-# 2. Search products
-products = client.search_products(
-    query="coffee mug",
-    merchant_id=merchants[0]["merchant_id"],
-    limit=10
-)
-
-# 3. Get product details
-product = client.get_product(
-    product_id=products[0]["id"],
-    merchant_id=merchants[0]["merchant_id"]
-)
-
-# 4. Create an order
-order = client.create_order(
-    merchant_id=merchants[0]["merchant_id"],
-    items=[{
-        "product_id": product["id"],
-        "quantity": 2,
-        "price": product["price"]
-    }],
-    customer_email="customer@example.com",
-    shipping_address={
-        "name": "John Doe",
-        "line1": "123 Main St",
-        "city": "San Francisco",
-        "state": "CA",
-        "postal_code": "94102",
-        "country": "US"
-    }
-)
-
-print(f"✅ Order {order['order_id']} created successfully!")
-print(f"💰 Total: ${order['total']}")`, 'full-example-py')}
+                      onClick={() => copyCode(CODE_EXAMPLES.python.full, 'full-example-py')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'full-example-py' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
-                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{`from pivota_agent import PivotaClient
-
-client = PivotaClient(api_key="${apiKey}")
-
-# 1. List available merchants
-merchants = client.list_merchants()
-print(f"Found {len(merchants)} merchants")
-
-# 2. Search products
-products = client.search_products(
-    query="coffee mug",
-    merchant_id=merchants[0]["merchant_id"],
-    limit=10
-)
-
-# 3. Get product details
-product = client.get_product(
-    product_id=products[0]["id"],
-    merchant_id=merchants[0]["merchant_id"]
-)
-
-# 4. Create an order
-order = client.create_order(
-    merchant_id=merchants[0]["merchant_id"],
-    items=[{
-        "product_id": product["id"],
-        "quantity": 2,
-        "price": product["price"]
-    }],
-    customer_email="customer@example.com",
-    shipping_address={
-        "name": "John Doe",
-        "line1": "123 Main St",
-        "city": "San Francisco",
-        "state": "CA",
-        "postal_code": "94102",
-        "country": "US"
-    }
-)
-
-print(f"✅ Order {order['order_id']} created successfully!")
-print(f"💰 Total: ${order['total']}")`}</pre>
+                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{CODE_EXAMPLES.python.full}</pre>
                   </div>
                 </div>
               </>
@@ -321,19 +352,13 @@ print(f"💰 Total: ${order['total']}")`}</pre>
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 relative">
                     <button
-                      onClick={() => copyCode('npm install pivota-agent', 'install-ts')}
+                      onClick={() => copyCode(CODE_EXAMPLES.typescript.install, 'install-ts')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'install-ts' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
-                    <pre className="text-sm text-gray-100">npm install pivota-agent</pre>
+                    <pre className="text-sm text-gray-100">{CODE_EXAMPLES.typescript.install}</pre>
                   </div>
-                  <p className="text-sm text-gray-600 mt-3">
-                    Or download from{' '}
-                    <a href="https://github.com/your-org/pivota-sdk-typescript" className="text-purple-600 hover:underline" target="_blank">
-                      GitHub
-                    </a>
-                  </p>
                 </div>
 
                 {/* Quick Start */}
@@ -344,58 +369,12 @@ print(f"💰 Total: ${order['total']}")`}</pre>
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 relative">
                     <button
-                      onClick={() => copyCode(`import { PivotaClient } from 'pivota-agent';
-
-// Initialize client
-const client = new PivotaClient({
-  apiKey: '${apiKey}'
-});
-
-// Search products
-const products = await client.searchProducts({
-  query: 'laptop',
-  merchantId: 'merch_6b90dc9838d5fd9c'
-});
-
-// Create order
-const order = await client.createOrder({
-  merchantId: 'merch_6b90dc9838d5fd9c',
-  items: [{
-    productId: products[0].id,
-    quantity: 1
-  }],
-  customerEmail: 'customer@example.com'
-});
-
-console.log(\`Order created: \${order.orderId}\`);`, 'quickstart-ts')}
+                      onClick={() => copyCode(CODE_EXAMPLES.typescript.quickstart, 'quickstart-ts')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'quickstart-ts' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
-                    <pre className="text-sm text-gray-100 overflow-x-auto whitespace-pre-wrap">{`import { PivotaClient } from 'pivota-agent';
-
-// Initialize client
-const client = new PivotaClient({
-  apiKey: '${apiKey}'
-});
-
-// Search products
-const products = await client.searchProducts({
-  query: 'laptop',
-  merchantId: 'merch_6b90dc9838d5fd9c'
-});
-
-// Create order
-const order = await client.createOrder({
-  merchantId: 'merch_6b90dc9838d5fd9c',
-  items: [{
-    productId: products[0].id,
-    quantity: 1
-  }],
-  customerEmail: 'customer@example.com'
-});
-
-console.log(\`Order created: \${order.orderId}\`);`}</pre>
+                    <pre className="text-sm text-gray-100 overflow-x-auto whitespace-pre-wrap">{CODE_EXAMPLES.typescript.quickstart}</pre>
                   </div>
                 </div>
 
@@ -406,107 +385,13 @@ console.log(\`Order created: \${order.orderId}\`);`}</pre>
                     <h2 className="text-lg font-semibold text-gray-900">3. Complete Example</h2>
                   </div>
                   <div className="bg-gray-900 rounded-lg p-4 relative max-h-96 overflow-y-auto">
-                  <button
-                      onClick={() => copyCode(`import { PivotaClient } from 'pivota-agent';
-
-const client = new PivotaClient({
-  apiKey: '${apiKey}'
-});
-
-async function main() {
-  // 1. List available merchants
-  const merchants = await client.listMerchants();
-  console.log(\`Found \${merchants.length} merchants\`);
-
-  // 2. Search products
-  const products = await client.searchProducts({
-    query: 'coffee mug',
-    merchantId: merchants[0].merchantId,
-    limit: 10
-  });
-
-  // 3. Get product details
-  const product = await client.getProduct({
-    productId: products[0].id,
-    merchantId: merchants[0].merchantId
-  });
-
-  // 4. Create an order
-  const order = await client.createOrder({
-    merchantId: merchants[0].merchantId,
-    items: [{
-      productId: product.id,
-      quantity: 2,
-      price: product.price
-    }],
-    customerEmail: 'customer@example.com',
-    shippingAddress: {
-      name: 'John Doe',
-      line1: '123 Main St',
-      city: 'San Francisco',
-      state: 'CA',
-      postalCode: '94102',
-      country: 'US'
-    }
-  });
-
-  console.log(\`✅ Order \${order.orderId} created successfully!\`);
-  console.log(\`💰 Total: $\${order.total}\`);
-}
-
-main().catch(console.error);`, 'full-example-ts')}
+                    <button
+                      onClick={() => copyCode(CODE_EXAMPLES.typescript.full, 'full-example-ts')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'full-example-ts' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{`import { PivotaClient } from 'pivota-agent';
-
-const client = new PivotaClient({
-  apiKey: '${apiKey}'
-});
-
-async function main() {
-  // 1. List available merchants
-  const merchants = await client.listMerchants();
-  console.log(\`Found \${merchants.length} merchants\`);
-
-  // 2. Search products
-  const products = await client.searchProducts({
-    query: 'coffee mug',
-    merchantId: merchants[0].merchantId,
-    limit: 10
-  });
-
-  // 3. Get product details
-  const product = await client.getProduct({
-    productId: products[0].id,
-    merchantId: merchants[0].merchantId
-  });
-
-  // 4. Create an order
-  const order = await client.createOrder({
-    merchantId: merchants[0].merchantId,
-    items: [{
-      productId: product.id,
-      quantity: 2,
-      price: product.price
-    }],
-    customerEmail: 'customer@example.com',
-    shippingAddress: {
-      name: 'John Doe',
-      line1: '123 Main St',
-      city: 'San Francisco',
-      state: 'CA',
-      postalCode: '94102',
-      country: 'US'
-    }
-  });
-
-  console.log(\`✅ Order \${order.orderId} created successfully!\`);
-  console.log(\`💰 Total: $\${order.total}\`);
-}
-
-main().catch(console.error);`}</pre>
+                    </button>
+                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{CODE_EXAMPLES.typescript.full}</pre>
                   </div>
                 </div>
               </>
@@ -570,14 +455,12 @@ main().catch(console.error);`}</pre>
               </p>
               <div className="bg-gray-900 rounded-lg p-4 relative">
                 <button
-                  onClick={() => copyCode(`curl https://web-production-fedb.up.railway.app/agent/v1/merchants \\
-  -H "x-api-key: ${apiKey}"`, 'auth-example')}
+                  onClick={() => copyCode(CODE_EXAMPLES.api.auth, 'auth-example')}
                   className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                 >
                   {copiedCode === 'auth-example' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
-                <pre className="text-sm text-gray-100">{`curl https://web-production-fedb.up.railway.app/agent/v1/merchants \\
-  -H "x-api-key: ${apiKey}"`}</pre>
+                <pre className="text-sm text-gray-100">{CODE_EXAMPLES.api.auth}</pre>
               </div>
             </div>
 
@@ -585,7 +468,6 @@ main().catch(console.error);`}</pre>
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Key Endpoints</h2>
               <div className="space-y-4">
-                {/* List Merchants */}
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
@@ -594,16 +476,14 @@ main().catch(console.error);`}</pre>
                   <p className="text-sm text-gray-600">List all available merchants</p>
                 </div>
 
-                {/* Search Products */}
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
                     <code className="text-sm font-mono">/catalog/search</code>
                   </div>
                   <p className="text-sm text-gray-600">Search for products across merchants</p>
-            </div>
+                </div>
 
-            {/* Create Order */}
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">POST</span>
@@ -612,7 +492,6 @@ main().catch(console.error);`}</pre>
                   <p className="text-sm text-gray-600">Create a new order</p>
                 </div>
 
-                {/* Get Order */}
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
@@ -679,42 +558,16 @@ main().catch(console.error);`}</pre>
                   </div>
                 </div>
 
-            <div>
+                <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">2. Add Pivota MCP server:</p>
-              <div className="bg-gray-900 rounded-lg p-4 relative">
-                <button
-                      onClick={() => copyCode(`{
-  "mcpServers": {
-    "pivota": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "pivota-mcp-server"
-      ],
-      "env": {
-        "PIVOTA_API_KEY": "${apiKey}"
-      }
-    }
-  }
-}`, 'mcp-config')}
+                  <div className="bg-gray-900 rounded-lg p-4 relative">
+                    <button
+                      onClick={() => copyCode(CODE_EXAMPLES.mcp.config, 'mcp-config')}
                       className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
                     >
                       {copiedCode === 'mcp-config' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </button>
-                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{`{
-  "mcpServers": {
-    "pivota": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "pivota-mcp-server"
-      ],
-      "env": {
-        "PIVOTA_API_KEY": "${apiKey}"
-      }
-    }
-  }
-}`}</pre>
+                    </button>
+                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{CODE_EXAMPLES.mcp.config}</pre>
                   </div>
                 </div>
 
@@ -768,35 +621,35 @@ main().catch(console.error);`}</pre>
               <div className="space-y-3">
                 <div className="bg-blue-50 border-l-4 border-blue-600 p-4">
                   <p className="text-sm text-gray-700">
-                    <span className="font-medium">You:</span> "Find me a coffee mug under $20"
+                    <span className="font-medium">You:</span> &quot;Find me a coffee mug under $20&quot;
                   </p>
                 </div>
                 <div className="bg-purple-50 border-l-4 border-purple-600 p-4">
                   <p className="text-sm text-gray-700">
-                    <span className="font-medium">Claude:</span> "I'll search for coffee mugs in that price range... 
-                    I found 5 options. The 'Ceramic Coffee Mug' from ChydanTest Store is $15.99 and has great reviews. 
-                    Would you like me to create an order?"
+                    <span className="font-medium">Claude:</span> &quot;I&apos;ll search for coffee mugs in that price range... 
+                    I found 5 options. The &apos;Ceramic Coffee Mug&apos; from ChydanTest Store is $15.99 and has great reviews. 
+                    Would you like me to create an order?&quot;
                   </p>
                 </div>
                 <div className="bg-blue-50 border-l-4 border-blue-600 p-4">
                   <p className="text-sm text-gray-700">
-                    <span className="font-medium">You:</span> "Yes, please order it"
+                    <span className="font-medium">You:</span> &quot;Yes, please order it&quot;
                   </p>
                 </div>
                 <div className="bg-purple-50 border-l-4 border-purple-600 p-4">
                   <p className="text-sm text-gray-700">
-                    <span className="font-medium">Claude:</span> "✅ Order created successfully! Order ID: ord_abc123. 
-                    Total: $15.99. You'll receive a confirmation email shortly."
+                    <span className="font-medium">Claude:</span> &quot;✅ Order created successfully! Order ID: ord_abc123. 
+                    Total: $15.99. You&apos;ll receive a confirmation email shortly.&quot;
                   </p>
+                </div>
               </div>
             </div>
-          </div>
 
             {/* Resources */}
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
               <div className="flex items-start space-x-3">
                 <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div>
+                <div>
                   <h3 className="font-semibold text-blue-900 mb-2">MCP Resources</h3>
                   <div className="space-y-2">
                     <a
@@ -809,19 +662,19 @@ main().catch(console.error);`}</pre>
                     </a>
                     <a
                       href="https://github.com/your-org/pivota-mcp-server"
-                  target="_blank"
+                      target="_blank"
                       className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                >
+                    >
                       Pivota MCP Server on GitHub
                       <ExternalLink className="w-3 h-3 ml-1" />
-                </a>
+                    </a>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         )}
-        </div>
+      </div>
     </div>
   );
 }
