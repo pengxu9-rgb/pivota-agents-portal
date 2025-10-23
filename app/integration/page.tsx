@@ -22,10 +22,10 @@ import {
 const CODE_EXAMPLES = {
   python: {
     install: 'pip install pivota-agent',
-    quickstart: `from pivota_agent import PivotaClient
+    quickstart: `from pivota_agent import PivotaAgentClient
 
 # Initialize client
-client = PivotaClient(api_key="YOUR_API_KEY")
+client = PivotaAgentClient(api_key="YOUR_API_KEY")
 
 # Search products
 products = client.search_products(
@@ -41,9 +41,9 @@ order = client.create_order(
 )
 
 print(f"Order created: " + "{order['order_id']}")`,
-    full: `from pivota_agent import PivotaClient
+    full: `from pivota_agent import PivotaAgentClient
 
-client = PivotaClient(api_key="YOUR_API_KEY")
+client = PivotaAgentClient(api_key="YOUR_API_KEY")
 
 # 1. List available merchants
 merchants = client.list_merchants()
@@ -86,9 +86,9 @@ print(f"💰 Total: $" + "{order['total']}")`
   },
   typescript: {
     install: 'npm install pivota-agent',
-    quickstart: 'import { PivotaClient } from \'pivota-agent\';\n\n' +
+    quickstart: 'import { PivotaAgentClient } from \'pivota-agent\';\n\n' +
       '// Initialize client\n' +
-      'const client = new PivotaClient({\n' +
+      'const client = new PivotaAgentClient({\n' +
       '  apiKey: \'YOUR_API_KEY\'\n' +
       '});\n\n' +
       '// Search products\n' +
@@ -106,8 +106,8 @@ print(f"💰 Total: $" + "{order['total']}")`
       '  customerEmail: \'customer@example.com\'\n' +
       '});\n\n' +
       'console.log(`Order created: ${order.orderId}`);',
-    full: 'import { PivotaClient } from \'pivota-agent\';\n\n' +
-      'const client = new PivotaClient({\n' +
+    full: 'import { PivotaAgentClient } from \'pivota-agent\';\n\n' +
+      'const client = new PivotaAgentClient({\n' +
       '  apiKey: \'YOUR_API_KEY\'\n' +
       '});\n\n' +
       'async function main() {\n' +
