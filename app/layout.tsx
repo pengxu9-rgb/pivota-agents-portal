@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Navigation from "@/components/Navigation";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pivota – Unified Agent Payment Network",
-  description: "Connect AI agents to merchants through unified payment infrastructure.",
+  title: "Pivota Agent Portal - AI Commerce Infrastructure",
+  description: "Connect AI agents to merchants through unified payment infrastructure. Real-time analytics, MCP integration, and comprehensive API documentation.",
 };
 
 export default function RootLayout({
@@ -24,16 +25,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <header className="w-full border-b bg-white/80 backdrop-blur px-4 py-3 flex items-center justify-between">
-          <a href="/" className="font-semibold">Pivota Agent Portal</a>
-          <nav className="space-x-4">
-            <a href="/dashboard" className="text-sm text-gray-700 hover:text-black">Dashboard</a>
-            <a href="/integration" className="text-sm text-gray-700 hover:text-black">Integration</a>
-            <a href="/developers/docs" className="text-sm text-blue-600 hover:underline">Developers Docs</a>
-          </nav>
-        </header>
-        <main>{children}</main>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}>
+        <Navigation />
+        <main className="min-h-screen">{children}</main>
       </body>
     </html>
   );

@@ -103,6 +103,69 @@ class AgentApiClient {
     const response = await this.client.post(`/agents/${agentId}/reset-api-key`);
     return response.data;
   }
+
+  // New methods for Agent Dashboard
+  async getMetricsSummary() {
+    const response = await this.client.get('/agent/metrics/summary');
+    return response.data;
+  }
+
+  async getAgentTimeline(hours: number = 24) {
+    const response = await this.client.get('/agent/metrics/timeline', {
+      params: { hours }
+    });
+    return response.data;
+  }
+
+  async getRecentActivity(limit: number = 20, offset: number = 0) {
+    const response = await this.client.get('/agent/metrics/recent', {
+      params: { limit, offset }
+    });
+    return response.data;
+  }
+
+  async getApiKeys() {
+    const agentId = localStorage.getItem('agent_id');
+    const response = await this.client.get(`/agents/${agentId}/api-keys`);
+    return response.data;
+  }
+
+  async createApiKey(name: string) {
+    const agentId = localStorage.getItem('agent_id');
+    const response = await this.client.post(`/agents/${agentId}/api-keys`, { name });
+    return response.data;
+  }
+
+  async revokeApiKey(keyId: string) {
+    const agentId = localStorage.getItem('agent_id');
+    const response = await this.client.delete(`/agents/${agentId}/api-keys/${keyId}`);
+    return response.data;
+  }
+
+  async getAgentHealth() {
+    const response = await this.client.get('/agent/health');
+    return response.data;
+  }
+
+  async getMerchantAuthorizations() {
+    const agentId = localStorage.getItem('agent_id');
+    const response = await this.client.get(`/agents/${agentId}/merchants`);
+    return response.data;
+  }
+
+  async getConversionFunnel(days: number = 7) {
+    const agentId = localStorage.getItem('agent_id');
+    const response = await this.client.get(`/agents/${agentId}/funnel`, {
+      params: { days }
+    });
+    return response.data;
+  }
+
+  async getQueryAnalytics() {
+    const agentId = localStorage.getItem('agent_id');
+    const response = await this.client.get(`/agents/${agentId}/query-analytics`);
+    return response.data;
+  }
 }
 
 export const agentApi = new AgentApiClient();
