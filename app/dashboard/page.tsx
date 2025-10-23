@@ -658,7 +658,7 @@ export default function AgentDashboard() {
         {/* Quick Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
           <Link
-            href="/integration"
+            href="/integration?tab=mcp"
             className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 hover:shadow-lg transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
@@ -674,7 +674,7 @@ export default function AgentDashboard() {
           </Link>
 
           <Link
-            href="/developers/docs"
+            href="/integration?tab=api"
             className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
@@ -690,18 +690,18 @@ export default function AgentDashboard() {
           </Link>
 
           <Link
-            href="/analytics"
+            href="/integration?tab=sdk"
             className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200 hover:shadow-lg transition-all group"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="p-3 bg-orange-600 rounded-lg">
-                <BarChart3 className="w-6 h-6 text-white" />
+                <Package className="w-6 h-6 text-white" />
               </div>
               <ChevronRight className="w-5 h-5 text-orange-600 group-hover:translate-x-1 transition-transform" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Performance Analytics</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">SDK Integration</h3>
             <p className="text-sm text-gray-600">
-              Deep dive into your metrics
+              Python & TypeScript SDK installation
             </p>
           </Link>
         </div>

@@ -28,6 +28,16 @@ export default function IntegrationPage() {
     const token = localStorage.getItem('agent_token');
     if (!token) {
       router.push('/login');
+      return;
+    }
+    
+    // Check URL params for tab selection
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab && ['sdk', 'api', 'mcp'].includes(tab)) {
+        setSelectedTab(tab as 'sdk' | 'api' | 'mcp');
+      }
     }
   }, [router]);
 
