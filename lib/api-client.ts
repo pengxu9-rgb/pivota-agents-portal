@@ -220,6 +220,34 @@ class AgentApiClient {
     const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/query-analytics`);
     return response.data;
   }
+
+  // Order Management
+  async refundOrder(orderId: string, amount?: number, reason?: string) {
+    const response = await this.client.post(`/orders/${orderId}/refund`, {
+      order_id: orderId,
+      amount,
+      reason,
+      restore_inventory: true
+    });
+    return response.data;
+  }
+
+  async cancelOrder(orderId: string, reason?: string) {
+    const response = await this.client.post(`/orders/${orderId}/cancel`, {
+      reason
+    });
+    return response.data;
+  }
+
+  async trackOrder(orderId: string) {
+    const apiKey = localStorage.getItem('agent_api_key');
+    const response = await this.client.get(`/agent/v1/fulfillment/track/${orderId}`, {
+      headers: {
+        'x-api-key': apiKey || ''
+      }
+    });
+    return response.data;
+  }
 }
 
 export const agentApi = new AgentApiClient();

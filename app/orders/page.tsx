@@ -44,13 +44,47 @@ export default function OrdersManagementPage() {
   };
 
   const handleRefund = async (orderId: string) => {
-    if (!confirm('Issue refund for this order?')) return;
-    alert('✅ Refund initiated (connect to backend API)');
+    if (!confirm('Issue a full refund for this order?')) return;
+    try {
+      const response = await agentApi.refundOrder(orderId);
+      alert('✅ Refund initiated successfully!');
+      loadOrders(); // Refresh orders
+    } catch (error: any) {
+      alert(`❌ Refund failed: ${error.response?.data?.detail || error.message}`);
+      console.error('Refund error:', error);
+    }
   };
 
   const handleCancel = async (orderId: string) => {
     if (!confirm('Cancel this order?')) return;
-    alert('✅ Order cancelled (connect to backend API)');
+    try {
+      const response = await agentApi.cancelOrder(orderId);
+      alert('✅ Order cancelled successfully!');
+      loadOrders(); // Refresh orders
+    } catch (error: any) {
+      alert(`❌ Cancel failed: ${error.response?.data?.detail || error.message}`);
+      console.error('Cancel error:', error);
+    }
+  };
+
+  const handleTrackShipment = async (orderId: string) => {
+    try {
+      const tracking = await agentApi.trackOrder(orderId);
+      const message = `
+📦 Order Tracking
+
+Status: ${tracking.fulfillment_status || 'Unknown'}
+Tracking #: ${tracking.tracking_number || 'Not available'}
+Carrier: ${tracking.carrier || 'N/A'}
+
+Timeline:
+${tracking.timeline?.map((t: any) => `${t.status}: ${t.completed ? '✓' : '○'}`).join('\n') || 'No tracking info'}
+      `;
+      alert(message);
+    } catch (error: any) {
+      alert(`❌ Tracking failed: ${error.response?.data?.detail || error.message}`);
+      console.error('Tracking error:', error);
+    }
   };
 
   const filteredOrders = orders.filter((order) => {
@@ -175,6 +209,7 @@ export default function OrdersManagementPage() {
                                   <RotateCcw className="w-4 h-4" />
                                 </button>
                                 <button
+                                  onClick={() => handleTrackShipment(order.id)}
                                   className="p-1 text-blue-600 hover:bg-blue-50 rounded"
                                   title="Track Shipment"
                                 >
