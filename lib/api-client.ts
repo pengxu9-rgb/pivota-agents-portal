@@ -142,6 +142,34 @@ class AgentApiClient {
     return response.data;
   }
 
+  // Order Management for Agents
+  async refundOrder(orderId: string, amount?: number, reason?: string) {
+    const apiKey = this.getAgentApiKey();
+    const response = await this.client.post(`/agent/v1/orders/${orderId}/refund`, {
+      order_id: orderId,
+      amount,
+      reason,
+      restore_inventory: true
+    }, { headers: { 'x-api-key': apiKey || '' } });
+    return response.data;
+  }
+
+  async cancelOrder(orderId: string, reason?: string) {
+    const apiKey = this.getAgentApiKey();
+    const response = await this.client.post(`/agent/v1/orders/${orderId}/cancel`, {
+      reason
+    }, { headers: { 'x-api-key': apiKey || '' } });
+    return response.data;
+  }
+
+  async trackOrder(orderId: string) {
+    const apiKey = this.getAgentApiKey();
+    const response = await this.client.get(`/agent/v1/orders/${orderId}/track`, {
+      headers: { 'x-api-key': apiKey || '' }
+    });
+    return response.data;
+  }
+
   // Ensure we have an API key; if not, try to fetch and store one
   private async ensureAgentApiKey(): Promise<string> {
     let apiKey = this.getAgentApiKey() || '';
