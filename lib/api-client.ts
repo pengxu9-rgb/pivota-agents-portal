@@ -116,11 +116,11 @@ class AgentApiClient {
   async getOrders(limit: number = 100) {
     // Use Agent API v1 endpoint with x-api-key authentication
     const apiKey = localStorage.getItem('agent_api_key');
+    
     if (!apiKey) {
-      console.warn('No agent_api_key found, using fallback endpoint');
-      // Fallback to admin endpoint with JWT token
-      const response = await this.client.get('/orders', { params: { limit } });
-      return response.data;
+      console.error('⚠️ No agent_api_key found in localStorage. Please log out and log in again.');
+      // Force re-login to get API key
+      throw new Error('Missing API key. Please log out and log in again to refresh your session.');
     }
     
     const response = await this.client.get('/agent/v1/orders', {
