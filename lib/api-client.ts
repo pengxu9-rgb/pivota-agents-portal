@@ -51,7 +51,6 @@ class AgentApiClient {
 
   private getAgentApiKey(): string | null {
     if (typeof window !== 'undefined') {
-      // Stored when user creates or selects API key
       return localStorage.getItem('agent_api_key');
     }
     return null;
@@ -101,35 +100,89 @@ class AgentApiClient {
   }
 
   async logout() {
-    this.clearAuth();
+    localStorage.removeItem('agent_token');
+    localStorage.removeItem('agent_user');
+    localStorage.removeItem('agent_id');
+    localStorage.removeItem('agent_api_key');
     window.location.href = '/login';
   }
 
   async getStats(days: number = 30) {
-    const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}/analytics`, {
+    const response = await this.client.get('/agent/metrics/summary', {
       params: { days },
     });
     return response.data;
   }
 
-  async getOrders(limit: number = 100) {
-    // Use Agent API v1 endpoint with x-api-key authentication
-    const apiKey = localStorage.getItem('agent_api_key');
-    
-    if (!apiKey) {
-      console.error('⚠️ No agent_api_key found in localStorage. Please log out and log in again.');
-      // Force re-login to get API key
-      throw new Error('Missing API key. Please log out and log in again to refresh your session.');
+  async getAgentHealth() {
+    const response = await this.client.get('/agent/health');
+    return response.data;
+  }
+
+  async getMerchantAuthorizations(includeStats: boolean = false) {
+    const agentId = localStorage.getItem('agent_id');
+    const response = await this.client.get(`/agents/${agentId}/merchants`, {
+      params: { include_stats: includeStats }
+    });
+    return response.data;
+  }
+
+  async getConversionFunnel(days: number = 7) {
+    const agentId = this.getAgentIdOrEmail();
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/funnel`, {
+      params: { days }
+    });
+    return response.data;
+  }
+
+  async getQueryAnalytics() {
+    const agentId = this.getAgentIdOrEmail();
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/query-analytics`);
+    return response.data;
+  }
+
+  // Ensure we have an API key; if not, try to fetch and store one
+  private async ensureAgentApiKey(): Promise<string> {
+    let apiKey = this.getAgentApiKey() || '';
+    if (apiKey) return apiKey;
+
+    const agentId = this.getAgentIdOrEmail();
+    if (!agentId) throw new Error('Missing agent identity. Please re-login.');
+
+    // Try to fetch existing keys (or legacy key) using JWT Authorization
+    const res = await this.client.get(`/agents/${encodeURIComponent(agentId)}/api-keys`);
+    const data = res.data || {};
+    const fetchedKey = (data.api_keys && data.api_keys[0]?.key) || data.legacy_key || '';
+    if (!fetchedKey) {
+      throw new Error('API key not found. Please create an API key in Integration → API Keys.');
     }
-    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('agent_api_key', fetchedKey);
+    }
+    return fetchedKey;
+  }
+
+  async getOrders(limit: number = 100) {
+    // Always use Agent API and ensure x-api-key exists
+    const apiKey = await this.ensureAgentApiKey();
+
     const response = await this.client.get('/agent/v1/orders', {
       params: { limit },
       headers: {
         'x-api-key': apiKey
       }
     });
-    return response.data?.orders || response.data || [];
+
+    const raw = response.data?.orders || response.data || [];
+    // Normalize to UI shape
+    return (Array.isArray(raw) ? raw : []).map((o: any) => ({
+      id: o.order_id || o.id,
+      order_number: o.order_id || o.id,
+      total_amount: parseFloat(o.total || o.amount || 0),
+      status: o.status,
+      created_at: o.created_at,
+      customer_email: o.customer_email || 'Guest',
+    }));
   }
 
   async getProfile() {
@@ -152,101 +205,46 @@ class AgentApiClient {
 
   // New methods for Agent Dashboard
   async getMetricsSummary() {
-    // Use stable v1 alias (public)
-    const response = await this.client.get('/agent/v1/metrics/summary');
+    const response = await this.client.get('/agent/metrics/summary');
     return response.data;
   }
 
-  async getAgentTimeline(hours: number = 24) {
-    const response = await this.client.get('/agent/v1/metrics/timeline', {
-      params: { hours }
-    });
+  async getRecentActivity(limit: number = 5) {
+    const response = await this.client.get('/agent/metrics/recent', { params: { limit } });
     return response.data;
   }
 
-  async getRecentActivity(limit: number = 20, offset: number = 0) {
-    const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.get('/agent/v1/metrics/recent', {
-      params: { limit, offset, agent_id: agentId || undefined }
-    });
+  async getAgentTimeline(days: number = 7) {
+    const response = await this.client.get('/agent/v1/metrics/timeline', { params: { days } });
     return response.data;
   }
 
-  async getApiKeys() {
-    const agentId = localStorage.getItem('agent_id');
-    const userRaw = localStorage.getItem('agent_user');
-    const agentOrEmail = agentId || (userRaw ? JSON.parse(userRaw).email : '');
-    const response = await this.client.get(`/agents/${encodeURIComponent(agentOrEmail)}/api-keys`);
-    return response.data;
-  }
-
-  async createApiKey(name: string) {
-    const agentId = localStorage.getItem('agent_id');
-    const userRaw = localStorage.getItem('agent_user');
-    const agentOrEmail = agentId || (userRaw ? JSON.parse(userRaw).email : '');
-    const response = await this.client.post(`/agents/${encodeURIComponent(agentOrEmail)}/api-keys`, { name });
-    return response.data;
-  }
-
-  async revokeApiKey(keyId: string) {
-    const agentId = localStorage.getItem('agent_id');
-    const userRaw = localStorage.getItem('agent_user');
-    const agentOrEmail = agentId || (userRaw ? JSON.parse(userRaw).email : '');
-    const response = await this.client.delete(`/agents/${encodeURIComponent(agentOrEmail)}/api-keys/${keyId}`);
-    return response.data;
-  }
-
-  async getAgentHealth() {
-    const response = await this.client.get('/agent/health');
-    return response.data;
-  }
-
-  async getMerchantAuthorizations() {
+  async getMerchantAuthorizationsLegacy() {
     const agentId = localStorage.getItem('agent_id');
     const response = await this.client.get(`/agents/${agentId}/merchants`);
     return response.data;
   }
 
-  async getConversionFunnel(days: number = 7) {
+  async getApiKeys() {
     const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/funnel`, {
-      params: { days }
-    });
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/api-keys`);
     return response.data;
   }
 
-  async getQueryAnalytics() {
+  async createApiKey() {
     const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/query-analytics`);
+    const response = await this.client.post(`/agents/${encodeURIComponent(agentId || '')}/api-keys`);
     return response.data;
   }
 
-  // Order Management
-  async refundOrder(orderId: string, amount?: number, reason?: string) {
-    const response = await this.client.post(`/orders/${orderId}/refund`, {
-      order_id: orderId,
-      amount,
-      reason,
-      restore_inventory: true
-    });
+  async revokeApiKey(keyId: string) {
+    const agentId = this.getAgentIdOrEmail();
+    const response = await this.client.delete(`/agents/${encodeURIComponent(agentId || '')}/api-keys/${encodeURIComponent(keyId)}`);
     return response.data;
   }
 
-  async cancelOrder(orderId: string, reason?: string) {
-    const response = await this.client.post(`/orders/${orderId}/cancel`, {
-      reason
-    });
-    return response.data;
-  }
-
-  async trackOrder(orderId: string) {
-    const apiKey = localStorage.getItem('agent_api_key');
-    const response = await this.client.get(`/agent/v1/fulfillment/track/${orderId}`, {
-      headers: {
-        'x-api-key': apiKey || ''
-      }
-    });
-    return response.data;
+  async getAgentIdOrEmailForDebug() {
+    return this.getAgentIdOrEmail();
   }
 }
 
