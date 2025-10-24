@@ -33,7 +33,8 @@ class AgentApiClient {
       },
       (error) => {
         console.error(`❌ [Agent API] ${error.response?.status} ${error.config?.url}`);
-        if (error.response?.status === 401 && typeof window !== 'undefined') {
+        const suppressLogout = (error.config?.headers as any)?.['x-no-logout-on-401'] === 'true';
+        if (error.response?.status === 401 && typeof window !== 'undefined' && !suppressLogout) {
           this.clearAuth();
           window.location.href = '/login';
         }
@@ -153,6 +154,8 @@ class AgentApiClient {
     // Always create a fresh live key when none/invalid (GET returns masked keys)
     const create = await this.client.post(`/agents/${encodeURIComponent(agentId)}/api-keys`, {
       name: 'Live API Key (auto)'
+    }, {
+      headers: { 'x-no-logout-on-401': 'true' }
     });
     const newKey = create.data?.key || create.data?.api_key || '';
     if (!isValid(newKey)) {
@@ -169,7 +172,8 @@ class AgentApiClient {
     const response = await this.client.get('/agent/v1/orders', {
       params: { limit },
       headers: {
-        'x-api-key': apiKey
+        'x-api-key': apiKey,
+        'x-no-logout-on-401': 'true'
       }
     });
 
