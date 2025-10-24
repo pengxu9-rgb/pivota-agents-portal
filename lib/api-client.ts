@@ -15,8 +15,12 @@ class AgentApiClient {
 
     this.client.interceptors.request.use((config) => {
       const token = this.getAuthToken();
+      const apiKey = this.getAgentApiKey();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+      if (apiKey) {
+        (config.headers as any)['x-api-key'] = apiKey;
       }
       console.log(`🔄 [Agent API] ${config.method?.toUpperCase()} ${config.url}`);
       return config;
@@ -41,6 +45,26 @@ class AgentApiClient {
   private getAuthToken(): string | null {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('agent_token');
+    }
+    return null;
+  }
+
+  private getAgentApiKey(): string | null {
+    if (typeof window !== 'undefined') {
+      // Stored when user creates or selects API key
+      return localStorage.getItem('agent_api_key');
+    }
+    return null;
+  }
+
+  private getAgentIdOrEmail(): string | null {
+    if (typeof window !== 'undefined') {
+      const agentId = localStorage.getItem('agent_id');
+      if (agentId) return agentId;
+      const userRaw = localStorage.getItem('agent_user');
+      if (userRaw) {
+        try { const u = JSON.parse(userRaw); return u.agent_id || u.email || null; } catch {}
+      }
     }
     return null;
   }
@@ -106,7 +130,8 @@ class AgentApiClient {
 
   // New methods for Agent Dashboard
   async getMetricsSummary() {
-    const response = await this.client.get('/agent/metrics/summary');
+    // Use stable v1 alias (public)
+    const response = await this.client.get('/agent/v1/metrics/summary');
     return response.data;
   }
 
@@ -118,8 +143,9 @@ class AgentApiClient {
   }
 
   async getRecentActivity(limit: number = 20, offset: number = 0) {
-    const response = await this.client.get('/agent/metrics/recent', {
-      params: { limit, offset }
+    const agentId = this.getAgentIdOrEmail();
+    const response = await this.client.get('/agent/v1/metrics/recent', {
+      params: { limit, offset, agent_id: agentId || undefined }
     });
     return response.data;
   }

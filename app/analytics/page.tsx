@@ -10,6 +10,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [timeline, setTimeline] = useState<any[]>([]);
   const [timeRange, setTimeRange] = useState(30);
 
   useEffect(() => {
@@ -19,13 +20,25 @@ export default function AnalyticsPage() {
       return;
     }
     loadAnalytics();
+    const t = setInterval(loadAnalytics, 30000);
+    return () => clearInterval(t);
   }, [router, timeRange]);
 
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const data = await agentApi.getStats(timeRange);
-      setStats(data);
+      const [summary, tline] = await Promise.all([
+        agentApi.getMetricsSummary(),
+        agentApi.getAgentTimeline(24),
+      ]);
+      setStats({
+        total_api_calls: summary?.overview?.requests_last_7d ?? 0,
+        total_orders: summary?.orders?.count_last_24h ?? 0,
+        total_gmv: summary?.orders?.revenue_last_24h ?? 0,
+        success_rate: summary?.performance?.success_rate_24h ?? 0,
+        endpoint_usage: summary?.top_endpoints?.map((e: any) => ({ path: e.endpoint, method: 'GET', count: e.count })) ?? [],
+      });
+      setTimeline(tline?.timeline || []);
     } catch (error) {
       console.error('Failed to load analytics:', error);
     } finally {
@@ -110,14 +123,24 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Performance Chart Placeholder */}
+          {/* Performance Timeline */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold mb-4">Performance Trends</h2>
-            <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
-              <div className="text-center text-gray-500">
-                <BarChart3 className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                <p>Chart visualization coming soon</p>
-              </div>
+            <h2 className="text-lg font-semibold mb-4">Performance Timeline (past 24h)</h2>
+            <div className="space-y-3">
+              {timeline.length === 0 ? (
+                <p className="text-gray-500">No timeline data yet.</p>
+              ) : (
+                timeline.map((row: any) => (
+                  <div key={row.hour} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-600">{new Date(row.hour).toLocaleString()}</span>
+                    <div className="flex items-center space-x-6">
+                      <span className="text-gray-800">Total: {row.total_requests}</span>
+                      <span className="text-green-700">OK: {row.successful_requests}</span>
+                      <span className="text-purple-700">Avg: {row.avg_response_time_ms}ms</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 

@@ -172,13 +172,14 @@ export default function AgentDashboard() {
   const loadMetrics = async () => {
     try {
       const data = await agentApi.getMetricsSummary();
+      // Map backend fields to UI
       setMetrics({
-        success_rate: data.success_rate || 98.5,
-        avg_response_time: data.avg_response_time || 142,
-        calls_today: data.calls_today || 2100,
-        total_integrations: data.total_integrations || 47,
-        active_connections: data.active_connections || 12,
-        total_gmv: data.total_gmv || 45280.5,
+        success_rate: data?.performance?.success_rate_24h ?? 0,
+        avg_response_time: data?.performance?.avg_response_time_ms ?? 0,
+        calls_today: data?.overview?.requests_last_24h ?? 0,
+        total_integrations: data?.agents?.active_last_24h ?? 0,
+        active_connections: data?.overview?.requests_last_hour ?? 0,
+        total_gmv: data?.orders?.revenue_last_24h ?? 0,
       });
     } catch (error) {
       // Use mock data if API fails
@@ -196,7 +197,15 @@ export default function AgentDashboard() {
   const loadRecentActivity = async (offset = 0) => {
     try {
       const data = await agentApi.getRecentActivity(10, offset);
-      const activities = data.activities || getMockActivities();
+      const activities = (data.activities || []).map((a: any) => ({
+        id: a.id,
+        type: 'api',
+        action: `${a.method} ${a.endpoint}`,
+        description: `${a.status_code}`,
+        response_time: a.response_time_ms,
+        timestamp: new Date(a.timestamp).toLocaleTimeString(),
+        status: a.status_code < 400 ? 'success' : 'error',
+      })) as ActivityItem[];
       
       if (offset === 0) {
         setRecentActivity(activities);
@@ -206,9 +215,8 @@ export default function AgentDashboard() {
       
       setHasMore(activities.length === 10);
     } catch (error) {
-      // Use mock data if API fails
-      const mockActivities = getMockActivities();
-      setRecentActivity(mockActivities);
+      // Keep empty (do not force mock) to avoid misleading UI
+      setRecentActivity([]);
     }
   };
 
