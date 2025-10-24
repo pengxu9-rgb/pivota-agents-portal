@@ -526,19 +526,21 @@ export default function AgentDashboard() {
                 </div>
               </div>
 
-              {/* Alert */}
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-yellow-800">Query Pattern Alert</p>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      High number of inventory checks without corresponding orders.
-                      Consider caching strategy.
-                    </p>
+              {/* Alert - only show if there's an actual issue */}
+              {queryAnalytics.inventory_checks > queryAnalytics.product_searches * 2 && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-yellow-800">Query Pattern Alert</p>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        High number of inventory checks ({queryAnalytics.inventory_checks}) without corresponding searches.
+                        Consider caching strategy.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -563,9 +565,18 @@ export default function AgentDashboard() {
                   <span className="text-sm font-bold text-gray-900">{conversionFunnel.payment_attempted}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div className="bg-blue-600 h-3 rounded-full" style={{ width: '92%' }}></div>
+                  <div 
+                    className="bg-blue-600 h-3 rounded-full" 
+                    style={{ 
+                      width: `${conversionFunnel.orders_initiated > 0 ? (conversionFunnel.payment_attempted / conversionFunnel.orders_initiated * 100) : 0}%` 
+                    }}
+                  ></div>
                 </div>
-                <span className="text-xs text-gray-500">92%</span>
+                <span className="text-xs text-gray-500">
+                  {conversionFunnel.orders_initiated > 0 
+                    ? `${Math.round(conversionFunnel.payment_attempted / conversionFunnel.orders_initiated * 100)}%` 
+                    : '0%'}
+                </span>
               </div>
 
               <div>
@@ -574,9 +585,18 @@ export default function AgentDashboard() {
                   <span className="text-sm font-bold text-gray-900">{conversionFunnel.orders_completed}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div className="bg-green-600 h-3 rounded-full" style={{ width: '85.4%' }}></div>
+                  <div 
+                    className="bg-green-600 h-3 rounded-full" 
+                    style={{ 
+                      width: `${conversionFunnel.orders_initiated > 0 ? (conversionFunnel.orders_completed / conversionFunnel.orders_initiated * 100) : 0}%` 
+                    }}
+                  ></div>
                 </div>
-                <span className="text-xs text-gray-500">85.4%</span>
+                <span className="text-xs text-gray-500">
+                  {conversionFunnel.orders_initiated > 0 
+                    ? `${Math.round(conversionFunnel.orders_completed / conversionFunnel.orders_initiated * 100)}%` 
+                    : '0%'}
+                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t">
