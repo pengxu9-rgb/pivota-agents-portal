@@ -113,9 +113,23 @@ class AgentApiClient {
     return response.data;
   }
 
-  async getOrders(limit: number = 10) {
-    const response = await this.client.get('/orders', { params: { limit } });
-    return response.data;
+  async getOrders(limit: number = 100) {
+    // Use Agent API v1 endpoint with x-api-key authentication
+    const apiKey = localStorage.getItem('agent_api_key');
+    if (!apiKey) {
+      console.warn('No agent_api_key found, using fallback endpoint');
+      // Fallback to admin endpoint with JWT token
+      const response = await this.client.get('/orders', { params: { limit } });
+      return response.data;
+    }
+    
+    const response = await this.client.get('/agent/v1/orders', {
+      params: { limit },
+      headers: {
+        'x-api-key': apiKey
+      }
+    });
+    return response.data?.orders || response.data || [];
   }
 
   async getProfile() {
