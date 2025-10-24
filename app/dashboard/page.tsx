@@ -196,7 +196,7 @@ export default function AgentDashboard() {
 
   const loadRecentActivity = async (offset = 0) => {
     try {
-      const data = await agentApi.getRecentActivity(10, offset);
+      const data = await agentApi.getRecentActivity(5, offset);
       const activities = (data.activities || []).map((a: any) => ({
         id: a.id,
         type: 'api',
@@ -213,7 +213,7 @@ export default function AgentDashboard() {
         setRecentActivity(prev => [...prev, ...activities]);
       }
       
-      setHasMore(activities.length === 10);
+      setHasMore(activities.length === 5);
     } catch (error) {
       // Keep empty (do not force mock) to avoid misleading UI
       setRecentActivity([]);
@@ -639,7 +639,7 @@ export default function AgentDashboard() {
                 disabled={loadingMore}
                 className="w-full mt-4 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
               >
-                {loadingMore ? '加载中...' : '加载更多'}
+                {loadingMore ? 'Loading...' : 'More'}
               </button>
             )}
           </div>

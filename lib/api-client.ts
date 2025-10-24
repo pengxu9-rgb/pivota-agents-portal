@@ -136,7 +136,7 @@ class AgentApiClient {
   }
 
   async getAgentTimeline(hours: number = 24) {
-    const response = await this.client.get('/agent/metrics/timeline', {
+    const response = await this.client.get('/agent/v1/metrics/timeline', {
       params: { hours }
     });
     return response.data;
