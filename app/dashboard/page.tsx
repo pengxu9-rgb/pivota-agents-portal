@@ -172,16 +172,27 @@ export default function AgentDashboard() {
   const loadMetrics = async () => {
     try {
       const data = await agentApi.getMetricsSummary();
+      
+      // Also get merchant authorizations for "Total Integrations"
+      let merchantCount = 0;
+      try {
+        const merchantsData = await agentApi.getMerchantAuthorizations();
+        merchantCount = merchantsData?.merchants?.length ?? 0;
+      } catch (e) {
+        console.warn('Could not fetch merchant count:', e);
+      }
+      
       // Map backend fields to UI
       setMetrics({
         success_rate: data?.performance?.success_rate_24h ?? 0,
         avg_response_time: data?.performance?.avg_response_time_ms ?? 0,
         calls_today: data?.overview?.requests_last_24h ?? 0,
-        total_integrations: data?.agents?.active_last_24h ?? 0,
-        active_connections: data?.overview?.requests_last_hour ?? 0,
+        total_integrations: merchantCount,  // Number of authorized merchants
+        active_connections: data?.agents?.active_last_24h ?? 0,  // Active agents (for multi-agent setups)
         total_gmv: data?.orders?.revenue_last_24h ?? 0,
       });
     } catch (error) {
+      console.error('Failed to load metrics:', error);
       // No mock fallback – keep zeros to reflect real data only
       setMetrics({
         success_rate: 0,
@@ -235,14 +246,15 @@ export default function AgentDashboard() {
 
       setQueryAnalytics({
         product_searches: queryData?.product_searches ?? 0,
-        product_searches_trend: 'stable',
-        product_searches_change: 0,
+        product_searches_trend: queryData?.product_searches_trend || 'stable',
+        product_searches_change: queryData?.product_searches_change ?? 0,
         inventory_checks: queryData?.inventory_checks ?? 0,
-        inventory_checks_trend: 'stable',
+        inventory_checks_trend: queryData?.inventory_checks_trend || 'stable',
         price_queries: queryData?.price_queries ?? 0,
-        price_queries_trend: 'stable',
+        price_queries_trend: queryData?.price_queries_trend || 'stable',
       });
     } catch (error) {
+      console.error('Failed to load analytics:', error);
       // No mock fallback – show zeros to reflect absence of real data
       setConversionFunnel({
         orders_initiated: 0,
