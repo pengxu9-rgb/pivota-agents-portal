@@ -182,14 +182,14 @@ export default function AgentDashboard() {
         total_gmv: data?.orders?.revenue_last_24h ?? 0,
       });
     } catch (error) {
-      // Use mock data if API fails
+      // No mock fallback – keep zeros to reflect real data only
       setMetrics({
-        success_rate: 98.5,
-        avg_response_time: 142,
-        calls_today: 2100,
-        total_integrations: 47,
-        active_connections: 12,
-        total_gmv: 45280.5,
+        success_rate: 0,
+        avg_response_time: 0,
+        calls_today: 0,
+        total_integrations: 0,
+        active_connections: 0,
+        total_gmv: 0,
       });
     }
   };
@@ -226,37 +226,37 @@ export default function AgentDashboard() {
         agentApi.getConversionFunnel(7),
         agentApi.getQueryAnalytics(),
       ]);
-      
-      setConversionFunnel(funnelData || {
-        orders_initiated: 89,
-        payment_attempted: 82,
-        orders_completed: 76,
+
+      setConversionFunnel({
+        orders_initiated: funnelData?.orders_initiated ?? 0,
+        payment_attempted: funnelData?.payment_attempted ?? 0,
+        orders_completed: funnelData?.orders_completed ?? 0,
       });
-      
-      setQueryAnalytics(queryData || {
-        product_searches: 892,
-        product_searches_trend: 'up',
-        product_searches_change: 12,
-        inventory_checks: 456,
+
+      setQueryAnalytics({
+        product_searches: queryData?.product_searches ?? 0,
+        product_searches_trend: 'stable',
+        product_searches_change: 0,
+        inventory_checks: queryData?.inventory_checks ?? 0,
         inventory_checks_trend: 'stable',
-        price_queries: 234,
+        price_queries: queryData?.price_queries ?? 0,
         price_queries_trend: 'stable',
       });
     } catch (error) {
-      // Use mock data
+      // No mock fallback – show zeros to reflect absence of real data
       setConversionFunnel({
-        orders_initiated: 89,
-        payment_attempted: 82,
-        orders_completed: 76,
+        orders_initiated: 0,
+        payment_attempted: 0,
+        orders_completed: 0,
       });
-      
+
       setQueryAnalytics({
-        product_searches: 892,
-        product_searches_trend: 'up',
-        product_searches_change: 12,
-        inventory_checks: 456,
+        product_searches: 0,
+        product_searches_trend: 'stable',
+        product_searches_change: 0,
+        inventory_checks: 0,
         inventory_checks_trend: 'stable',
-        price_queries: 234,
+        price_queries: 0,
         price_queries_trend: 'stable',
       });
     }
