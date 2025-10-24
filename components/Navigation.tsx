@@ -45,11 +45,6 @@ const navigationItems = [
     icon: Terminal,
   },
   {
-    name: 'Documentation',
-    href: '/developers/docs',
-    icon: BookOpen,
-  },
-  {
     name: 'Wallet',
     href: '/wallet',
     icon: Wallet,
