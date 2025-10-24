@@ -144,7 +144,8 @@ class AgentApiClient {
   // Ensure we have an API key; if not, try to fetch and store one
   private async ensureAgentApiKey(): Promise<string> {
     let apiKey = this.getAgentApiKey() || '';
-    if (apiKey) return apiKey;
+    const isValid = (k: string) => /^ak_live_[0-9a-f]{64}$/.test(k || '');
+    if (isValid(apiKey)) return apiKey;
 
     const agentId = this.getAgentIdOrEmail();
     if (!agentId) throw new Error('Missing agent identity. Please re-login.');
@@ -152,14 +153,26 @@ class AgentApiClient {
     // Try to fetch existing keys (or legacy key) using JWT Authorization
     const res = await this.client.get(`/agents/${encodeURIComponent(agentId)}/api-keys`);
     const data = res.data || {};
-    const fetchedKey = (data.api_keys && data.api_keys[0]?.key) || data.legacy_key || '';
-    if (!fetchedKey) {
-      throw new Error('API key not found. Please create an API key in Integration → API Keys.');
+    const legacy = data.legacy_key || '';
+    const listed = (data.api_keys && data.api_keys[0]?.key) || '';
+
+    if (isValid(legacy)) {
+      if (typeof window !== 'undefined') localStorage.setItem('agent_api_key', legacy);
+      return legacy;
     }
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('agent_api_key', fetchedKey);
+    if (isValid(listed)) {
+      if (typeof window !== 'undefined') localStorage.setItem('agent_api_key', listed);
+      return listed;
     }
-    return fetchedKey;
+
+    // If no valid key (or masked), auto-create a new one
+    const create = await this.client.post(`/agents/${encodeURIComponent(agentId)}/api-keys`);
+    const newKey = create.data?.api_key || create.data?.key || '';
+    if (!isValid(newKey)) {
+      throw new Error('Could not provision a valid API key. Please try again from Integration → API Keys.');
+    }
+    if (typeof window !== 'undefined') localStorage.setItem('agent_api_key', newKey);
+    return newKey;
   }
 
   async getOrders(limit: number = 100) {
