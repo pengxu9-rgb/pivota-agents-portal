@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Store, Search, Eye, BarChart3, CheckCircle } from 'lucide-react';
+import { agentApi } from '@/lib/api-client';
 
 export default function MerchantsManagementPage() {
   const router = useRouter();
@@ -23,13 +24,25 @@ export default function MerchantsManagementPage() {
   const loadMerchants = async () => {
     try {
       setLoading(true);
-      // Mock data - replace with API call
-      setMerchants([
-        { id: '1', name: 'Test Merchant', email: 'merchant@test.com', status: 'active', gmv: 12500, orders: 43 },
-        { id: '2', name: 'Demo Store', email: 'demo@store.com', status: 'active', gmv: 8900, orders: 28 },
-      ]);
+      const data = await agentApi.getMerchantAuthorizations();
+      const merchantList = data?.merchants || [];
+      
+      // Map to UI format with real data
+      const formatted = merchantList.map((m: any) => ({
+        id: m.merchant_id,
+        name: m.business_name || m.name || 'Unknown Merchant',
+        email: m.contact_email || m.email || 'N/A',
+        status: m.status || 'active',
+        gmv: m.total_gmv || 0,
+        orders: m.total_orders || 0,
+        store_url: m.store_url,
+        region: m.region,
+      }));
+      
+      setMerchants(formatted);
     } catch (error) {
       console.error('Failed to load merchants:', error);
+      setMerchants([]);
     } finally {
       setLoading(false);
     }
