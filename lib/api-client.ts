@@ -74,6 +74,7 @@ class AgentApiClient {
       localStorage.removeItem('agent_token');
       localStorage.removeItem('agent_user');
       localStorage.removeItem('agent_id');
+      localStorage.removeItem('agent_api_key');
     }
   }
 
@@ -82,7 +83,14 @@ class AgentApiClient {
     if (response.data.status === 'success' && response.data.token) {
       localStorage.setItem('agent_token', response.data.token);
       localStorage.setItem('agent_user', JSON.stringify(response.data.user));
-      localStorage.setItem('agent_id', response.data.user.agent_id || response.data.user.id);
+      const agentId = response.data.user.agent_id || response.data.user.email || response.data.user.id;
+      localStorage.setItem('agent_id', agentId);
+      
+      // Auto-save agent_api_key if backend returns it (only on login)
+      if (response.data.agent_api_key) {
+        localStorage.setItem('agent_api_key', response.data.agent_api_key);
+        console.log('✅ Agent API key auto-saved');
+      }
     }
     return response.data;
   }
@@ -186,16 +194,16 @@ class AgentApiClient {
   }
 
   async getConversionFunnel(days: number = 7) {
-    const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}/funnel`, {
+    const agentId = this.getAgentIdOrEmail();
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/funnel`, {
       params: { days }
     });
     return response.data;
   }
 
   async getQueryAnalytics() {
-    const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}/query-analytics`);
+    const agentId = this.getAgentIdOrEmail();
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/query-analytics`);
     return response.data;
   }
 }
