@@ -144,32 +144,19 @@ class AgentApiClient {
   // Ensure we have an API key; if not, try to fetch and store one
   private async ensureAgentApiKey(): Promise<string> {
     let apiKey = this.getAgentApiKey() || '';
-    const isValid = (k: string) => /^ak_live_[0-9a-f]{64}$/.test(k || '');
+    const isValid = (k: string) => /^ak_(live|test)_[0-9a-f]{64}$/.test(k || '');
     if (isValid(apiKey)) return apiKey;
 
     const agentId = this.getAgentIdOrEmail();
     if (!agentId) throw new Error('Missing agent identity. Please re-login.');
 
-    // Try to fetch existing keys (or legacy key) using JWT Authorization
-    const res = await this.client.get(`/agents/${encodeURIComponent(agentId)}/api-keys`);
-    const data = res.data || {};
-    const legacy = data.legacy_key || '';
-    const listed = (data.api_keys && data.api_keys[0]?.key) || '';
-
-    if (isValid(legacy)) {
-      if (typeof window !== 'undefined') localStorage.setItem('agent_api_key', legacy);
-      return legacy;
-    }
-    if (isValid(listed)) {
-      if (typeof window !== 'undefined') localStorage.setItem('agent_api_key', listed);
-      return listed;
-    }
-
-    // If no valid key (or masked), auto-create a new one
-    const create = await this.client.post(`/agents/${encodeURIComponent(agentId)}/api-keys`);
-    const newKey = create.data?.api_key || create.data?.key || '';
+    // Always create a fresh live key when none/invalid (GET returns masked keys)
+    const create = await this.client.post(`/agents/${encodeURIComponent(agentId)}/api-keys`, {
+      name: 'Live API Key (auto)'
+    });
+    const newKey = create.data?.key || create.data?.api_key || '';
     if (!isValid(newKey)) {
-      throw new Error('Could not provision a valid API key. Please try again from Integration → API Keys.');
+      throw new Error('Could not provision a valid API key. Please create one in Integration → API Keys.');
     }
     if (typeof window !== 'undefined') localStorage.setItem('agent_api_key', newKey);
     return newKey;
