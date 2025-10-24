@@ -24,7 +24,7 @@ export default function MerchantsManagementPage() {
   const loadMerchants = async () => {
     try {
       setLoading(true);
-      const data = await agentApi.getMerchantAuthorizations(true); // Request stats
+      const data = await agentApi.getMerchantAuthorizations();
       const merchantList = data?.merchants || [];
       
       // Map to UI format with real data

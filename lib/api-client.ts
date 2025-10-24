@@ -201,11 +201,9 @@ class AgentApiClient {
     return response.data;
   }
 
-  async getMerchantAuthorizations(includeStats: boolean = false) {
+  async getMerchantAuthorizations() {
     const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}/merchants`, {
-      params: { include_stats: includeStats }
-    });
+    const response = await this.client.get(`/agents/${agentId}/merchants`);
     return response.data;
   }
 
