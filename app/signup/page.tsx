@@ -12,6 +12,8 @@ export default function AgentSignup() {
   const [formData, setFormData] = useState({
     agent_name: '',
     agent_email: '',
+    password: '',
+    confirmPassword: '',
     company: '',
     description: '',
     phone: ''
@@ -19,24 +21,37 @@ export default function AgentSignup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      alert('❌ Passwords do not match');
+      return;
+    }
+    
+    if (formData.password.length < 8) {
+      alert('❌ Password must be at least 8 characters long');
+      return;
+    }
+    
     setLoading(true);
 
     try {
-      const response = await fetch('https://web-production-fedb.up.railway.app/agent/v1/auth', {
+      const response = await fetch('https://web-production-fedb.up.railway.app/agent/account/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          email: formData.agent_email,
+          password: formData.password,
           agent_name: formData.agent_name,
-          agent_email: formData.agent_email,
-          description: formData.description || `${formData.company || 'Independent'} Agent`
+          company: formData.company || null
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.api_key) {
+      if (response.ok && data.success && data.api_key) {
         setApiKey(data.api_key);
         setStep(2);
       } else {
@@ -200,6 +215,38 @@ export default function AgentSignup() {
                 onChange={(e) => setFormData({ ...formData, agent_email: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="developer@company.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Key className="w-4 h-4 inline mr-2" />
+                Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                required
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="••••••••"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                At least 8 characters with uppercase, lowercase, and numbers
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                required
+                value={formData.confirmPassword}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="••••••••"
               />
             </div>
 

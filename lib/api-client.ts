@@ -79,17 +79,16 @@ class AgentApiClient {
   }
 
   async login(email: string, password: string) {
-    const response = await this.client.post('/auth/signin', { email, password });
-    if (response.data.status === 'success' && response.data.token) {
+    const response = await this.client.post('/agent/account/login', { email, password });
+    if (response.data.success && response.data.token) {
       localStorage.setItem('agent_token', response.data.token);
-      localStorage.setItem('agent_user', JSON.stringify(response.data.user));
-      const agentId = response.data.user.agent_id || response.data.user.email || response.data.user.id;
-      localStorage.setItem('agent_id', agentId);
+      localStorage.setItem('agent_user', JSON.stringify(response.data.agent));
+      localStorage.setItem('agent_id', response.data.agent.agent_id);
       
-      // Auto-save agent_api_key if backend returns it (only on login)
-      if (response.data.agent_api_key) {
-        localStorage.setItem('agent_api_key', response.data.agent_api_key);
-        console.log('✅ Agent API key auto-saved');
+      // Auto-save agent_api_key from login response
+      if (response.data.api_key) {
+        localStorage.setItem('agent_api_key', response.data.api_key);
+        console.log('✅ Agent API key auto-saved from login');
       }
     }
     return response.data;
