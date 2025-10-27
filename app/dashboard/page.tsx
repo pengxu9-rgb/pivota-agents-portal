@@ -103,6 +103,13 @@ export default function AgentDashboard() {
     total_gmv: 0,
   });
   
+  // Order Stats (for accurate calculations)
+  const [orderStats, setOrderStats] = useState({
+    total_orders: 0,
+    paid_orders: 0,
+    total_revenue: 0,
+  });
+  
   // Activity State
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -187,9 +194,16 @@ export default function AgentDashboard() {
         success_rate: data?.performance?.success_rate_24h ?? 0,
         avg_response_time: data?.performance?.avg_response_time_ms ?? 0,
         calls_today: data?.overview?.requests_last_24h ?? 0,
-        total_integrations: merchantCount,  // Number of authorized merchants
+        total_integrations: data?.merchants?.total_count ?? merchantCount,  // Use backend merchant count
         active_connections: data?.agents?.active_last_24h ?? 0,  // Active agents (for multi-agent setups)
-        total_gmv: data?.orders?.revenue_last_24h ?? 0,
+        total_gmv: data?.orders?.total_revenue ?? 0,  // Use all-time revenue for accurate calculations
+      });
+      
+      // Store order stats for dashboard calculations
+      setOrderStats({
+        total_orders: data?.orders?.total_orders ?? 0,
+        paid_orders: data?.orders?.total_paid_orders ?? 0,
+        total_revenue: data?.orders?.total_revenue ?? 0,
       });
     } catch (error) {
       console.error('Failed to load metrics:', error);
@@ -606,8 +620,8 @@ export default function AgentDashboard() {
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-gray-900">
-                    {metrics.calls_today > 0 && metrics.total_gmv > 0
-                      ? `$${(metrics.total_gmv / metrics.calls_today).toFixed(2)}`
+                    {orderStats.paid_orders > 0 
+                      ? `$${(orderStats.total_revenue / orderStats.paid_orders).toFixed(2)}`
                       : '$0.00'}
                   </p>
                   <p className="text-sm text-gray-600">Avg Order Value</p>
