@@ -605,7 +605,11 @@ export default function AgentDashboard() {
                   <p className="text-sm text-gray-600">Total GMV Today</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">$596.32</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {metrics.calls_today > 0 && metrics.total_gmv > 0
+                      ? `$${(metrics.total_gmv / metrics.calls_today).toFixed(2)}`
+                      : '$0.00'}
+                  </p>
                   <p className="text-sm text-gray-600">Avg Order Value</p>
                 </div>
               </div>
