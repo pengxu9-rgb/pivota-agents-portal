@@ -135,8 +135,7 @@ class AgentApiClient {
   }
 
   async getConversionFunnel(days: number = 7) {
-    const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/funnel`, {
+    const response = await this.client.get('/agent/v1/analytics/funnel', {
       params: { days },
       headers: { 'x-no-logout-on-401': 'true' },
     });
@@ -144,8 +143,7 @@ class AgentApiClient {
   }
 
   async getQueryAnalytics() {
-    const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/query-analytics`, {
+    const response = await this.client.get('/agent/v1/analytics/queries', {
       headers: { 'x-no-logout-on-401': 'true' },
     });
     return response.data;
