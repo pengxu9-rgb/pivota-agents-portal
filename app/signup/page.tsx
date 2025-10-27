@@ -253,15 +253,19 @@ export default function AgentSignup() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Building className="w-4 h-4 inline mr-2" />
-                Company/Organization (Optional)
+                Company/Organization <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
+                required
                 value={formData.company}
                 onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="Acme AI Labs"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Your organization or company name
+              </p>
             </div>
 
             <div>
