@@ -500,10 +500,10 @@ export default function AgentDashboard() {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <Search className="w-5 h-5 text-blue-500" />
+                  <ShoppingCart className="w-5 h-5 text-blue-500" />
                   <div>
-                    <p className="font-medium text-gray-900">Product Searches</p>
-                    <p className="text-sm text-gray-600">catalog.search queries</p>
+                    <p className="font-medium text-gray-900">Orders Created</p>
+                    <p className="text-sm text-gray-600">orders.create API calls</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -514,10 +514,10 @@ export default function AgentDashboard() {
 
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <Package className="w-5 h-5 text-purple-500" />
+                  <Eye className="w-5 h-5 text-purple-500" />
                   <div>
-                    <p className="font-medium text-gray-900">Inventory Checks</p>
-                    <p className="text-sm text-gray-600">inventory.check queries</p>
+                    <p className="font-medium text-gray-900">Order Queries</p>
+                    <p className="text-sm text-gray-600">orders.get API calls</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -528,10 +528,10 @@ export default function AgentDashboard() {
 
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <DollarSign className="w-5 h-5 text-yellow-500" />
+                  <CheckCircle className="w-5 h-5 text-green-500" />
                   <div>
-                    <p className="font-medium text-gray-900">Price Queries</p>
-                    <p className="text-sm text-gray-600">pricing.get queries</p>
+                    <p className="font-medium text-gray-900">Payment Confirmations</p>
+                    <p className="text-sm text-gray-600">payment.confirm API calls</p>
                   </div>
                 </div>
                 <div className="text-right">
