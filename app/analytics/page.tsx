@@ -32,9 +32,9 @@ export default function AnalyticsPage() {
         agentApi.getAgentTimeline(24),
       ]);
       setStats({
-        total_api_calls: summary?.overview?.requests_last_7d ?? 0,
-        total_orders: summary?.orders?.count_last_24h ?? 0,
-        total_gmv: summary?.orders?.revenue_last_24h ?? 0,
+        total_api_calls: summary?.overview?.total_requests ?? 0,  // Use total_requests instead of non-existent requests_last_7d
+        total_orders: summary?.orders?.total_orders ?? 0,  // Use all-time total_orders
+        total_gmv: summary?.orders?.total_revenue ?? 0,  // Use all-time total_revenue
         success_rate: summary?.performance?.success_rate_24h ?? 0,
         endpoint_usage: summary?.top_endpoints?.map((e: any) => ({ path: e.endpoint, method: 'GET', count: e.count })) ?? [],
       });
