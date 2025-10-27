@@ -33,11 +33,14 @@ class AgentApiClient {
       },
       (error) => {
         console.error(`❌ [Agent API] ${error.response?.status} ${error.config?.url}`);
-        const suppressLogout = (error.config?.headers as any)?.['x-no-logout-on-401'] === 'true';
-        if (error.response?.status === 401 && typeof window !== 'undefined' && !suppressLogout) {
+        const forceLogout = (error.config?.headers as any)?.['x-force-logout-on-401'] === 'true';
+        if (error.response?.status === 401 && typeof window !== 'undefined' && forceLogout) {
+          console.warn('⚠️ Forcing logout due to 401 on auth-critical request');
           this.clearAuth();
           window.location.href = '/login';
+          return; // stop
         }
+        // Suppress logout for non-critical 401s; pages handle errors locally
         return Promise.reject(error);
       }
     );
@@ -110,19 +113,23 @@ class AgentApiClient {
   async getStats(days: number = 30) {
     const response = await this.client.get('/agent/metrics/summary', {
       params: { days },
+      headers: { 'x-no-logout-on-401': 'true' },
     });
     return response.data;
   }
 
   async getAgentHealth() {
-    const response = await this.client.get('/agent/health');
+    const response = await this.client.get('/agent/health', {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
   async getMerchantAuthorizations(includeStats: boolean = false) {
     const agentId = localStorage.getItem('agent_id');
     const response = await this.client.get(`/agents/${agentId}/merchants`, {
-      params: { include_stats: includeStats }
+      params: { include_stats: includeStats },
+      headers: { 'x-no-logout-on-401': 'true' },
     });
     return response.data;
   }
@@ -130,14 +137,17 @@ class AgentApiClient {
   async getConversionFunnel(days: number = 7) {
     const agentId = this.getAgentIdOrEmail();
     const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/funnel`, {
-      params: { days }
+      params: { days },
+      headers: { 'x-no-logout-on-401': 'true' },
     });
     return response.data;
   }
 
   async getQueryAnalytics() {
     const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/query-analytics`);
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/query-analytics`, {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
@@ -218,7 +228,9 @@ class AgentApiClient {
 
   async getProfile() {
     const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}`);
+    const response = await this.client.get(`/agents/${agentId}`, {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
@@ -236,41 +248,57 @@ class AgentApiClient {
 
   // New methods for Agent Dashboard
   async getMetricsSummary() {
-    const response = await this.client.get('/agent/metrics/summary');
+    const response = await this.client.get('/agent/metrics/summary', {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
   async getRecentActivity(limit: number = 5) {
-    const response = await this.client.get('/agent/metrics/recent', { params: { limit } });
+    const response = await this.client.get('/agent/metrics/recent', {
+      params: { limit },
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
   async getAgentTimeline(days: number = 7) {
-    const response = await this.client.get('/agent/v1/metrics/timeline', { params: { days } });
+    const response = await this.client.get('/agent/v1/metrics/timeline', {
+      params: { days },
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
   async getMerchantAuthorizationsLegacy() {
     const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}/merchants`);
+    const response = await this.client.get(`/agents/${agentId}/merchants`, {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
   async getApiKeys() {
     const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/api-keys`);
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId || '')}/api-keys`, {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
   async createApiKey() {
     const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.post(`/agents/${encodeURIComponent(agentId || '')}/api-keys`);
+    const response = await this.client.post(`/agents/${encodeURIComponent(agentId || '')}/api-keys`, {}, {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
   async revokeApiKey(keyId: string) {
     const agentId = this.getAgentIdOrEmail();
-    const response = await this.client.delete(`/agents/${encodeURIComponent(agentId || '')}/api-keys/${encodeURIComponent(keyId)}`);
+    const response = await this.client.delete(`/agents/${encodeURIComponent(agentId || '')}/api-keys/${encodeURIComponent(keyId)}`, {
+      headers: { 'x-no-logout-on-401': 'true' },
+    });
     return response.data;
   }
 
