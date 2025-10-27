@@ -126,8 +126,7 @@ class AgentApiClient {
   }
 
   async getMerchantAuthorizations(includeStats: boolean = false) {
-    const agentId = localStorage.getItem('agent_id');
-    const response = await this.client.get(`/agents/${agentId}/merchants`, {
+    const response = await this.client.get('/agent/v1/merchants', {
       params: { include_stats: includeStats },
       headers: { 'x-no-logout-on-401': 'true' },
     });
