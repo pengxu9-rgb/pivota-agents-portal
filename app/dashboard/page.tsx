@@ -221,7 +221,7 @@ export default function AgentDashboard() {
 
   const loadRecentActivity = async (offset = 0) => {
     try {
-      const data = await agentApi.getRecentActivity(5, offset);
+      const data = await agentApi.getRecentActivity(5);
       const activities = (data.activities || []).map((a: any) => ({
         id: a.id,
         type: 'api',
