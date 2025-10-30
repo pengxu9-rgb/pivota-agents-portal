@@ -10,7 +10,6 @@ import {
   ShoppingCart, 
   Wallet, 
   Settings,
-  BookOpen,
   Terminal,
   Zap,
   LogOut,
@@ -59,7 +58,6 @@ const navigationItems = [
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
-  
   // Skip navigation on login/signup pages
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
     return null;

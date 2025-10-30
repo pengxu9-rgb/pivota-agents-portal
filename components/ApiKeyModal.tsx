@@ -95,7 +95,7 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
 
     try {
       setCreating(true);
-      const data = await agentApi.createApiKey(newKeyName);
+      const data = await agentApi.createApiKey();
       
       if (data.status === 'success' && data.key) {
         const newApiKey: ApiKey = {
