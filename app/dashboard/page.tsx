@@ -616,7 +616,7 @@ export default function AgentDashboard() {
               <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-gray-900">{formatAmount(metrics.total_gmv)}</p>
-                  <p className="text-sm text-gray-600">Total GMV Today</p>
+                  <p className="text-sm text-gray-600">Total GMV (All Time)</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-gray-900">
