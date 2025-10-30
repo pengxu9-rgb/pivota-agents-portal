@@ -56,7 +56,7 @@ export default function DebugOrdersPage() {
     try {
       const data = await agentApi.getOrders(100);
       console.log('Client API response:', data);
-      setOrders(Array.isArray(data) ? data : data?.orders || []);
+      setOrders(data || []);
     } catch (err: any) {
       setError(`Client Error: ${err.message}`);
     } finally {

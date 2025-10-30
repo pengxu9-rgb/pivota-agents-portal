@@ -178,7 +178,7 @@ class AgentApiClient {
 
   // Ensure we have an API key; if not, try to fetch and store one
   private async ensureAgentApiKey(): Promise<string> {
-    let apiKey = this.getAgentApiKey() || '';
+    const apiKey = this.getAgentApiKey() || '';
     const isValid = (k: string) => /^ak_(live|test)_[0-9a-f]{64}$/.test(k || '');
     if (isValid(apiKey)) return apiKey;
 
