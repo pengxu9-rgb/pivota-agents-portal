@@ -101,18 +101,7 @@ export default function AgentLoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 p-4 bg-purple-50 rounded-lg">
-            <p className="text-sm text-purple-900 font-medium mb-2">🧪 Test Account</p>
-            <button
-              onClick={() => {
-                setEmail('agent@test.com');
-                setPassword('Admin123!');
-              }}
-              className="text-sm text-purple-600 hover:text-purple-800 underline"
-            >
-              Click to fill test credentials
-            </button>
-          </div>
+          {/* Test account section removed for production */}
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
