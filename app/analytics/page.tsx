@@ -107,7 +107,10 @@ export default function AnalyticsPage() {
                 <DollarSign className="w-6 h-6 text-green-600" />
               </div>
               <h3 className="text-2xl font-bold text-gray-900">
-                ${((stats?.total_gmv || 0) / 1000).toFixed(1)}k
+                {(stats?.total_gmv || 0) >= 1000 
+                  ? `$${((stats?.total_gmv || 0) / 1000).toFixed(1)}k`
+                  : `$${(stats?.total_gmv || 0).toFixed(2)}`
+                }
               </h3>
               <p className="text-sm text-gray-600">GMV Generated</p>
             </div>
