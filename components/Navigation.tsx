@@ -77,7 +77,31 @@ const navigationItems = [
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
-  // Skip navigation on login/signup pages
+  
+  // [Phase 6.2] Get agent_type from API - MUST be before early return
+  const [agentType, setAgentType] = React.useState<'basic' | 'premium' | null>(null);
+  
+  React.useEffect(() => {
+    // Skip if on login/signup pages
+    if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
+      return;
+    }
+    
+    const loadAgentType = async () => {
+      const agentId = localStorage.getItem('agent_id');
+      if (agentId) {
+        try {
+          const response = await agentApi.getAgentDetails(agentId);
+          setAgentType(response?.agent?.agent_type || 'basic');
+        } catch (err) {
+          console.warn('Could not load agent type:', err);
+        }
+      }
+    };
+    loadAgentType();
+  }, [pathname]);
+  
+  // Skip navigation on login/signup pages - AFTER hooks
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
     return null;
   }
@@ -108,24 +132,6 @@ export default function Navigation() {
   };
   
   const user = getUserInfo();
-  
-  // [Phase 6.2] Get agent_type from API
-  const [agentType, setAgentType] = React.useState<'basic' | 'premium' | null>(null);
-  
-  React.useEffect(() => {
-    const loadAgentType = async () => {
-      const agentId = localStorage.getItem('agent_id');
-      if (agentId) {
-        try {
-          const response = await agentApi.getAgentDetails(agentId);
-          setAgentType(response?.agent?.agent_type || 'basic');
-        } catch (err) {
-          console.warn('Could not load agent type:', err);
-        }
-      }
-    };
-    loadAgentType();
-  }, []);
   
   return (
     <div className="flex h-screen">
