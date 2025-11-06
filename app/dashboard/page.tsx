@@ -267,9 +267,15 @@ export default function AgentDashboard() {
       }
       
       setHasMore(activities.length === 5);
-    } catch (error) {
-      // Keep empty (do not force mock) to avoid misleading UI
-      setRecentActivity([]);
+    } catch (error: any) {
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        console.warn('Recent activity request timed out, keeping previous data');
+      } else {
+        console.error('Failed to load recent activity:', error);
+      }
+      if (offset === 0) {
+        setRecentActivity([]);
+      }
     }
   };
 
@@ -450,15 +456,6 @@ export default function AgentDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              {/* [Phase 6.2] Premium Badge */}
-              {agentInfo?.agent_type === 'premium' && (
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-bold">⭐ PREMIUM</span>
-                  </div>
-                  <p className="text-xs opacity-90 mt-0.5">Higher commission rates</p>
-                </div>
-              )}
               <button
                 onClick={() => setShowApiKeyModal(true)}
                 className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
