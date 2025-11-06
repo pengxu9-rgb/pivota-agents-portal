@@ -89,13 +89,21 @@ export default function Navigation() {
     
     const loadAgentType = async () => {
       const agentId = localStorage.getItem('agent_id');
-      if (agentId) {
-        try {
-          const response = await agentApi.getAgentDetails(agentId);
-          setAgentType(response?.agent?.agent_type || 'basic');
-        } catch (err) {
-          console.warn('Could not load agent type:', err);
-        }
+      console.log('[Navigation] Loading agent type for:', agentId);
+      
+      if (!agentId) {
+        console.warn('[Navigation] No agent_id in localStorage');
+        return;
+      }
+      
+      try {
+        const response = await agentApi.getAgentDetails(agentId);
+        console.log('[Navigation] API response:', response);
+        const type = response?.agent?.agent_type || 'basic';
+        console.log('[Navigation] Setting agentType to:', type);
+        setAgentType(type);
+      } catch (err: any) {
+        console.error('[Navigation] Could not load agent type:', err?.response?.status, err?.message);
       }
     };
     loadAgentType();
