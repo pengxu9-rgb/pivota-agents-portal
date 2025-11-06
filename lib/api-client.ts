@@ -368,11 +368,37 @@ class AgentApiClient {
   }
 
   async getApiKeys() {
-    // TODO: Implement when backend ready
-    return {
-      status: 'success',
-      keys: [],
-    };
+    // Get agent's API key from agents table
+    const agentId = localStorage.getItem('agent_id');
+    if (!agentId) {
+      return { status: 'success', keys: [] };
+    }
+    
+    try {
+      // First try to get from agent details (includes primary API key)
+      const response = await this.client.get(`/agents/${agentId}`);
+      const agent = response.data?.agent;
+      
+      if (agent && agent.api_key) {
+        return {
+          status: 'success',
+          keys: [{
+            key_id: 'primary',
+            key: agent.api_key,  // Full key from backend
+            key_prefix: agent.api_key.substring(0, 20),
+            name: 'Primary API Key',
+            is_active: true,
+            created_at: agent.created_at,
+            scopes: ['all']
+          }]
+        };
+      }
+      
+      return { status: 'success', keys: [] };
+    } catch (error) {
+      console.error('Failed to get API keys:', error);
+      return { status: 'success', keys: [] };
+    }
   }
 
   async createApiKey() {
