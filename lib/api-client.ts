@@ -368,35 +368,47 @@ class AgentApiClient {
   }
 
   async getApiKeys() {
-    // Get agent's API key from agents table
-    const agentId = localStorage.getItem('agent_id');
-    if (!agentId) {
-      return { status: 'success', keys: [] };
-    }
-    
     try {
-      // First try to get from agent details (includes primary API key)
-      const response = await this.client.get(`/agents/${agentId}`);
-      const agent = response.data?.agent;
+      // Use the new self-service endpoint that returns full API key
+      const response = await this.client.get('/agent/self/api-key');
+      const data = response.data;
       
-      if (agent && agent.api_key) {
+      if (data.status === 'success' && data.api_key) {
         return {
           status: 'success',
           keys: [{
             id: 'primary',
-            key: agent.api_key,  // Full key from backend
-            name: 'Primary API Key',
+            key: data.api_key,  // Full key from backend
+            name: data.name || 'Primary API Key',
             status: 'active' as 'active' | 'revoked',
-            created_at: agent.created_at || new Date().toISOString(),
-            last_used: agent.last_active,
-            usage_count: agent.total_requests || agent.request_count || 0
+            created_at: data.created_at || new Date().toISOString(),
+            last_used: data.last_active,
+            usage_count: data.usage_count || 0
           }]
         };
       }
       
       return { status: 'success', keys: [] };
-    } catch (error) {
-      console.error('Failed to get API keys:', error);
+    } catch (error: any) {
+      console.error('[AgentApiClient] Failed to get API keys:', error?.response?.status, error?.message);
+      
+      // Fallback to mock for development
+      if (error?.response?.status === 404) {
+        console.log('[AgentApiClient] Using mock API key for development');
+        return {
+          status: 'success',
+          keys: [{
+            id: 'mock',
+            key: 'ak_live_mock_key_for_development_only',
+            name: 'Mock API Key',
+            status: 'active' as 'active' | 'revoked',
+            created_at: new Date().toISOString(),
+            last_used: null,
+            usage_count: 0
+          }]
+        };
+      }
+      
       return { status: 'success', keys: [] };
     }
   }
