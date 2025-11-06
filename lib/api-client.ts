@@ -383,13 +383,13 @@ class AgentApiClient {
         return {
           status: 'success',
           keys: [{
-            key_id: 'primary',
+            id: 'primary',
             key: agent.api_key,  // Full key from backend
-            key_prefix: agent.api_key.substring(0, 20),
             name: 'Primary API Key',
-            is_active: true,
-            created_at: agent.created_at,
-            scopes: ['all']
+            status: 'active' as 'active' | 'revoked',
+            created_at: agent.created_at || new Date().toISOString(),
+            last_used: agent.last_active,
+            usage_count: agent.total_requests || agent.request_count || 0
           }]
         };
       }
