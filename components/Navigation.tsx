@@ -164,6 +164,10 @@ export default function Navigation() {
                       ⭐ PRO
                     </span>
                   )}
+                  {/* DEBUG: Show agentType value */}
+                  <span className="text-[10px] text-gray-400 font-mono">
+                    [{agentType || 'null'}]
+                  </span>
                 </div>
                 <p className="text-xs text-gray-500 truncate">{user.email}</p>
               </div>
