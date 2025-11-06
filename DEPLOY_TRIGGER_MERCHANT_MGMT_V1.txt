@@ -1,0 +1,14 @@
+Deploy Trigger: Phase 6 Merchant Management Complete
+
+Timestamp: 2025-11-04 21:35:00 PST
+Purpose: Force Vercel deployment with new merchant management features
+
+Changes:
+- Added merchant detail pages at /merchants/[id]
+- Created CommissionMatchPanel component
+- Enhanced merchant list page with proper navigation
+- Added comprehensive tabs: Overview, Commission, Routing, Settlement
+- Integrated real merchant data from API
+
+This file forces a new deployment.
+

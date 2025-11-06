@@ -1,0 +1,10 @@
+[Phase 6.2] Agent Portal - Premium Badge Display
+
+UI Enhancement:
+- Added Premium badge to dashboard header
+- Shows '⭐ PREMIUM' with gradient background (purple-pink)
+- Message: 'Higher commission rates'
+- Only visible when agent_type === 'premium'
+- Added agent_type to AgentInfo interface
+
+Premium agents will see their tier status prominently displayed.

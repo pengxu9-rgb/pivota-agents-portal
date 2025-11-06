@@ -1,0 +1,94 @@
+0000000000000000000000000000000000000000 948d37aaf7fd84eaf2b2c5499b55fb453d67607b Peng@chydan <pengchydan@Pengchydans-MacBook-Pro.local> 1760797797 +0800	commit (initial): Initial commit: Agent Portal with login, signup, dashboard, and MCP/API integration
+948d37aaf7fd84eaf2b2c5499b55fb453d67607b 9f8968042c999919129757ed7102f40c4db8eed2 pengxu9-rgb <peng@chydan.com> 1760802240 +0800	commit: Add Analytics page for agent dashboard
+9f8968042c999919129757ed7102f40c4db8eed2 a436325bcf17c3fae0612b03a51a42cb7b37f121 pengxu9-rgb <peng@chydan.com> 1760805374 +0800	commit: Add fully functional Agent Dashboard with complete backend API integration
+a436325bcf17c3fae0612b03a51a42cb7b37f121 2d98b175182a7f36ba3432e8381108fd3867096c pengxu9-rgb <peng@chydan.com> 1760805479 +0800	commit: Fix Vercel build: remove --turbopack flag
+2d98b175182a7f36ba3432e8381108fd3867096c 98b7692780332feafcdc99fcc35cfa06188ae66d pengxu9-rgb <peng@chydan.com> 1760805759 +0800	commit: Add comprehensive Agent Onboarding flow with 8-step technical integration process
+98b7692780332feafcdc99fcc35cfa06188ae66d 7ca94f7251ba3814bcaca691551fec55274100e8 pengxu9-rgb <peng@chydan.com> 1760806475 +0800	commit: Fix agent onboarding - use /auth/register endpoint and add graceful fallbacks for all test steps
+7ca94f7251ba3814bcaca691551fec55274100e8 b056b9dae50a5aeb2f9a152477ff3f0f87af47fd pengxu9-rgb <peng@chydan.com> 1760807877 +0800	commit: Fix 404 error: update auth endpoints from /auth to /api/auth
+b056b9dae50a5aeb2f9a152477ff3f0f87af47fd 8a23a5e66087e8d38ab50c727e3da7512ca48987 pengxu9-rgb <peng@chydan.com> 1760808085 +0800	commit: Fix login authentication: use access_token field and add API URL fallback
+8a23a5e66087e8d38ab50c727e3da7512ca48987 21b8bc35b67e5e8f06e5db2b642b501ba6ed6532 pengxu9-rgb <peng@chydan.com> 1761136501 +0800	commit: feat(docs): add Developers Docs pages (/developers/docs, /developers/quickstart) and nav link in header
+21b8bc35b67e5e8f06e5db2b642b501ba6ed6532 b233c81e0f03b6c952dc997213fddfd3630d7873 pengxu9-rgb <peng@chydan.com> 1761136678 +0800	rebase (finish): refs/heads/main onto d285ede81f258f16b470847d0a04dc9302e70b59
+b233c81e0f03b6c952dc997213fddfd3630d7873 576e7fe5b1f3c6a2d6ac014c7265cb14d8d677b9 pengxu9-rgb <peng@chydan.com> 1761220682 +0800	commit: feat: Complete Agent Dashboard redesign with real-time metrics, API key management, and modern UI
+576e7fe5b1f3c6a2d6ac014c7265cb14d8d677b9 0d6888192851a53a04831c52ce57f3a56f275c33 pengxu9-rgb <peng@chydan.com> 1761221088 +0800	commit: fix: Improve API key creation with better error handling and mock fallback
+0d6888192851a53a04831c52ce57f3a56f275c33 7984f4e1c6e6e0077ce518555d145c310043fce2 pengxu9-rgb <peng@chydan.com> 1761224453 +0800	commit: fix(frontend): API keys endpoints use agent_id or email as fallback
+7984f4e1c6e6e0077ce518555d145c310043fce2 6cc83cfec24c148dca238627a95c4e2249f1bae3 pengxu9-rgb <peng@chydan.com> 1761228383 +0800	commit: feat: redesign navigation as left sidebar with user info and logout
+6cc83cfec24c148dca238627a95c4e2249f1bae3 c7d4fca2fcb106b2440307297a9823966e817492 pengxu9-rgb <peng@chydan.com> 1761228578 +0800	commit: feat: comprehensive integration page with SDK, REST API, and MCP guides
+c7d4fca2fcb106b2440307297a9823966e817492 6f1d6fa9aba22e0e76807bb656d2978b4920d448 pengxu9-rgb <peng@chydan.com> 1761229966 +0800	commit: chore: trigger Vercel redeploy
+6f1d6fa9aba22e0e76807bb656d2978b4920d448 2a9c069f0e9c83ac905f977a89079a4b7aa361c7 pengxu9-rgb <peng@chydan.com> 1761230045 +0800	commit: feat: update dashboard quick links to integration tabs (MCP/API/SDK)
+2a9c069f0e9c83ac905f977a89079a4b7aa361c7 b4998b9221267898761ad03ee26be6dc10edc9b2 pengxu9-rgb <peng@chydan.com> 1761230308 +0800	commit: fix: move code examples to constants to avoid JSX parsing errors
+b4998b9221267898761ad03ee26be6dc10edc9b2 8b2343f8a595b77cf3861e2defcfa46581984905 pengxu9-rgb <peng@chydan.com> 1761230566 +0800	commit: fix: escape all curly braces in code examples to prevent JSX parsing
+8b2343f8a595b77cf3861e2defcfa46581984905 55ee98882e2cfcb0266b8830e7b1e4872aa23064 pengxu9-rgb <peng@chydan.com> 1761231012 +0800	commit: fix: use correct SDK class name PivotaAgentClient
+55ee98882e2cfcb0266b8830e7b1e4872aa23064 972e71884e036222be8ddc2a382b74607cf9f9b5 pengxu9-rgb <peng@chydan.com> 1761269899 +0800	commit: refactor: remove Documentation nav item (content is in Integration page)
+972e71884e036222be8ddc2a382b74607cf9f9b5 64a60f6d8a567586fa9ffae23656ac66103ed631 pengxu9-rgb <peng@chydan.com> 1761291127 +0800	commit: feat(dashboard): wire to /agent/v1/metrics; add x-api-key header; map fields; add polling; remove mock fallbacks
+64a60f6d8a567586fa9ffae23656ac66103ed631 f432bd1508d3cb809bd18b9c74845682d16b616f pengxu9-rgb <peng@chydan.com> 1761291551 +0800	commit: feat(dashboard): show 5 recent items with 'More'; English labels; use v1 metrics timeline
+f432bd1508d3cb809bd18b9c74845682d16b616f dca53898bc2cc8a7b3c026c267720e1efea716e9 pengxu9-rgb <peng@chydan.com> 1761292222 +0800	commit: chore: remove mock fallbacks; dashboard now only shows real data
+dca53898bc2cc8a7b3c026c267720e1efea716e9 00e3f803f2c24a53313f303c63e49ff7393b02b5 pengxu9-rgb <peng@chydan.com> 1761293296 +0800	commit: feat(auth): auto-save agent_api_key from signin response; use getAgentIdOrEmail for analytics
+00e3f803f2c24a53313f303c63e49ff7393b02b5 41a83c0c8010bf74f7afe33d102856c1a07199b4 pengxu9-rgb <peng@chydan.com> 1761293807 +0800	commit: fix(dashboard): correct metrics mapping; fetch merchant count for integrations; map query analytics trends
+41a83c0c8010bf74f7afe33d102856c1a07199b4 d0bf1269454925dc4baa783168717944a6d5d913 pengxu9-rgb <peng@chydan.com> 1761295104 +0800	commit: fix(dashboard): dynamic funnel progress bars; conditional alert display
+d0bf1269454925dc4baa783168717944a6d5d913 fff8266b74d7f64709a5c5be913d793ad49c0630 pengxu9-rgb <peng@chydan.com> 1761306582 +0800	commit: feat(merchants): fetch real merchant data with GMV and order stats from API
+fff8266b74d7f64709a5c5be913d793ad49c0630 de6f5a999ad0031b1a82d05d7093b64a400dbfa1 pengxu9-rgb <peng@chydan.com> 1761309005 +0800	commit: fix: update getOrders to use /agent/v1/orders endpoint with x-api-key
+de6f5a999ad0031b1a82d05d7093b64a400dbfa1 18663233ad8a2333a442a3c7321d9e94ab82c24c pengxu9-rgb <peng@chydan.com> 1761309429 +0800	commit: debug: add debug page for orders API testing
+18663233ad8a2333a442a3c7321d9e94ab82c24c 9ec6076fc3036a4879813241ace4884269f2e9f7 pengxu9-rgb <peng@chydan.com> 1761309829 +0800	commit: feat: connect Orders page action buttons to backend APIs
+9ec6076fc3036a4879813241ace4884269f2e9f7 bd06dd0f78ddfd3d9f583a3a37e130a23f658763 pengxu9-rgb <peng@chydan.com> 1761310134 +0800	commit: fix: require agent_api_key for getOrders, remove fallback
+bd06dd0f78ddfd3d9f583a3a37e130a23f658763 27d3d81d1b1dc74df1b9602cbfcb6a9625ead574 pengxu9-rgb <peng@chydan.com> 1761310407 +0800	commit: perf: only request merchant stats on Merchants page
+27d3d81d1b1dc74df1b9602cbfcb6a9625ead574 be60d5ee60bc3d3482f84eefbbd914764a12c1a8 pengxu9-rgb <peng@chydan.com> 1761310803 +0800	revert: Revert "perf: only request merchant stats on Merchants page"
+be60d5ee60bc3d3482f84eefbbd914764a12c1a8 afd8d012ab4b041f78a589ec7a6900447516dc84 pengxu9-rgb <peng@chydan.com> 1761311338 +0800	commit: fix(orders): stabilize Orders page
+afd8d012ab4b041f78a589ec7a6900447516dc84 f2b27f72dbf282cd1bc5f44d28f274f29693270f pengxu9-rgb <peng@chydan.com> 1761311714 +0800	commit: fix(orders): auto-provision agent_api_key if missing or masked
+f2b27f72dbf282cd1bc5f44d28f274f29693270f bcc4f67f2c21f1967d4c7f2ed2946e697e0b0488 pengxu9-rgb <peng@chydan.com> 1761311926 +0800	commit: fix(orders): avoid 422 by POSTing name when auto-creating API key
+bcc4f67f2c21f1967d4c7f2ed2946e697e0b0488 9e1339ee00a515d169395e21387772eda4b13770 pengxu9-rgb <peng@chydan.com> 1761312148 +0800	commit: fix(auth): prevent auto-logout during bootstrap requests
+9e1339ee00a515d169395e21387772eda4b13770 1415bac8d4279fca6d36f6585277dc5afe5df20a pengxu9-rgb <peng@chydan.com> 1761313074 +0800	commit: feat(orders): wire Orders action buttons to agent endpoints
+1415bac8d4279fca6d36f6585277dc5afe5df20a 1b3e66045c146f5de32e509862de5ef46f8f9877 pengxu9-rgb <peng@chydan.com> 1761313924 +0800	commit: feat(orders): add pagination UI (30 per page) with Previous/Next buttons
+1b3e66045c146f5de32e509862de5ef46f8f9877 6e825529660ef677c47541fc55b40fdda09a5c7a pengxu9-rgb <peng@chydan.com> 1761314107 +0800	commit: feat(orders): add full pagination UI with page numbers
+6e825529660ef677c47541fc55b40fdda09a5c7a 65bf4e101dc056b355923984a93d1f05eaa600d7 pengxu9-rgb <peng@chydan.com> 1761315573 +0800	commit: chore: trigger Vercel deploy for Orders pagination
+65bf4e101dc056b355923984a93d1f05eaa600d7 ac16cce06d73393aa41d05453c39a79177cf06f5 pengxu9-rgb <peng@chydan.com> 1761315739 +0800	commit: revert(pagination-ui): simplify to Previous/Next with current page number
+ac16cce06d73393aa41d05453c39a79177cf06f5 df20a9cf601d1f6d6c993098a1922cab88d023f9 pengxu9-rgb <peng@chydan.com> 1761315887 +0800	commit: revert: remove pagination, show all orders on one page
+df20a9cf601d1f6d6c993098a1922cab88d023f9 1415bac8d4279fca6d36f6585277dc5afe5df20a pengxu9-rgb <peng@chydan.com> 1761315898 +0800	reset: moving to 1415bac
+1415bac8d4279fca6d36f6585277dc5afe5df20a 7cd25efa468c9122cc61654ca15b917bb24fdcef pengxu9-rgb <peng@chydan.com> 1761316022 +0800	commit: chore: trigger deploy after pagination revert
+7cd25efa468c9122cc61654ca15b917bb24fdcef 7f160c24c02faf3a5dc58492b5a7d259cb4850e4 pengxu9-rgb <peng@chydan.com> 1761444503 +0800	commit: feat: update Agent signup/login to use account system with passwords
+7f160c24c02faf3a5dc58492b5a7d259cb4850e4 7a1c97a2ce7995ad6103d4f47d27dfc7b9a16f67 pengxu9-rgb <peng@chydan.com> 1761551225 +0800	commit: feat: add /onboarding route that redirects to /signup
+7a1c97a2ce7995ad6103d4f47d27dfc7b9a16f67 58b99aebf9699a866c7412215468981ada2209a4 pengxu9-rgb <peng@chydan.com> 1761558039 +0800	commit: fix: make Company required and ensure Description is optional
+58b99aebf9699a866c7412215468981ada2209a4 c19f6e5b95dd32d893323e4838231cce01adcfec pengxu9-rgb <peng@chydan.com> 1761571259 +0800	commit: fix: never auto-logout on 401 unless explicitly forced via header; prevents login flash-out on dashboard
+c19f6e5b95dd32d893323e4838231cce01adcfec d9e0a85dad5cdc9f8035e84c660cc55422e614b5 pengxu9-rgb <peng@chydan.com> 1761573973 +0800	commit: fix(dashboard): AOV now computed from agent-scoped revenue/orders (shows --.00 when no orders)
+d9e0a85dad5cdc9f8035e84c660cc55422e614b5 9c3d47eb232f4f90e60839ec2bb9b23aebf1796d pengxu9-rgb <peng@chydan.com> 1761576635 +0800	commit: fix: update analytics API calls to use agent-scoped endpoints /agent/v1/analytics/{funnel,queries}
+9c3d47eb232f4f90e60839ec2bb9b23aebf1796d 3d57be3266d776213049c00658c603c45111c526 pengxu9-rgb <peng@chydan.com> 1761581307 +0800	commit: fix: correct Avg Order Value calculation in Agent Dashboard
+3d57be3266d776213049c00658c603c45111c526 858831481efe2ca011f1bf8675a66a12af375230 pengxu9-rgb <peng@chydan.com> 1761582055 +0800	commit: fix: update Query Analytics labels to match actual data
+858831481efe2ca011f1bf8675a66a12af375230 a9e8f8e7728242cffd3c840e72c97c0c1557e2e0 pengxu9-rgb <peng@chydan.com> 1761582282 +0800	commit: fix: use correct metrics fields in Analytics page
+a9e8f8e7728242cffd3c840e72c97c0c1557e2e0 7911d6e9ebb3dec13af4f0a7ae0ec272253d58c3 pengxu9-rgb <peng@chydan.com> 1761583090 +0800	commit: fix: update getMerchantAuthorizations to use /agent/v1/merchants endpoint
+0000000000000000000000000000000000000000 879d98c2e7f58b45525997e7280a40c3d88b2b9c pengxu9-rgb <peng@chydan.com> 1761886598 +0800	commit (initial): security: remove test account credentials from login page
+879d98c2e7f58b45525997e7280a40c3d88b2b9c 197bc547ad027241248a3200204e2e5f2693296f pengxu9-rgb <peng@chydan.com> 1762143128 +0800	reset: moving to origin/main
+197bc547ad027241248a3200204e2e5f2693296f 71de95e924633ad94a13dcf4c003696e218ba627 pengxu9-rgb <peng@chydan.com> 1762143160 +0800	commit: [Phase 5.5b] Agent Dashboard Revenue page (placeholder)
+71de95e924633ad94a13dcf4c003696e218ba627 242602ec5b66846c21e32a1c762172dfecc726ca pengxu9-rgb <peng@chydan.com> 1762152424 +0800	commit: [Phase 5.6b] Agent Portal Revenue Dashboard + API Client
+242602ec5b66846c21e32a1c762172dfecc726ca 40fee0e4365b39ed48a16fee4265faaf89392110 pengxu9-rgb <peng@chydan.com> 1762152691 +0800	commit: [Phase 5.6] Fix: Add missing API client methods
+40fee0e4365b39ed48a16fee4265faaf89392110 00e0c69559d18a55aa40b4ad6c7223eb53b2081e pengxu9-rgb <peng@chydan.com> 1762152887 +0800	commit: [Phase 5.6] Fix: Correct API client data structure
+00e0c69559d18a55aa40b4ad6c7223eb53b2081e 2e3c3d1685000e5106807151cef37e8f9793a4c8 pengxu9-rgb <peng@chydan.com> 1762153026 +0800	commit: [Phase 5.6] Fix: Add all required fields to API client placeholders
+2e3c3d1685000e5106807151cef37e8f9793a4c8 d1d4343a6fae96f36eab34e2ae39b78f093731a3 pengxu9-rgb <peng@chydan.com> 1762153136 +0800	commit: [Phase 5.6] Fix: Add all dashboard API methods
+d1d4343a6fae96f36eab34e2ae39b78f093731a3 7d1b0959823937a6c5c1d6c8ad220958d1032159 pengxu9-rgb <peng@chydan.com> 1762157065 +0800	commit: [Phase 5.6] Fix: Complete API client with all required methods
+7d1b0959823937a6c5c1d6c8ad220958d1032159 fad0b65dbcad3ac6d3f9222d8f5e57d979207917 pengxu9-rgb <peng@chydan.com> 1762157750 +0800	commit: [Phase 5.6] Fix: Connect real backend APIs + Remove duplicate code
+fad0b65dbcad3ac6d3f9222d8f5e57d979207917 2413ee0677a555271bc6a797f9d043aa4f1c3530 pengxu9-rgb <peng@chydan.com> 1762158091 +0800	commit: [UI] Add Revenue to navigation sidebar
+2413ee0677a555271bc6a797f9d043aa4f1c3530 0b403a254ec49a13d984f496d916fbfbf0ecbcb1 pengxu9-rgb <peng@chydan.com> 1762158306 +0800	commit: [API] Connect Merchants and Orders to real backend
+0b403a254ec49a13d984f496d916fbfbf0ecbcb1 f3c89d7e5d13679619764285894446bb96de6072 pengxu9-rgb <peng@chydan.com> 1762158463 +0800	commit: [Fix] Revenue page - Fix hydration error and localStorage keys
+f3c89d7e5d13679619764285894446bb96de6072 3b4a4fd387101fd8c19ea421221d5704f883d322 pengxu9-rgb <peng@chydan.com> 1762158809 +0800	commit: [Critical] Use real agent login API instead of mock
+3b4a4fd387101fd8c19ea421221d5704f883d322 4b2523346a8976defafd52fe0e123ab1e43584f8 pengxu9-rgb <peng@chydan.com> 1762162704 +0800	commit: [Fix] Merchants GMV display + Orders API authentication
+4b2523346a8976defafd52fe0e123ab1e43584f8 fcaf7c70014f4fb7e0f5a6a7c08fdc2c24f58f99 pengxu9-rgb <peng@chydan.com> 1762163270 +0800	commit: [Fix] Orders page - Map backend fields correctly
+fcaf7c70014f4fb7e0f5a6a7c08fdc2c24f58f99 cda52a01fc6f3ebb0c5764f7c923c1b8e7c86b64 pengxu9-rgb <peng@chydan.com> 1762165674 +0800	commit: Trigger Vercel deployment - Phase 5.6 + 6 fixes ready
+cda52a01fc6f3ebb0c5764f7c923c1b8e7c86b64 ec4a93352ebccffdec6bc9cfc5fefa188b23431f pengxu9-rgb <peng@chydan.com> 1762166771 +0800	commit: [Phase 6] Agent Protocol Setup Page + Navigation
+ec4a93352ebccffdec6bc9cfc5fefa188b23431f 18f178c77aa193ccceebfeba5e9befb71f7ccc48 pengxu9-rgb <peng@chydan.com> 1762186445 +0800	commit: [Phase 6] Implement Protocols Page - display AP2, ACP, X-402 status
+18f178c77aa193ccceebfeba5e9befb71f7ccc48 dd5c3f41a2f5b03294d8746fcf8d3ea6af3f75ca pengxu9-rgb <peng@chydan.com> 1762186615 +0800	commit: [Phase 6] Add Integration Bridge Status Visualization
+dd5c3f41a2f5b03294d8746fcf8d3ea6af3f75ca 13df4e734da83b2dcb0621ebf67c345f3d61d01c pengxu9-rgb <peng@chydan.com> 1762188209 +0800	commit: [Critical Fix] Mixed Content & React Hydration Errors
+13df4e734da83b2dcb0621ebf67c345f3d61d01c daa3990f040ad09ad94d0d018770dcb3ddb193e4 pengxu9-rgb <peng@chydan.com> 1762188592 +0800	commit: [Critical Fix] Build Errors - Dashboard syntax & Missing API method
+daa3990f040ad09ad94d0d018770dcb3ddb193e4 4ce85192da465988bef8d64bd21a29eb8c3fdc94 pengxu9-rgb <peng@chydan.com> 1762188927 +0800	commit: [CRITICAL] Force HTTPS - Hardcoded to prevent Mixed Content
+4ce85192da465988bef8d64bd21a29eb8c3fdc94 2af5bd5c6e294393d5b676388ad2c9d240c4b2bb pengxu9-rgb <peng@chydan.com> 1762189188 +0800	commit: 🚨 FORCE VERCEL REBUILD - Clear all caches
+2af5bd5c6e294393d5b676388ad2c9d240c4b2bb 557da2ac6b6881307b37ed01d5f0e9908eb3e0ca pengxu9-rgb <peng@chydan.com> 1762218527 +0800	commit: 🔥 NUCLEAR OPTION: Force complete rebuild
+557da2ac6b6881307b37ed01d5f0e9908eb3e0ca 7824391662b6fdd663cbc372856606de06cf00de pengxu9-rgb <peng@chydan.com> 1762219890 +0800	commit: [Hotfix] Proxy agent protocols via Next API
+7824391662b6fdd663cbc372856606de06cf00de 54c162edf2c0c46fd712e203a03e10fc7cdaf921 pengxu9-rgb <peng@chydan.com> 1762236197 +0800	commit: [Fix] Correct Next.js route handler signature
+54c162edf2c0c46fd712e203a03e10fc7cdaf921 4c2ee190a66ce3f3397b5c2c01045905ff90c6fe pengxu9-rgb <peng@chydan.com> 1762236557 +0800	commit: [Fix] Use async params for Next.js 15 route handler
+4c2ee190a66ce3f3397b5c2c01045905ff90c6fe de7cd081109ebb520354a227564b730459bdb896 pengxu9-rgb <peng@chydan.com> 1762236759 +0800	commit: [Fix] API proxy improvements - 403 & hydration fixes
+de7cd081109ebb520354a227564b730459bdb896 1395c615eb995300559ded25d13be151ee413782 pengxu9-rgb <peng@chydan.com> 1762236926 +0800	commit: [Fix] Better auth handling & error messages
+1395c615eb995300559ded25d13be151ee413782 ebdb3a1009da5b56996cf0fca964cf7ac3df29f6 pengxu9-rgb <peng@chydan.com> 1762242735 +0800	commit: [Restore] Re-add API proxy with enhanced logging
+ebdb3a1009da5b56996cf0fca964cf7ac3df29f6 b1530729f5e513080461b68e06320e426242e8d3 pengxu9-rgb <peng@chydan.com> 1762263217 +0800	commit: Phase 6: Add merchant management pages with commission, routing, and settlement tabs
+b1530729f5e513080461b68e06320e426242e8d3 23047c4dd252367703dfad1b007d3fec81514935 pengxu9-rgb <peng@chydan.com> 1762268636 +0800	commit: Phase 6.1: Agent payout settings UI with Stripe Connect
+23047c4dd252367703dfad1b007d3fec81514935 d3a56d4edddc6dcbf5b80fcb087b3b743e1c4348 pengxu9-rgb <peng@chydan.com> 1762268885 +0800	commit: Fix TypeScript error - handle undefined commission_rate
+d3a56d4edddc6dcbf5b80fcb087b3b743e1c4348 51466816ba4d3235a4274995fc8d6f6b759b9db3 pengxu9-rgb <peng@chydan.com> 1762269390 +0800	commit: Add Payout navigation link to Agent Portal sidebar
+51466816ba4d3235a4274995fc8d6f6b759b9db3 d754a67829e4ab216fa2bb80533e01e6d12fb249 pengxu9-rgb <peng@chydan.com> 1762270663 +0800	commit: Move Payout to standalone page (not under Settings)
+d754a67829e4ab216fa2bb80533e01e6d12fb249 51466816ba4d3235a4274995fc8d6f6b759b9db3 pengxu9-rgb <peng@chydan.com> 1762306918 +0800	reset: moving to HEAD~1
+51466816ba4d3235a4274995fc8d6f6b759b9db3 3b50c06d35c3e203e0b6c48030276ac32515179b pengxu9-rgb <peng@chydan.com> 1762407077 +0800	commit: [Phase 6.2] Agent Portal - Premium Badge Display
