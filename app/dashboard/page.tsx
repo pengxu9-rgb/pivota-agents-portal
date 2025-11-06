@@ -153,15 +153,42 @@ export default function AgentDashboard() {
       // Load agent info from localStorage
       const userData = localStorage.getItem('agent_user');
       const agentId = localStorage.getItem('agent_id');
-      if (userData) {
-        const user = JSON.parse(userData);
-        setAgentInfo({
-          agent_id: agentId || user.agent_id,
-          name: user.name || 'Claude Shopping Assistant',
-          email: user.email,
-          status: 'active',
-          last_activity: '2 min ago',
-        });
+      
+      // Load agent details from API to get agent_type
+      try {
+        if (agentId) {
+          const agentDetails = await agentApi.getAgentDetails(agentId);
+          setAgentInfo({
+            agent_id: agentId,
+            name: agentDetails.agent?.agent_name || agentDetails.agent?.name || 'Agent',
+            email: agentDetails.agent?.owner_email || agentDetails.agent?.email || '',
+            agent_type: agentDetails.agent?.agent_type || 'basic',
+            status: agentDetails.agent?.status || 'active',
+            last_activity: agentDetails.agent?.last_active || 'Recently',
+          });
+        } else if (userData) {
+          // Fallback to localStorage if no agentId
+          const user = JSON.parse(userData);
+          setAgentInfo({
+            agent_id: user.agent_id,
+            name: user.name || 'Agent',
+            email: user.email,
+            status: 'active',
+            last_activity: 'Recently',
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to load agent details, using fallback:', err);
+        if (userData) {
+          const user = JSON.parse(userData);
+          setAgentInfo({
+            agent_id: agentId || user.agent_id,
+            name: user.name || 'Agent',
+            email: user.email,
+            status: 'active',
+            last_activity: 'Recently',
+          });
+        }
       }
       
       // Load all metrics in parallel

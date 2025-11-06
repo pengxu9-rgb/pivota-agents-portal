@@ -99,6 +99,12 @@ class AgentApiClient {
     return response.data;
   }
 
+  // [Phase 6.2] Get agent details (including agent_type)
+  async getAgentDetails(agentId: string) {
+    const response = await this.client.get(`/agents/${agentId}`);
+    return response.data;
+  }
+
   async getRevenuePolicies(agentId: string) {
     const response = await this.client.get(`/agents/${agentId}/revenue/policies`);
     return response.data;
