@@ -191,8 +191,8 @@ export default function AgentDashboard() {
         }
       }
       
-      // Load all metrics in parallel
-      await Promise.all([
+      // Load all metrics in parallel with timeout
+      await Promise.allSettled([
         loadMetrics(),
         loadRecentActivity(),
         loadAnalytics(),
@@ -206,7 +206,15 @@ export default function AgentDashboard() {
 
   const loadMetrics = async () => {
     try {
-      const data = await agentApi.getMetricsSummary();
+      // Add timeout to prevent indefinite loading
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Metrics request timeout')), 10000)
+      );
+      
+      const data = await Promise.race([
+        agentApi.getMetricsSummary(),
+        timeoutPromise
+      ]) as any;
       
       // Also get merchant authorizations for "Total Integrations"
       let merchantCount = 0;
