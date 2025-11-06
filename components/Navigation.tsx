@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -83,15 +84,21 @@ export default function Navigation() {
   
   const handleLogout = () => {
     agentApi.logout();
+    router.push('/login');
   };
   
   // Get user info from localStorage
   const getUserInfo = () => {
     if (typeof window !== 'undefined') {
       const userRaw = localStorage.getItem('agent_user');
+      const agentIdRaw = localStorage.getItem('agent_id');
       if (userRaw) {
         try {
-          return JSON.parse(userRaw);
+          const parsed = JSON.parse(userRaw);
+          return {
+            ...parsed,
+            agent_id: agentIdRaw || parsed.agent_id
+          };
         } catch {
           return null;
         }
@@ -101,6 +108,24 @@ export default function Navigation() {
   };
   
   const user = getUserInfo();
+  
+  // [Phase 6.2] Get agent_type from API
+  const [agentType, setAgentType] = React.useState<'basic' | 'premium' | null>(null);
+  
+  React.useEffect(() => {
+    const loadAgentType = async () => {
+      const agentId = localStorage.getItem('agent_id');
+      if (agentId) {
+        try {
+          const response = await agentApi.getAgentDetails(agentId);
+          setAgentType(response?.agent?.agent_type || 'basic');
+        } catch (err) {
+          console.warn('Could not load agent type:', err);
+        }
+      }
+    };
+    loadAgentType();
+  }, []);
   
   return (
     <div className="flex h-screen">
@@ -124,9 +149,16 @@ export default function Navigation() {
                 <User className="w-5 h-5 text-purple-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
-                  {user.name || user.email?.split('@')[0]}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user.name || user.email?.split('@')[0]}
+                  </p>
+                  {agentType === 'premium' && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                      ⭐ PRO
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-500 truncate">{user.email}</p>
               </div>
             </div>
