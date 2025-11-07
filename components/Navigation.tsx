@@ -64,7 +64,7 @@ const navigationItems = [
   },
   {
     name: 'Payout',
-    href: '/payout',
+    href: '/payouts',
     icon: CreditCard,
   },
   {
