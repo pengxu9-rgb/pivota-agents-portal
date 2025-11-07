@@ -51,10 +51,17 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
     try {
       setLoading(true);
       const data = await agentApi.getApiKeys();
-      setApiKeys(data.keys || getMockApiKeys());
-    } catch (error) {
-      // Use mock data if API fails
-      setApiKeys(getMockApiKeys());
+      setApiKeys(data.keys || []);
+    } catch (error: any) {
+      console.error('[ApiKeyModal] Failed to load API keys:', error);
+      // Don't use mock data - show empty list if API fails
+      setApiKeys([]);
+      if (error?.response?.status === 500) {
+        setNotification({
+          type: 'error',
+          message: 'Failed to load API keys. Please try again later.'
+        });
+      }
     } finally {
       setLoading(false);
     }
