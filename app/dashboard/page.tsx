@@ -1,35 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Activity,
   ShoppingCart,
-  TrendingUp,
   DollarSign,
-  Code,
-  Settings,
-  LogOut,
-  BarChart3,
   Zap,
   Store,
   Clock,
   CheckCircle,
   AlertCircle,
-  Copy,
   Eye,
-  EyeOff,
   RefreshCw,
-  Plus,
   Key,
   Search,
   Package,
-  CreditCard,
   ArrowRight,
   ChevronRight,
-  ExternalLink,
-  FileText,
   BookOpen,
   Terminal,
 } from 'lucide-react';
@@ -91,7 +80,6 @@ export default function AgentDashboard() {
   
   // Agent Info State
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   
   // Metrics State
@@ -113,7 +101,6 @@ export default function AgentDashboard() {
   
   // Activity State
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   
   // Analytics State
@@ -337,66 +324,6 @@ export default function AgentDashboard() {
     setRefreshing(false);
   };
 
-  const getMockActivities = (): ActivityItem[] => [
-    {
-      id: '1',
-      type: 'order',
-      action: 'Order Completed',
-      description: 'catalog.search → order.create → payment confirmed',
-      amount: 234.50,
-      timestamp: '2 min ago',
-      status: 'success',
-      merchant: 'Fashion Store',
-    },
-    {
-      id: '2',
-      type: 'search',
-      action: 'Product Search',
-      description: 'catalog.search → 23 results returned',
-      response_time: 125,
-      timestamp: '5 min ago',
-      status: 'success',
-    },
-    {
-      id: '3',
-      type: 'inventory',
-      action: 'Inventory Check',
-      description: 'inventory.check → 5 items in stock',
-      response_time: 89,
-      timestamp: '8 min ago',
-      status: 'success',
-    },
-    {
-      id: '4',
-      type: 'price',
-      action: 'Price Query',
-      description: 'pricing.get → 12 SKUs queried',
-      response_time: 92,
-      timestamp: '12 min ago',
-      status: 'success',
-    },
-    {
-      id: '5',
-      type: 'order',
-      action: 'Order Completed',
-      description: 'End-to-end order flow successful',
-      amount: 1249.99,
-      timestamp: '15 min ago',
-      status: 'success',
-      merchant: 'Electronics Hub',
-    },
-  ];
-
-  const copyApiKey = () => {
-    if (agentInfo?.api_key) {
-      navigator.clipboard.writeText(agentInfo.api_key);
-      // Show toast notification
-    }
-  };
-
-  const handleLogout = () => {
-    agentApi.logout();
-  };
 
   const formatAmount = (amount: number) => {
     if (amount >= 1000) {

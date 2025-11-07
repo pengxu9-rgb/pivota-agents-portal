@@ -10,6 +10,7 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle,
+  Key,
 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
 
