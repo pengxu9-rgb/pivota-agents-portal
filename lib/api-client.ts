@@ -413,24 +413,37 @@ class AgentApiClient {
     }
   }
 
-  async createApiKey() {
-    // TODO: Implement when backend ready
-    const mockKey = `ak_live_${Math.random().toString(36).slice(2, 34)}`;
-    return {
-      status: 'success',
-      key_id: `key_${Date.now()}`,
-      key: mockKey,
-      created_at: new Date().toISOString(),
-    };
+  async createApiKey(name: string = 'API Key') {
+    try {
+      const agentId = this.authStore.agent?.agent_id;
+      if (!agentId) {
+        throw new Error('Agent ID not found');
+      }
+
+      const response = await this.client.post(`/agents/${agentId}/api-keys`, {
+        name: name
+      });
+      
+      return response.data;
+    } catch (error: any) {
+      console.error('[AgentApiClient] Failed to create API key:', error);
+      throw error;
+    }
   }
 
   async revokeApiKey(keyId: string) {
-    // TODO: Implement when backend ready
-    return {
-      status: 'success',
-      key_id: keyId,
-      revoked: true,
-    };
+    try {
+      const agentId = this.authStore.agent?.agent_id;
+      if (!agentId) {
+        throw new Error('Agent ID not found');
+      }
+
+      const response = await this.client.delete(`/agents/${agentId}/api-keys/${keyId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('[AgentApiClient] Failed to revoke API key:', error);
+      throw error;
+    }
   }
 
   async getProfile() {

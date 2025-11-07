@@ -1,19 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
-  Key, 
-  Copy, 
-  Trash2, 
-  Plus, 
-  RefreshCw,
-  Check,
-  AlertCircle,
+import {
+  X,
+  Copy,
   Eye,
   EyeOff,
-  Calendar,
-  Activity
+  Plus,
+  Trash2,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
 
@@ -22,7 +18,7 @@ interface ApiKey {
   name: string;
   key: string;
   created_at: string;
-  last_used?: string;
+  last_used: string | null;
   status: 'active' | 'revoked';
   usage_count: number;
 }
@@ -34,126 +30,59 @@ interface ApiKeyModalProps {
 
 export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [newKeyName, setNewKeyName] = useState('');
-  const [showNewKey, setShowNewKey] = useState<string | null>(null);
+  const [showKey, setShowKey] = useState<{ [key: string]: boolean }>({});
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [showKeys, setShowKeys] = useState<{ [key: string]: boolean }>({});
+  const [error, setError] = useState<string | null>(null);
+  const [newKeyName, setNewKeyName] = useState('');
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<{ id: string; key: string } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      loadApiKeys();
+      fetchApiKeys();
     }
   }, [isOpen]);
 
-  const loadApiKeys = async () => {
+  const fetchApiKeys = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const data = await agentApi.getApiKeys();
-      setApiKeys(data.keys || []);
-    } catch (error: any) {
-      console.error('[ApiKeyModal] Failed to load API keys:', error);
-      // Don't use mock data - show empty list if API fails
-      setApiKeys([]);
-      if (error?.response?.status === 500) {
-        // Log error but don't show notification (not available in this context)
-        console.error('[ApiKeyModal] Server error loading API keys');
+      const response = await agentApi.getApiKeys();
+      if (response.status === 'success') {
+        setApiKeys(response.keys || []);
       }
+    } catch (error) {
+      console.error('Failed to fetch API keys:', error);
+      setError('Failed to load API keys');
     } finally {
       setLoading(false);
     }
   };
 
-  const getMockApiKeys = (): ApiKey[] => [
-    {
-      id: '1',
-      name: 'Production Key',
-      key: 'pk_live_1234567890abcdef',
-      created_at: '2024-01-15T10:30:00Z',
-      last_used: '2 minutes ago',
-      status: 'active',
-      usage_count: 3429,
-    },
-    {
-      id: '2',
-      name: 'Development Key',
-      key: 'pk_test_abcdef1234567890',
-      created_at: '2024-01-10T08:00:00Z',
-      last_used: '1 hour ago',
-      status: 'active',
-      usage_count: 892,
-    },
-    {
-      id: '3',
-      name: 'Legacy Integration',
-      key: 'pk_live_oldkey123456789',
-      created_at: '2023-12-01T12:00:00Z',
-      last_used: '5 days ago',
-      status: 'revoked',
-      usage_count: 15234,
-    },
-  ];
-
   const createApiKey = async () => {
-    if (!newKeyName.trim()) return;
+    if (!newKeyName.trim()) {
+      setError('Please enter a name for the API key');
+      return;
+    }
 
+    setCreating(true);
+    setError(null);
     try {
-      setCreating(true);
-      const data = await agentApi.createApiKey();
-      
-      if (data.status === 'success' && data.key) {
-        const newApiKey: ApiKey = {
-          id: data.key_id || Date.now().toString(),
-          name: newKeyName,
-          key: data.key,
-          created_at: data.created_at || new Date().toISOString(),
-          status: 'active',
-          usage_count: 0,
-        };
-        
-        setApiKeys([newApiKey, ...apiKeys]);
-        setShowNewKey(data.key);
+      const response = await agentApi.createApiKey(newKeyName);
+      if (response.status === 'success') {
+        // Show the full key to the user (only shown once)
+        setNewlyCreatedKey({
+          id: response.key_id,
+          key: response.key
+        });
         setNewKeyName('');
-        
-        // Auto-hide the new key after 30 seconds
-        setTimeout(() => setShowNewKey(null), 30000);
-      } else {
-        // Fallback for testing
-        const mockKey = `pk_${newKeyName.toLowerCase().includes('prod') ? 'live' : 'test'}_${Math.random().toString(36).substring(2, 18)}`;
-        const newApiKey: ApiKey = {
-          id: Date.now().toString(),
-          name: newKeyName,
-          key: mockKey,
-          created_at: new Date().toISOString(),
-          status: 'active',
-          usage_count: 0,
-        };
-        
-        setApiKeys([newApiKey, ...apiKeys]);
-        setShowNewKey(mockKey);
-        setNewKeyName('');
-        
-        setTimeout(() => setShowNewKey(null), 30000);
+        // Refresh the list
+        await fetchApiKeys();
       }
     } catch (error) {
       console.error('Failed to create API key:', error);
-      // Still create a mock key for demo purposes
-      const mockKey = `pk_${newKeyName.toLowerCase().includes('prod') ? 'live' : 'test'}_${Math.random().toString(36).substring(2, 18)}`;
-      const newApiKey: ApiKey = {
-        id: Date.now().toString(),
-        name: newKeyName,
-        key: mockKey,
-        created_at: new Date().toISOString(),
-        status: 'active',
-        usage_count: 0,
-      };
-      
-      setApiKeys([newApiKey, ...apiKeys]);
-      setShowNewKey(mockKey);
-      setNewKeyName('');
-      
-      setTimeout(() => setShowNewKey(null), 30000);
+      setError('Failed to create API key');
     } finally {
       setCreating(false);
     }
@@ -165,248 +94,196 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
     }
 
     try {
-      await agentApi.revokeApiKey(keyId);
-      setApiKeys(apiKeys.map(key => 
-        key.id === keyId ? { ...key, status: 'revoked' as const } : key
-      ));
+      const response = await agentApi.revokeApiKey(keyId);
+      if (response.status === 'success') {
+        await fetchApiKeys();
+      }
     } catch (error) {
       console.error('Failed to revoke API key:', error);
+      setError('Failed to revoke API key');
     }
   };
 
-  const copyToClipboard = (key: string) => {
-    navigator.clipboard.writeText(key);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
-  const toggleKeyVisibility = (keyId: string) => {
-    setShowKeys(prev => ({ ...prev, [keyId]: !prev[keyId] }));
-  };
-
-  const maskKey = (key: string) => {
-    return `${key.substring(0, 7)}••••••••${key.substring(key.length - 4)}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
+  const copyToClipboard = async (text: string, keyId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(keyId);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[85vh] overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Key className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">API Keys</h2>
-              <p className="text-sm text-gray-600">Manage your API keys for agent integration</p>
-            </div>
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">API Key Management</h2>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-500" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
         </div>
 
-        {/* Content */}
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(85vh - 180px)' }}>
-          {/* New Key Alert */}
-          {showNewKey && (
-            <div className="mx-6 mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-start space-x-3">
-                <Check className="w-5 h-5 text-green-600 mt-0.5" />
+        <div className="p-6 overflow-y-auto max-h-[calc(80vh-200px)]">
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {newlyCreatedKey && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-start space-x-2 mb-3">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="font-medium text-green-900">New API key created successfully!</p>
-                  <p className="text-sm text-green-700 mt-1">
-                    Make sure to copy your new API key now. You won't be able to see it again!
+                  <p className="text-sm font-medium text-green-800">New API key created!</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    Make sure to copy your API key now. You won't be able to see it again!
                   </p>
-                  <div className="mt-3 flex items-center space-x-2">
-                    <code className="flex-1 bg-white px-3 py-2 rounded border border-green-300 text-sm font-mono">
-                      {showNewKey}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(showNewKey)}
-                      className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                    >
-                      {copiedKey === showNewKey ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </button>
-                  </div>
                 </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <code className="flex-1 px-3 py-2 bg-white border border-green-300 rounded text-sm font-mono">
+                  {newlyCreatedKey.key}
+                </code>
+                <button
+                  onClick={() => copyToClipboard(newlyCreatedKey.key, newlyCreatedKey.id)}
+                  className="p-2 hover:bg-green-100 rounded-lg transition-colors"
+                >
+                  {copiedKey === newlyCreatedKey.id ? (
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-green-600" />
+                  )}
+                </button>
               </div>
             </div>
           )}
 
-          {/* Create New Key */}
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Create New API Key</h3>
-            <div className="flex items-center space-x-3">
+          {/* Create new key form */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Create New API Key</h3>
+            <div className="flex space-x-2">
               <input
                 type="text"
-                placeholder="Enter a name for this API key (e.g., Production, Development)"
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
+                placeholder="Enter key name (e.g., Production Key)"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent"
                 onKeyPress={(e) => e.key === 'Enter' && createApiKey()}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
               <button
                 onClick={createApiKey}
-                disabled={!newKeyName.trim() || creating}
-                className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white rounded-lg transition-colors"
+                disabled={creating || !newKeyName.trim()}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
-                {creating ? (
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                <span>Create Key</span>
+                <Plus className="w-4 h-4" />
+                <span>{creating ? 'Creating...' : 'Create'}</span>
               </button>
             </div>
           </div>
 
-          {/* Existing Keys */}
-          <div className="p-6">
-            <h3 className="text-sm font-medium text-gray-900 mb-4">Your API Keys</h3>
-            
+          {/* API Keys List */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Your API Keys</h3>
             {loading ? (
               <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-                <p className="mt-3 text-sm text-gray-600">Loading API keys...</p>
+                <div className="inline-flex items-center space-x-2 text-gray-500">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                  <span>Loading API keys...</span>
+                </div>
               </div>
-            ) : apiKeys.length > 0 ? (
-              <div className="space-y-4">
-                {apiKeys.map((apiKey) => (
+            ) : apiKeys.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Key className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <p>No API keys found</p>
+                <p className="text-sm mt-1">Create your first API key to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {apiKeys.map((key) => (
                   <div
-                    key={apiKey.id}
-                    className={`border rounded-lg p-4 ${
-                      apiKey.status === 'revoked' 
-                        ? 'bg-gray-50 border-gray-200 opacity-75' 
-                        : 'bg-white border-gray-200 hover:border-gray-300'
-                    } transition-all`}
+                    key={key.id}
+                    className={`p-4 border rounded-lg ${
+                      key.status === 'revoked'
+                        ? 'bg-gray-50 border-gray-200'
+                        : 'bg-white border-gray-300'
+                    }`}
                   >
-                    <div className="flex items-start justify-between">
+                    <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="font-medium text-gray-900">{apiKey.name}</h4>
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                            apiKey.status === 'active' 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-red-100 text-red-700'
-                          }`}>
-                            {apiKey.status}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center space-x-2 mb-3">
-                          <code className="flex-1 bg-gray-100 px-3 py-1.5 rounded text-sm font-mono text-gray-700">
-                            {showKeys[apiKey.id] ? apiKey.key : maskKey(apiKey.key)}
-                          </code>
-                          <button
-                            onClick={() => toggleKeyVisibility(apiKey.id)}
-                            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                          >
-                            {showKeys[apiKey.id] ? (
-                              <EyeOff className="w-4 h-4 text-gray-500" />
-                            ) : (
-                              <Eye className="w-4 h-4 text-gray-500" />
-                            )}
-                          </button>
-                          <button
-                            onClick={() => copyToClipboard(apiKey.key)}
-                            disabled={apiKey.status === 'revoked'}
-                            className="p-1.5 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-                          >
-                            {copiedKey === apiKey.key ? (
-                              <Check className="w-4 h-4 text-green-600" />
-                            ) : (
-                              <Copy className="w-4 h-4 text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-3 h-3" />
-                            <span>Created {formatDate(apiKey.created_at)}</span>
-                          </div>
-                          {apiKey.last_used && (
-                            <div className="flex items-center space-x-1">
-                              <Activity className="w-3 h-3" />
-                              <span>Last used {apiKey.last_used}</span>
-                            </div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-medium text-gray-900">{key.name}</h4>
+                          {key.status === 'revoked' && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded">
+                              Revoked
+                            </span>
                           )}
-                          <div className="flex items-center space-x-1">
-                            <Activity className="w-3 h-3" />
-                            <span>{apiKey.usage_count.toLocaleString()} requests</span>
-                          </div>
                         </div>
+                        <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                          <span>Created: {new Date(key.created_at).toLocaleDateString()}</span>
+                          {key.last_used && <span>Last used: {key.last_used}</span>}
+                          {key.usage_count > 0 && <span>Used {key.usage_count} times</span>}
+                        </div>
+                        {key.status === 'active' && (
+                          <div className="mt-3 flex items-center space-x-2">
+                            <code className="flex-1 px-2 py-1 bg-gray-100 rounded text-sm font-mono">
+                              {showKey[key.id] ? key.key : key.key.substring(0, 10) + '****'}
+                            </code>
+                            <button
+                              onClick={() => setShowKey({ ...showKey, [key.id]: !showKey[key.id] })}
+                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                            >
+                              {showKey[key.id] ? (
+                                <EyeOff className="w-4 h-4 text-gray-600" />
+                              ) : (
+                                <Eye className="w-4 h-4 text-gray-600" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => copyToClipboard(key.key, key.id)}
+                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                            >
+                              {copiedKey === key.id ? (
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Copy className="w-4 h-4 text-gray-600" />
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      
-                      {apiKey.status === 'active' && (
+                      {key.status === 'active' && key.id !== 'legacy' && (
                         <button
-                          onClick={() => revokeApiKey(apiKey.id)}
-                          className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                          onClick={() => revokeApiKey(key.id)}
+                          className="p-2 hover:bg-red-50 rounded-lg transition-colors group"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4 text-gray-400 group-hover:text-red-600" />
                         </button>
                       )}
                     </div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <Key className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No API keys yet</p>
-                <p className="text-sm text-gray-400 mt-1">Create your first API key to get started</p>
-              </div>
             )}
-
-            {/* Security Notice */}
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-800">Security Notice</p>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    Keep your API keys secure and never share them publicly. Rotate keys regularly for better security.
-                  </p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
-          <p className="text-sm text-gray-600">
-            {apiKeys.filter(k => k.status === 'active').length} active keys
+        <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <p className="text-xs text-gray-500">
+            API keys are used to authenticate your requests to the Pivota API. Keep them secure and
+            never share them publicly.
           </p>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
   );
 }
-
