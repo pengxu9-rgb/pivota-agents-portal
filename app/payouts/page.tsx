@@ -230,7 +230,15 @@ export default function PayoutsPage() {
         return;
       }
 
-      const response = await agentApi.put(`/agents/${agentId}/bank`, bankForm);
+      // Filter out empty strings to avoid validation errors
+      const cleanedData: any = {};
+      for (const [key, value] of Object.entries(bankForm)) {
+        if (value !== '' && value !== null && value !== undefined) {
+          cleanedData[key] = value;
+        }
+      }
+
+      const response = await agentApi.put(`/agents/${agentId}/bank`, cleanedData);
       
       alert('Bank details saved successfully!');
       setEditingBank(false);
