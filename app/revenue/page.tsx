@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DollarSign, TrendingUp, Clock, ArrowLeft } from 'lucide-react';
+import { DollarSign, TrendingUp, Clock, ArrowLeft, CreditCard, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { agentApi } from '@/lib/api-client';
 
@@ -100,6 +100,30 @@ export default function RevenuePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Bank Account Setup Prompt */}
+        {earnings && earnings.pending_amount > 0 && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-yellow-900">
+                  You have ${earnings.pending_amount.toFixed(2)} pending settlement
+                </p>
+                <p className="text-sm text-yellow-700 mt-1">
+                  Set up your bank account to receive commission payments. 
+                </p>
+              </div>
+              <Link
+                href="/payouts?tab=bank"
+                className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors whitespace-nowrap"
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Add Bank Account</span>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Earnings Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
