@@ -138,6 +138,29 @@ export default function RevenuePage() {
           </div>
         </div>
 
+        {/* Platform Fallback Info */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+          <div className="flex items-start space-x-3">
+            <svg className="w-6 h-6 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-blue-900 mb-2">Platform Commission Guarantee</h3>
+              <p className="text-sm text-blue-700 mb-2">
+                The platform ensures you always earn commission on successful orders:
+              </p>
+              <ul className="text-sm text-blue-700 space-y-1 ml-4">
+                <li>• When merchants have commission offers: You earn the offered rate</li>
+                <li>• When no merchant offer exists: <strong>Platform guarantees 1% commission</strong></li>
+                <li>• Applies to all order amounts - no minimum threshold</li>
+              </ul>
+              <p className="text-sm text-blue-600 mt-3">
+                💡 <em>Tip: Partner with merchants who offer competitive rates to maximize your earnings!</em>
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Expectations */}
         {expectations?.has_expectations && (
           <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg shadow p-6 mb-8">

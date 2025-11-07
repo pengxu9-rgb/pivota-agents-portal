@@ -414,6 +414,19 @@ export default function AgentDashboard() {
       </div>
 
       <div className="px-6 py-8">
+        {/* Commission Info Banner */}
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+          <div className="flex items-center space-x-2">
+            <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-blue-700">
+              <strong>Platform Commission Guarantee:</strong> Earn at least 1% on all orders when no merchant offer exists. 
+              <Link href="/revenue" className="underline hover:text-blue-800">Learn more →</Link>
+            </p>
+          </div>
+        </div>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
