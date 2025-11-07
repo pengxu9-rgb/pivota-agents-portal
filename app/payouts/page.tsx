@@ -64,7 +64,20 @@ interface PayoutSummary {
 export default function PayoutsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  
+  // Read tab from URL - safe way without useSearchParams
   const [activeTab, setActiveTab] = useState<'payouts' | 'bank'>('payouts');
+  
+  // Set initial tab from URL on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam === 'bank') {
+        setActiveTab('bank');
+      }
+    }
+  }, []);
   
   // Payouts state
   const [payouts, setPayouts] = useState<Payout[]>([]);
