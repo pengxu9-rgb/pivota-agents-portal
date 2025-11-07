@@ -415,7 +415,7 @@ class AgentApiClient {
 
   async createApiKey(name: string = 'API Key') {
     try {
-      const agentId = this.authStore.agent?.agent_id;
+      const agentId = localStorage.getItem('agent_id');
       if (!agentId) {
         throw new Error('Agent ID not found');
       }
@@ -433,7 +433,7 @@ class AgentApiClient {
 
   async revokeApiKey(keyId: string) {
     try {
-      const agentId = this.authStore.agent?.agent_id;
+      const agentId = localStorage.getItem('agent_id');
       if (!agentId) {
         throw new Error('Agent ID not found');
       }
