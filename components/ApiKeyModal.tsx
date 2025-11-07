@@ -57,10 +57,8 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
       // Don't use mock data - show empty list if API fails
       setApiKeys([]);
       if (error?.response?.status === 500) {
-        setNotification({
-          type: 'error',
-          message: 'Failed to load API keys. Please try again later.'
-        });
+        // Log error but don't show notification (not available in this context)
+        console.error('[ApiKeyModal] Server error loading API keys');
       }
     } finally {
       setLoading(false);
