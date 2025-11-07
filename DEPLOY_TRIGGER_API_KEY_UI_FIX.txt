@@ -1,0 +1,8 @@
+Trigger deployment for API key UI formatting fix
+Commit: 0cea845
+Improvements:
+- Fixed long API key text overflow
+- Added break-all and select-all for better copy experience
+- Improved copy button positioning and feedback
+- Extended copy feedback duration to 3 seconds
+Date: 2025-11-07
