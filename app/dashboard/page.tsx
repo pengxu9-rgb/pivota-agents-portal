@@ -101,6 +101,7 @@ export default function AgentDashboard() {
   
   // Activity State
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   
   // Analytics State
@@ -243,6 +244,7 @@ export default function AgentDashboard() {
   };
 
   const loadRecentActivity = async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true);
     try {
       const data = await agentApi.getRecentActivity(5);
       const activities = (data.activities || []).map((a: any) => ({
@@ -271,6 +273,8 @@ export default function AgentDashboard() {
       if (offset === 0) {
         setRecentActivity([]);
       }
+    } finally {
+      if (offset > 0) setLoadingMore(false);
     }
   };
 
