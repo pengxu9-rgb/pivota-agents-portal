@@ -119,13 +119,13 @@ export default function PayoutsPage() {
       if (!agentId) return;
 
       // Load payouts
-      const payoutsResponse = await agentApi.client.get(
+      const payoutsResponse = await agentApi.get(
         `/agents/${agentId}/payouts?status=${selectedStatus}`
       );
       setPayouts(payoutsResponse.data.items || []);
 
       // Load summary
-      const summaryResponse = await agentApi.client.get(
+      const summaryResponse = await agentApi.get(
         `/agents/${agentId}/payouts/summary`
       );
       setPayoutSummary(summaryResponse.data);
@@ -141,7 +141,7 @@ export default function PayoutsPage() {
       const agentId = localStorage.getItem('agent_id');
       if (!agentId) return;
 
-      const response = await agentApi.client.get(`/agents/${agentId}/bank`);
+      const response = await agentApi.get(`/agents/${agentId}/bank`);
       if (response.data.bank_details) {
         setBankDetails(response.data.bank_details);
         
@@ -170,7 +170,7 @@ export default function PayoutsPage() {
       const agentId = localStorage.getItem('agent_id');
       if (!agentId) return;
 
-      const response = await agentApi.client.get(
+      const response = await agentApi.get(
         `/agents/${agentId}/payouts/export/csv?status=${selectedStatus}`
       );
       
@@ -217,7 +217,7 @@ export default function PayoutsPage() {
         return;
       }
 
-      const response = await agentApi.client.put(`/agents/${agentId}/bank`, bankForm);
+      const response = await agentApi.put(`/agents/${agentId}/bank`, bankForm);
       
       alert('Bank details saved successfully!');
       setEditingBank(false);
@@ -235,7 +235,7 @@ export default function PayoutsPage() {
 
       const newValue = !bankDetails.allow_share_with_merchants;
       
-      await agentApi.client.patch(
+      await agentApi.patch(
         `/agents/${agentId}/bank/share?allow=${newValue}`
       );
       

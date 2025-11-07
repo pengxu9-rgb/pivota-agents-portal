@@ -535,6 +535,11 @@ class AgentApiClient {
     const response = await this.client.put(url, data, config);
     return response;
   }
+
+  async patch(url: string, data?: any, config?: any) {
+    const response = await this.client.patch(url, data, config);
+    return response;
+  }
 }
 
 export const agentApi = new AgentApiClient();
