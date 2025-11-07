@@ -109,7 +109,7 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedKey(keyId);
-      setTimeout(() => setCopiedKey(null), 2000);
+      setTimeout(() => setCopiedKey(null), 3000);
     } catch (error) {
       console.error('Failed to copy:', error);
     }
@@ -119,7 +119,7 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden shadow-2xl mx-4">
         <div className="p-6 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold text-gray-900">API Key Management</h2>
@@ -151,20 +151,23 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <code className="flex-1 px-3 py-2 bg-white border border-green-300 rounded text-sm font-mono">
-                  {newlyCreatedKey.key}
-                </code>
-                <button
-                  onClick={() => copyToClipboard(newlyCreatedKey.key, newlyCreatedKey.id)}
-                  className="p-2 hover:bg-green-100 rounded-lg transition-colors"
-                >
-                  {copiedKey === newlyCreatedKey.id ? (
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                  ) : (
-                    <Copy className="w-4 h-4 text-green-600" />
-                  )}
-                </button>
+              <div className="mt-2">
+                <div className="relative">
+                  <code className="block w-full px-3 py-3 pr-12 bg-white border border-green-300 rounded text-sm font-mono break-all select-all">
+                    {newlyCreatedKey.key}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(newlyCreatedKey.key, newlyCreatedKey.id)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 hover:bg-green-100 rounded-lg transition-colors group"
+                    title={copiedKey === newlyCreatedKey.id ? "Copied!" : "Copy API Key"}
+                  >
+                    {copiedKey === newlyCreatedKey.id ? (
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-green-600" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -235,13 +238,13 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
                           {key.usage_count > 0 && <span>Used {key.usage_count} times</span>}
                         </div>
                         {key.status === 'active' && (
-                          <div className="mt-3 flex items-center space-x-2">
-                            <code className="flex-1 px-2 py-1 bg-gray-100 rounded text-sm font-mono">
+                          <div className="mt-3 flex items-start space-x-2">
+                            <code className="flex-1 px-2 py-1 bg-gray-100 rounded text-sm font-mono break-all overflow-x-auto max-w-full">
                               {showKey[key.id] ? key.key : key.key.substring(0, 10) + '****'}
                             </code>
                             <button
                               onClick={() => setShowKey({ ...showKey, [key.id]: !showKey[key.id] })}
-                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                              className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded transition-colors"
                             >
                               {showKey[key.id] ? (
                                 <EyeOff className="w-4 h-4 text-gray-600" />
@@ -251,7 +254,8 @@ export default function ApiKeyModal({ isOpen, onClose }: ApiKeyModalProps) {
                             </button>
                             <button
                               onClick={() => copyToClipboard(key.key, key.id)}
-                              className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                              className="flex-shrink-0 p-1.5 hover:bg-gray-100 rounded transition-colors"
+                              title={copiedKey === key.id ? "Copied!" : "Copy API Key"}
                             >
                               {copiedKey === key.id ? (
                                 <CheckCircle className="w-4 h-4 text-green-600" />
