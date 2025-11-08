@@ -99,7 +99,7 @@ export default function PayoutsPage() {
     bank_country: '',
     account_number: '',
     routing_number: '',
-    allow_share_with_merchants: false
+    allow_share_with_merchants: true  // Default to true for easier payout flow
   });
 
   useEffect(() => {
