@@ -477,7 +477,7 @@ export default function PayoutsPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm font-semibold text-gray-900">
-                              ${payout.amount.toFixed(2)} {payout.currency}
+                              ${Number(payout.amount).toFixed(2)} {payout.currency}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
