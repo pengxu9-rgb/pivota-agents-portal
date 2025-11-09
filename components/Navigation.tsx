@@ -57,11 +57,12 @@ const navigationItems = [
     href: '/integration',
     icon: Terminal,
   },
-  {
-    name: 'Wallet',
-    href: '/wallet',
-    icon: Wallet,
-  },
+  // Wallet tab hidden - all functionality moved to Payout tab
+  // {
+  //   name: 'Wallet',
+  //   href: '/wallet',
+  //   icon: Wallet,
+  // },
   {
     name: 'Payout',
     href: '/payouts',
