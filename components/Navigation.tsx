@@ -141,6 +141,20 @@ export default function Navigation() {
   };
   
   const user = getUserInfo();
+
+  // Normalize tier from either API-loaded agentType or stored user info.
+  const rawTier =
+    (agentType as string | null) ??
+    ((user as any)?.agent_type as string | undefined) ??
+    'basic';
+
+  const normalizedTier =
+    typeof rawTier === 'string'
+      ? rawTier.toLowerCase().trim()
+      : 'basic';
+
+  const effectiveTier: 'basic' | 'premium' =
+    normalizedTier === 'premium' ? 'premium' : 'basic';
   
   return (
     <div className="flex h-screen">
@@ -168,7 +182,7 @@ export default function Navigation() {
                   <p className="text-sm font-medium text-gray-900 truncate">
                     {user.name || user.email?.split('@')[0]}
                   </p>
-                  {agentType === 'premium' && (
+                  {effectiveTier === 'premium' && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white">
                       ⭐ PRO
                     </span>
