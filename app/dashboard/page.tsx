@@ -91,6 +91,8 @@ export default function AgentDashboard() {
     active_connections: 0,
     total_gmv: 0,
   });
+  const [metricsLoaded, setMetricsLoaded] = useState(false);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
   
   // Order Stats (for accurate calculations)
   const [orderStats, setOrderStats] = useState({
@@ -128,7 +130,7 @@ export default function AgentDashboard() {
       return;
     }
     
-    loadDashboard();
+    void loadDashboard();
     // Auto-refresh every 30 seconds
     const interval = setInterval(refreshMetrics, 30000);
     return () => clearInterval(interval);
@@ -141,50 +143,42 @@ export default function AgentDashboard() {
       // Load agent info from localStorage
       const userData = localStorage.getItem('agent_user');
       const agentId = localStorage.getItem('agent_id');
-      
-      // Load agent details from API to get agent_type
-      try {
-        if (agentId) {
-          const agentDetails = await agentApi.getAgentDetails(agentId);
-          setAgentInfo({
-            agent_id: agentId,
-            name: agentDetails.agent?.agent_name || agentDetails.agent?.name || 'Agent',
-            email: agentDetails.agent?.owner_email || agentDetails.agent?.email || '',
-            agent_type: agentDetails.agent?.agent_type || 'basic',
-            status: agentDetails.agent?.status || 'active',
-            last_activity: agentDetails.agent?.last_active || 'Recently',
-          });
-        } else if (userData) {
-          // Fallback to localStorage if no agentId
-          const user = JSON.parse(userData);
-          setAgentInfo({
-            agent_id: user.agent_id,
-            name: user.name || 'Agent',
-            email: user.email,
-            status: 'active',
-            last_activity: 'Recently',
-          });
-        }
-      } catch (err) {
-        console.warn('Failed to load agent details, using fallback:', err);
-        if (userData) {
-          const user = JSON.parse(userData);
-          setAgentInfo({
-            agent_id: agentId || user.agent_id,
-            name: user.name || 'Agent',
-            email: user.email,
-            status: 'active',
-            last_activity: 'Recently',
-          });
-        }
+
+      // Fast path: render immediately using localStorage (so the page never blocks on API speed).
+      if (userData) {
+        const user = JSON.parse(userData);
+        setAgentInfo({
+          agent_id: agentId || user.agent_id,
+          name: user.name || 'Agent',
+          email: user.email,
+          status: 'active',
+          last_activity: 'Recently',
+        });
       }
-      
-      // Load all metrics in parallel with timeout
-      await Promise.allSettled([
-        loadMetrics(),
-        loadRecentActivity(),
-        loadAnalytics(),
-      ]);
+
+      // Load agent details (agent_type etc.) in background; failure should not block rendering.
+      if (agentId) {
+        void agentApi
+          .getAgentDetails(agentId)
+          .then((agentDetails) => {
+            setAgentInfo((prev) => ({
+              agent_id: agentId,
+              name: agentDetails.agent?.agent_name || agentDetails.agent?.name || prev?.name || 'Agent',
+              email: agentDetails.agent?.owner_email || agentDetails.agent?.email || prev?.email || '',
+              agent_type: agentDetails.agent?.agent_type || 'basic',
+              status: agentDetails.agent?.status || prev?.status || 'active',
+              last_activity: agentDetails.agent?.last_active || prev?.last_activity || 'Recently',
+            }));
+          })
+          .catch((err) => {
+            console.warn('Failed to load agent details:', err);
+          });
+      }
+
+      // Kick off the slow data fetches in background (do not block initial paint).
+      void loadMetrics();
+      void loadRecentActivity();
+      void loadAnalytics();
     } catch (error) {
       console.error('Failed to load dashboard:', error);
     } finally {
@@ -194,6 +188,8 @@ export default function AgentDashboard() {
 
   const loadMetrics = async () => {
     try {
+      setMetricsError(null);
+      setMetricsLoaded(false);
       // Add timeout to prevent indefinite loading
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Metrics request timeout')), 10000)
@@ -229,9 +225,11 @@ export default function AgentDashboard() {
         paid_orders: data?.orders?.total_paid_orders ?? 0,
         total_revenue: data?.orders?.total_revenue ?? 0,
       });
+      setMetricsLoaded(true);
     } catch (error) {
       console.error('Failed to load metrics:', error);
-      // No mock fallback – keep zeros to reflect real data only
+      setMetricsError('Metrics service is temporarily unavailable.');
+      // Keep zeros but mark as error; UI will show placeholders
       setMetrics({
         success_rate: 0,
         avg_response_time: 0,
@@ -240,6 +238,7 @@ export default function AgentDashboard() {
         active_connections: 0,
         total_gmv: 0,
       });
+      setMetricsLoaded(true);
     }
   };
 
@@ -427,6 +426,18 @@ export default function AgentDashboard() {
           </div>
         </div>
 
+        {/* Metrics Error Banner (non-blocking) */}
+        {metricsError && (
+          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-yellow-700 flex-shrink-0" />
+              <p className="text-sm text-yellow-800">
+                Analytics metrics are temporarily unavailable. Some values are shown as “--”.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -438,7 +449,9 @@ export default function AgentDashboard() {
                 Healthy
               </span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">{metrics.total_integrations}</h3>
+            <h3 className="text-2xl font-bold text-gray-900">
+              {!metricsLoaded || metricsError ? '--' : metrics.total_integrations}
+            </h3>
             <p className="text-sm text-gray-600">Total Integrations</p>
           </div>
 
@@ -449,8 +462,10 @@ export default function AgentDashboard() {
               </div>
               <span className="text-xs text-green-600 font-medium">LIVE</span>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900">{metrics.active_connections}</h3>
-            <p className="text-sm text-gray-600">Active Now</p>
+            <h3 className="text-2xl font-bold text-gray-900">
+              {!metricsLoaded || metricsError ? '--' : metrics.active_connections}
+            </h3>
+            <p className="text-sm text-gray-600">Active Connections (24h)</p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -460,9 +475,9 @@ export default function AgentDashboard() {
               </div>
             </div>
             <h3 className="text-2xl font-bold text-gray-900">
-              {metrics.calls_today.toLocaleString()}
+              {!metricsLoaded || metricsError ? '--' : metrics.calls_today.toLocaleString()}
             </h3>
-            <p className="text-sm text-gray-600">API Calls Today</p>
+            <p className="text-sm text-gray-600">API Calls (Last 24h)</p>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -684,18 +699,24 @@ export default function AgentDashboard() {
         {/* Bottom Stats */}
         <div className="grid grid-cols-3 gap-6 mt-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-            <p className="text-3xl font-bold text-gray-900">{metrics.success_rate}%</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {!metricsLoaded || metricsError ? '--' : `${metrics.success_rate}%`}
+            </p>
             <p className="text-sm text-gray-600 mt-1">Success Rate</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-            <p className="text-3xl font-bold text-gray-900">{metrics.avg_response_time}ms</p>
+            <p className="text-3xl font-bold text-gray-900">
+              {!metricsLoaded || metricsError ? '--' : `${metrics.avg_response_time}ms`}
+            </p>
             <p className="text-sm text-gray-600 mt-1">Avg Response</p>
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
             <p className="text-3xl font-bold text-gray-900">
-              {(metrics.calls_today / 1000).toFixed(1)}K
+              {!metricsLoaded || metricsError
+                ? '--'
+                : `${(metrics.calls_today / 1000).toFixed(1)}K`}
             </p>
-            <p className="text-sm text-gray-600 mt-1">Calls Today</p>
+            <p className="text-sm text-gray-600 mt-1">Calls (Last 24h)</p>
           </div>
         </div>
 

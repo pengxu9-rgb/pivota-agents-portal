@@ -19,7 +19,7 @@ export default function AnalyticsPage() {
       router.push('/login');
       return;
     }
-    loadAnalytics();
+    void loadAnalytics();
     const t = setInterval(loadAnalytics, 30000);
     return () => clearInterval(t);
   }, [router, timeRange]);
@@ -46,14 +46,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
       <header className="bg-white shadow-sm border-b">
@@ -75,6 +67,9 @@ export default function AnalyticsPage() {
               <option value="90">Last 90 days</option>
             </select>
           </div>
+          {loading && (
+            <p className="mt-2 text-sm text-gray-500">Updating analytics…</p>
+          )}
         </div>
       </header>
 
@@ -151,18 +146,23 @@ export default function AnalyticsPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">API Usage by Endpoint</h2>
             <div className="space-y-3">
-              {stats?.endpoint_usage?.map((endpoint: any) => (
-                <div key={endpoint.path} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900">{endpoint.path}</p>
-                    <p className="text-sm text-gray-600">{endpoint.method}</p>
+              {stats?.endpoint_usage && stats.endpoint_usage.length > 0 ? (
+                stats.endpoint_usage.map((endpoint: any) => (
+                  <div
+                    key={endpoint.path}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">{endpoint.path}</p>
+                      <p className="text-sm text-gray-600">{endpoint.method}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">{endpoint.count || 0}</p>
+                      <p className="text-xs text-gray-500">calls</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-gray-900">{endpoint.count || 0}</p>
-                    <p className="text-xs text-gray-500">calls</p>
-                  </div>
-                </div>
-              )) || (
+                ))
+              ) : (
                 <p className="text-center text-gray-500 py-8">No usage data available</p>
               )}
             </div>
@@ -172,5 +172,3 @@ export default function AnalyticsPage() {
     </div>
   );
 }
-
-
