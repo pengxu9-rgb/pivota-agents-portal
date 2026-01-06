@@ -28,134 +28,196 @@ const CODE_EXAMPLES = {
   python: {
     install: 'pip install pivota-agent',
     quickstart: `from pivota_agent import PivotaAgentClient
+import requests
 
-# Initialize client
-client = PivotaAgentClient(api_key="YOUR_API_KEY")
+API_BASE = "https://web-production-fedb.up.railway.app/agent/v1"
+API_KEY = "YOUR_API_KEY"
 
-# Search products
-products = client.search_products(
-    query="laptop",
-    merchant_id="merch_6b90dc9838d5fd9c"
+client = PivotaAgentClient(api_key=API_KEY, base_url=API_BASE)
+
+# 1) Search products
+search = client.search_products(query="laptop", merchant_id="merch_xxx", limit=5)
+product_id = search["products"][0]["id"]
+
+# 2) Resolve purchasable variant_id via cart/validate (recommended before checkout)
+cart = requests.post(
+    f"{API_BASE}/cart/validate?merchant_id=merch_xxx&shipping_country=US",
+    headers={"X-API-Key": API_KEY},
+    json=[{"product_id": product_id, "quantity": 1}],
+    timeout=30,
 )
+cart.raise_for_status()
+variant_id = cart.json()["items"][0]["variant_id"]
 
-# Create order
-order = client.create_order(
-    merchant_id="merch_6b90dc9838d5fd9c",
-    items=[{"product_id": products[0]["id"], "quantity": 1}],
-    customer_email="customer@example.com"
+# 3) Hosted checkout: mint checkout_token + checkout_url (Checkout UI)
+intent = requests.post(
+    f"{API_BASE}/checkout/intents",
+    headers={"X-API-Key": API_KEY},
+    json={
+        "items": [
+            {
+                "product_id": product_id,
+                "variant_id": variant_id,
+                "merchant_id": "merch_xxx",
+                "quantity": 1,
+            }
+        ],
+        "return_url": "https://developer.pivota.cc/return",
+        "buyer_ref": "guest:YOUR_UUID",
+    },
+    timeout=30,
 )
-
-print(f"Order created: " + "{order['order_id']}")`,
+intent.raise_for_status()
+print("Open hosted checkout URL:", intent.json()["checkout_url"])`,
     full: `from pivota_agent import PivotaAgentClient
+import requests
 
-client = PivotaAgentClient(api_key="YOUR_API_KEY")
+API_BASE = "https://web-production-fedb.up.railway.app/agent/v1"
+API_KEY = "YOUR_API_KEY"
+MERCHANT_ID = "merch_xxx"
 
-# 1. List available merchants
-merchants = client.list_merchants()
-print(f"Found {len(merchants)} merchants")
+client = PivotaAgentClient(api_key=API_KEY, base_url=API_BASE)
 
-# 2. Search products
-products = client.search_products(
-    query="coffee mug",
-    merchant_id=merchants[0]["merchant_id"],
-    limit=10
+# 1) Search products
+search = client.search_products(query="coffee mug", merchant_id=MERCHANT_ID, limit=5)
+product_id = search["products"][0]["id"]
+
+# 2) Resolve purchasable variant_id (cart/validate)
+cart = requests.post(
+    f"{API_BASE}/cart/validate?merchant_id={MERCHANT_ID}&shipping_country=US",
+    headers={"X-API-Key": API_KEY},
+    json=[{"product_id": product_id, "quantity": 2}],
+    timeout=30,
 )
+cart.raise_for_status()
+variant_id = cart.json()["items"][0]["variant_id"]
 
-# 3. Get product details
-product = client.get_product(
-    product_id=products[0]["id"],
-    merchant_id=merchants[0]["merchant_id"]
+# 3) Hosted checkout (Checkout UI) – recommended for agent apps with end users
+intent = requests.post(
+    f"{API_BASE}/checkout/intents",
+    headers={"X-API-Key": API_KEY},
+    json={
+        "items": [
+            {
+                "product_id": product_id,
+                "variant_id": variant_id,
+                "merchant_id": MERCHANT_ID,
+                "quantity": 2,
+            }
+        ],
+        "return_url": "https://developer.pivota.cc/return",
+        "buyer_ref": "guest:YOUR_UUID",
+        "market": "US",
+        "source": "your_agent_app",
+    },
+    timeout=30,
 )
+intent.raise_for_status()
+print("Open hosted checkout URL:", intent.json()["checkout_url"])
 
-# 4. Create an order
-order = client.create_order(
-    merchant_id=merchants[0]["merchant_id"],
-    items=[{
-        "product_id": product["id"],
-        "quantity": 2,
-        "price": product["price"]
-    }],
-    customer_email="customer@example.com",
-    shipping_address={
-        "name": "John Doe",
-        "line1": "123 Main St",
-        "city": "San Francisco",
-        "state": "CA",
-        "postal_code": "94102",
-        "country": "US"
-    }
-)
-
-print(f"✅ Order " + "{order['order_id']}" + " created successfully!")
-print(f"💰 Total: $" + "{order['total']}")`
+# Optional: Checkout UI can fetch prefill via X-Checkout-Token
+prefill = requests.get(
+    f"{API_BASE}/checkout/prefill",
+    headers={"X-Checkout-Token": intent.json()["checkout_token"]},
+    timeout=30,
+).json()
+print("Prefill available:", prefill.get("prefill") is not None)`
   },
   typescript: {
     install: 'npm install pivota-agent',
-    quickstart: 'import { PivotaAgentClient } from \'pivota-agent\';\n\n' +
-      '// Initialize client\n' +
-      'const client = new PivotaAgentClient({\n' +
-      '  apiKey: \'YOUR_API_KEY\'\n' +
-      '});\n\n' +
-      '// Search products\n' +
-      'const products = await client.searchProducts({\n' +
-      '  query: \'laptop\',\n' +
-      '  merchantId: \'merch_6b90dc9838d5fd9c\'\n' +
-      '});\n\n' +
-      '// Create order\n' +
-      'const order = await client.createOrder({\n' +
-      '  merchantId: \'merch_6b90dc9838d5fd9c\',\n' +
-      '  items: [{\n' +
-      '    productId: products[0].id,\n' +
-      '    quantity: 1\n' +
-      '  }],\n' +
-      '  customerEmail: \'customer@example.com\'\n' +
-      '});\n\n' +
-      'console.log(`Order created: ${order.orderId}`);',
-    full: 'import { PivotaAgentClient } from \'pivota-agent\';\n\n' +
-      'const client = new PivotaAgentClient({\n' +
-      '  apiKey: \'YOUR_API_KEY\'\n' +
-      '});\n\n' +
+    quickstart:
+      'import axios from \'axios\';\n' +
+      'import { PivotaAgentClient } from \'pivota-agent\';\n\n' +
+      'const API_BASE = \'https://web-production-fedb.up.railway.app/agent/v1\';\n' +
+      'const API_KEY = \'YOUR_API_KEY\';\n' +
+      'const MERCHANT_ID = \'merch_xxx\';\n\n' +
+      'const client = new PivotaAgentClient({ apiKey: API_KEY, baseUrl: API_BASE });\n\n' +
+      '// 1) Search products\n' +
+      'const search = await client.searchProducts({ query: \'laptop\', merchant_id: MERCHANT_ID, limit: 5 });\n' +
+      'const productId = search.products[0].id;\n\n' +
+      '// 2) Resolve purchasable variant_id (cart/validate)\n' +
+      'const cart = await axios.post(\n' +
+      '  `${API_BASE}/cart/validate?merchant_id=${MERCHANT_ID}&shipping_country=US`,\n' +
+      '  [{ product_id: productId, quantity: 1 }],\n' +
+      '  { headers: { \'X-API-Key\': API_KEY } },\n' +
+      ');\n' +
+      'const variantId = cart.data.items[0].variant_id;\n\n' +
+      '// 3) Hosted checkout: mint checkout_token + checkout_url\n' +
+      'const intent = await axios.post(\n' +
+      '  `${API_BASE}/checkout/intents`,\n' +
+      '  {\n' +
+      '    items: [{ product_id: productId, variant_id: variantId, merchant_id: MERCHANT_ID, quantity: 1 }],\n' +
+      '    return_url: \'https://developer.pivota.cc/return\',\n' +
+      '    buyer_ref: \'guest:YOUR_UUID\',\n' +
+      '  },\n' +
+      '  { headers: { \'X-API-Key\': API_KEY } },\n' +
+      ');\n\n' +
+      'console.log(\'Open hosted checkout URL:\', intent.data.checkout_url);\n',
+    full:
+      'import axios from \'axios\';\n' +
+      'import { PivotaAgentClient } from \'pivota-agent\';\n\n' +
+      'const API_BASE = \'https://web-production-fedb.up.railway.app/agent/v1\';\n' +
+      'const API_KEY = \'YOUR_API_KEY\';\n' +
+      'const MERCHANT_ID = \'merch_xxx\';\n\n' +
       'async function main() {\n' +
-      '  // 1. List available merchants\n' +
-      '  const merchants = await client.listMerchants();\n' +
-      '  console.log(`Found ${merchants.length} merchants`);\n\n' +
-      '  // 2. Search products\n' +
-      '  const products = await client.searchProducts({\n' +
-      '    query: \'coffee mug\',\n' +
-      '    merchantId: merchants[0].merchantId,\n' +
-      '    limit: 10\n' +
-      '  });\n\n' +
-      '  // 3. Get product details\n' +
-      '  const product = await client.getProduct({\n' +
-      '    productId: products[0].id,\n' +
-      '    merchantId: merchants[0].merchantId\n' +
-      '  });\n\n' +
-      '  // 4. Create an order\n' +
-      '  const order = await client.createOrder({\n' +
-      '    merchantId: merchants[0].merchantId,\n' +
-      '    items: [{\n' +
-      '      productId: product.id,\n' +
-      '      quantity: 2,\n' +
-      '      price: product.price\n' +
-      '    }],\n' +
-      '    customerEmail: \'customer@example.com\',\n' +
-      '    shippingAddress: {\n' +
-      '      name: \'John Doe\',\n' +
-      '      line1: \'123 Main St\',\n' +
-      '      city: \'San Francisco\',\n' +
-      '      state: \'CA\',\n' +
-      '      postalCode: \'94102\',\n' +
-      '      country: \'US\'\n' +
-      '    }\n' +
-      '  });\n\n' +
-      '  console.log(`✅ Order ${order.orderId} created successfully!`);\n' +
-      '  console.log(`💰 Total: $${order.total}`);\n' +
+      '  const client = new PivotaAgentClient({ apiKey: API_KEY, baseUrl: API_BASE });\n\n' +
+      '  // 1) Search products\n' +
+      '  const search = await client.searchProducts({ query: \'coffee mug\', merchant_id: MERCHANT_ID, limit: 5 });\n' +
+      '  const productId = search.products[0].id;\n\n' +
+      '  // 2) cart/validate resolves variant_id and purchasability\n' +
+      '  const cart = await axios.post(\n' +
+      '    `${API_BASE}/cart/validate?merchant_id=${MERCHANT_ID}&shipping_country=US`,\n' +
+      '    [{ product_id: productId, quantity: 2 }],\n' +
+      '    { headers: { \'X-API-Key\': API_KEY } },\n' +
+      '  );\n' +
+      '  const variantId = cart.data.items[0].variant_id;\n\n' +
+      '  // 3) Hosted checkout (Checkout UI)\n' +
+      '  const intent = await axios.post(\n' +
+      '    `${API_BASE}/checkout/intents`,\n' +
+      '    {\n' +
+      '      items: [{ product_id: productId, variant_id: variantId, merchant_id: MERCHANT_ID, quantity: 2 }],\n' +
+      '      return_url: \'https://developer.pivota.cc/return\',\n' +
+      '      buyer_ref: \'guest:YOUR_UUID\',\n' +
+      '      market: \'US\',\n' +
+      '      source: \'your_agent_app\',\n' +
+      '    },\n' +
+      '    { headers: { \'X-API-Key\': API_KEY } },\n' +
+      '  );\n\n' +
+      '  console.log(\'Open hosted checkout URL:\', intent.data.checkout_url);\n\n' +
+      '  // Optional: Checkout UI can fetch prefill via X-Checkout-Token\n' +
+      '  const prefill = await axios.get(`${API_BASE}/checkout/prefill`, {\n' +
+      '    headers: { \'X-Checkout-Token\': intent.data.checkout_token },\n' +
+      '  });\n' +
+      '  console.log(\'Prefill available:\', Boolean(prefill.data?.prefill));\n' +
       '}\n\n' +
-      'main().catch(console.error);'
+      'main().catch(console.error);\n'
   },
   api: {
     auth: `curl https://web-production-fedb.up.railway.app/agent/v1/merchants \\
-  -H "x-api-key: YOUR_API_KEY"`
+  -H "X-API-Key: YOUR_API_KEY"`,
+    checkoutIntent: `curl -X POST "https://web-production-fedb.up.railway.app/agent/v1/checkout/intents" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -d '{
+    "items": [
+      {
+        "product_id": "prod_...",
+        "variant_id": "var_...",
+        "merchant_id": "merch_...",
+        "quantity": 1
+      }
+    ],
+    "return_url": "https://developer.pivota.cc/return",
+    "buyer_ref": "guest:YOUR_UUID"
+  }'`,
+    checkoutAcpSession: `curl -X POST "https://web-production-fedb.up.railway.app/agent/v1/checkout/acp-session" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -d '{
+    "merchant_id": "merch_...",
+    "items": [{ "id": "var_...", "quantity": 1 }],
+    "return_url": "https://developer.pivota.cc/return"
+  }'`
   },
   mcp: {
     config: '{\n' +
@@ -491,21 +553,21 @@ export default function IntegrationPage() {
                 <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div>
                   <h3 className="font-semibold text-blue-900 mb-2">SDK Documentation & Examples</h3>
-                  <div className="space-y-2">
-                    <a
-                      href="https://github.com/your-org/pivota-sdk-python"
-                      target="_blank"
-                      className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      Python SDK on GitHub
+	                  <div className="space-y-2">
+	                    <a
+	                      href="https://github.com/pivota/pivota-agent-sdk-python"
+	                      target="_blank"
+	                      className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+	                    >
+	                      Python SDK on GitHub
                       <ExternalLink className="w-3 h-3 ml-1" />
                     </a>
-                    <a
-                      href="https://github.com/your-org/pivota-sdk-typescript"
-                      target="_blank"
-                      className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      TypeScript SDK on GitHub
+	                    <a
+	                      href="https://github.com/pivota/pivota-agent-sdk-typescript"
+	                      target="_blank"
+	                      className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+	                    >
+	                      TypeScript SDK on GitHub
                       <ExternalLink className="w-3 h-3 ml-1" />
                     </a>
                     <Link
@@ -529,11 +591,11 @@ export default function IntegrationPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Base URL</h2>
               <div className="bg-gray-100 rounded-lg p-3">
-                <code className="text-sm text-gray-900">
-                  https://web-production-fedb.up.railway.app/agent/v1
-                </code>
-              </div>
-            </div>
+	                <code className="text-sm text-gray-900">
+	                  https://web-production-fedb.up.railway.app/agent/v1
+	                </code>
+	              </div>
+	            </div>
 
             {/* Authentication */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -552,59 +614,137 @@ export default function IntegrationPage() {
               </div>
             </div>
 
-            {/* Key Endpoints */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Key Endpoints</h2>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
-                    <code className="text-sm font-mono">/merchants</code>
-                  </div>
-                  <p className="text-sm text-gray-600">List all available merchants</p>
-                </div>
+	            {/* Key Endpoints */}
+	            <div className="bg-white rounded-xl border border-gray-200 p-6">
+	              <h2 className="text-lg font-semibold text-gray-900 mb-4">Key Endpoints</h2>
+	              <div className="space-y-4">
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
+	                    <code className="text-sm font-mono">/merchants</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">List all available merchants</p>
+	                </div>
 
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
-                    <code className="text-sm font-mono">/catalog/search</code>
-                  </div>
-                  <p className="text-sm text-gray-600">Search for products across merchants</p>
-                </div>
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
+	                    <code className="text-sm font-mono">/products/search</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">Search for products across merchants</p>
+	                </div>
 
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">POST</span>
-                    <code className="text-sm font-mono">/orders/create</code>
-                  </div>
-                  <p className="text-sm text-gray-600">Create a new order</p>
-                </div>
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">POST</span>
+	                    <code className="text-sm font-mono">/cart/validate</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">Validate a cart and resolve variant IDs before checkout</p>
+	                </div>
 
-                <div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
-                    <code className="text-sm font-mono">/orders/:order_id</code>
-                  </div>
-                  <p className="text-sm text-gray-600">Get order details</p>
-                </div>
-              </div>
-            </div>
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">POST</span>
+	                    <code className="text-sm font-mono">/quotes/preview</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">Preview pricing (quote-first checkout)</p>
+	                </div>
 
-            {/* OpenAPI Spec */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-              <div className="flex items-start space-x-3">
-                <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-blue-900 mb-2">OpenAPI Specification</h3>
-                  <p className="text-sm text-blue-800 mb-3">
-                    Download the complete OpenAPI spec for API documentation tools
-                  </p>
-                  <a
-                    href="https://web-production-fedb.up.railway.app/agent/v1/openapi.json"
-                    target="_blank"
-                    className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
-                  >
-                    Download openapi.json
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">POST</span>
+	                    <code className="text-sm font-mono">/orders/create</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">Create a new order</p>
+	                </div>
+
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
+	                    <code className="text-sm font-mono">/orders/{'{order_id}'}</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">Get order details</p>
+	                </div>
+
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">POST</span>
+	                    <code className="text-sm font-mono">/checkout/intents</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">Hosted checkout (Checkout UI): mint checkout_token + checkout_url</p>
+	                </div>
+
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded">GET</span>
+	                    <code className="text-sm font-mono">/checkout/prefill</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">
+	                    Checkout UI prefill via <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">X-Checkout-Token</code>
+	                  </p>
+	                </div>
+
+	                <div>
+	                  <div className="flex items-center space-x-2 mb-2">
+	                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">POST</span>
+	                    <code className="text-sm font-mono">/checkout/acp-session</code>
+	                  </div>
+	                  <p className="text-sm text-gray-600">Hosted checkout (ACP): create an ACP checkout session and get a checkout_url</p>
+	                </div>
+	              </div>
+	            </div>
+
+	            {/* Hosted Checkout */}
+	            <div className="bg-white rounded-xl border border-gray-200 p-6">
+	              <h2 className="text-lg font-semibold text-gray-900 mb-4">Hosted Checkout (recommended)</h2>
+	              <p className="text-sm text-gray-600 mb-4">
+	                If your agent has end users, use hosted checkout to avoid building shipping & payment UIs.
+	              </p>
+
+	              <div className="space-y-4">
+	                <div>
+	                  <p className="text-sm font-medium text-gray-800 mb-2">Checkout UI (token + URL)</p>
+	                  <div className="bg-gray-900 rounded-lg p-4 relative">
+	                    <button
+	                      onClick={() => copyCode(CODE_EXAMPLES.api.checkoutIntent, 'checkout-intent')}
+	                      className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
+	                    >
+	                      {copiedCode === 'checkout-intent' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+	                    </button>
+	                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{CODE_EXAMPLES.api.checkoutIntent}</pre>
+	                  </div>
+	                </div>
+
+	                <div>
+	                  <p className="text-sm font-medium text-gray-800 mb-2">ACP checkout session (URL)</p>
+	                  <div className="bg-gray-900 rounded-lg p-4 relative">
+	                    <button
+	                      onClick={() => copyCode(CODE_EXAMPLES.api.checkoutAcpSession, 'checkout-acp')}
+	                      className="absolute top-2 right-2 p-2 text-gray-400 hover:text-white rounded"
+	                    >
+	                      {copiedCode === 'checkout-acp' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+	                    </button>
+	                    <pre className="text-sm text-gray-100 whitespace-pre-wrap">{CODE_EXAMPLES.api.checkoutAcpSession}</pre>
+	                  </div>
+	                </div>
+	              </div>
+	            </div>
+
+	            {/* OpenAPI Spec */}
+	            <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+	              <div className="flex items-start space-x-3">
+	                <BookOpen className="w-5 h-5 text-blue-600 mt-0.5" />
+	                <div>
+	                  <h3 className="font-semibold text-blue-900 mb-2">OpenAPI Specification</h3>
+	                  <p className="text-sm text-blue-800 mb-3">
+	                    Download the complete OpenAPI spec for API documentation tools
+	                  </p>
+	                  <a
+	                    href="https://web-production-fedb.up.railway.app/openapi.json"
+	                    target="_blank"
+	                    className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+	                  >
+	                    Download openapi.json
                     <ExternalLink className="w-3 h-3 ml-1" />
                   </a>
                 </div>
