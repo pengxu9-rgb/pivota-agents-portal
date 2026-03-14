@@ -477,6 +477,11 @@ class AgentApiClient {
     };
   }
 
+  async changePassword(passwordData: { current_password: string; new_password: string }) {
+    const response = await this.client.post('/api/auth/change-password', passwordData);
+    return response.data;
+  }
+
   async resetApiKey() {
     // TODO: Implement when backend ready
     const newKey = `ak_live_${Math.random().toString(16).slice(2).padEnd(32, '0')}`;

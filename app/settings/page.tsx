@@ -1,14 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, User, Key, Bell, Save, Copy, RefreshCw, Loader2, CreditCard, ExternalLink } from 'lucide-react';
+import { ArrowLeft, User, Key, Save, Copy, RefreshCw, Loader2, CreditCard, ExternalLink, Lock } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
+
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return 'Password must be at least 8 characters long.';
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
+  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one digit.';
+  return null;
+}
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [profile, setProfile] = useState({
@@ -17,6 +24,14 @@ export default function SettingsPage() {
     company: '',
     webhook_url: '',
   });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -70,6 +85,51 @@ export default function SettingsPage() {
       alert('✅ New API key generated!');
     } catch (error: any) {
       alert('❌ Failed: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
+  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    const validationError = validatePassword(passwordForm.newPassword);
+    if (validationError) {
+      setPasswordError(validationError);
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const result = await agentApi.changePassword({
+        current_password: passwordForm.currentPassword,
+        new_password: passwordForm.newPassword,
+      });
+
+      setPasswordSuccess(result.message || 'Password changed successfully. Redirecting to login...');
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      window.setTimeout(() => {
+        agentApi.logout();
+        router.push('/login');
+      }, 1200);
+    } catch (error: any) {
+      setPasswordError(
+        error?.response?.data?.detail ||
+          error?.response?.data?.message ||
+          error?.message ||
+          'Failed to change password.'
+      );
+    } finally {
+      setSavingPassword(false);
     }
   };
 
@@ -171,6 +231,82 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <Lock className="w-6 h-6 text-purple-600" />
+              <h2 className="text-lg font-semibold">Security</h2>
+            </div>
+
+            {passwordError ? (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {passwordError}
+              </div>
+            ) : null}
+
+            {passwordSuccess ? (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                {passwordSuccess}
+              </div>
+            ) : null}
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(event) =>
+                    setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))
+                  }
+                  required
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="Enter your current password"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(event) =>
+                      setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))
+                    }
+                    required
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Enter a new password"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                  <input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(event) =>
+                      setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))
+                    }
+                    required
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="Confirm the new password"
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-gray-500">
+                Use at least 8 characters with uppercase, lowercase, and a number.
+              </p>
+
+              <button
+                type="submit"
+                disabled={savingPassword}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+              >
+                {savingPassword ? 'Updating Password...' : 'Update Password'}
+              </button>
+            </form>
+          </div>
+
           {/* Bank Account Section */}
           <div className="border-t pt-8">
             <div className="flex items-center justify-between mb-6">
@@ -235,5 +371,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-
