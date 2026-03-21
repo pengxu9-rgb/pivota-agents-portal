@@ -1,164 +1,166 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Bot, ArrowRight, Mail, User, Key, Building, FileText, CheckCircle } from 'lucide-react';
+import { ArrowRight, Bot, Building, CheckCircle2, Key, Mail, User } from 'lucide-react';
+import InlineNotice from '@/components/portal/InlineNotice';
+import { agentApi } from '@/lib/api-client';
+
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return 'Password must be at least 8 characters long.';
+  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter.';
+  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter.';
+  if (!/[0-9]/.test(password)) return 'Password must contain at least one digit.';
+  return null;
+}
 
 export default function AgentSignup() {
-  const router = useRouter();
-  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [formError, setFormError] = useState('');
+  const [copyMessage, setCopyMessage] = useState('');
+  const [registrationComplete, setRegistrationComplete] = useState(false);
   const [formData, setFormData] = useState({
     agent_name: '',
     agent_email: '',
     password: '',
     confirmPassword: '',
     company: '',
-    description: '',
-    phone: ''
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate passwords match
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setFormError('');
+    setCopyMessage('');
+
     if (formData.password !== formData.confirmPassword) {
-      alert('❌ Passwords do not match');
+      setFormError('Passwords do not match.');
       return;
     }
-    
-    if (formData.password.length < 8) {
-      alert('❌ Password must be at least 8 characters long');
+
+    const validationError = validatePassword(formData.password);
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
-    
+
     setLoading(true);
 
     try {
-      const response = await fetch('https://web-production-fedb.up.railway.app/agent/account/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.agent_email,
-          password: formData.password,
-          agent_name: formData.agent_name,
-          company: formData.company || null
-        }),
+      const response = await agentApi.register({
+        email: formData.agent_email.trim(),
+        password: formData.password,
+        agent_name: formData.agent_name.trim(),
+        company: formData.company.trim() || null,
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success && data.api_key) {
-        setApiKey(data.api_key);
-        setStep(2);
-      } else {
-        alert(`❌ Registration failed: ${data.detail || data.message || 'Unknown error'}`);
+      if (!response?.success) {
+        setFormError(response?.detail || response?.message || 'Registration failed.');
+        return;
       }
+
+      setApiKey(response.api_key || '');
+      setRegistrationComplete(true);
     } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
+      setFormError(error?.response?.data?.detail || error?.response?.data?.message || error?.message || 'Registration failed.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCopyApiKey = () => {
-    navigator.clipboard.writeText(apiKey);
-    alert('✅ API Key copied to clipboard!');
+  const handleCopyApiKey = async () => {
+    if (!apiKey) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      setCopyMessage('API key copied. Store it securely now.');
+    } catch (error) {
+      console.error('Failed to copy API key:', error);
+      setCopyMessage('Copy failed. Select the key manually and store it securely.');
+    }
   };
 
-  const handleContinueToDashboard = () => {
-    // Store API key
-    localStorage.setItem('agent_api_key', apiKey);
-    router.push('/login');
-  };
-
-  if (step === 2) {
+  if (registrationComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100 flex items-center justify-center p-4">
-        <div className="max-w-2xl w-full">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-600 rounded-full mb-4">
-                <CheckCircle className="w-8 h-8 text-white" />
+      <div className="min-h-screen bg-[linear-gradient(180deg,#eef2ff_0%,#f8fafc_38%,#ffffff_100%)] px-4 py-16">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+            <div className="text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-100 text-emerald-700">
+                <CheckCircle2 className="h-8 w-8" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
-                Registration Complete!
-              </h2>
-              <p className="text-gray-600">
-                Your API key has been generated successfully
+              <h1 className="mt-5 text-3xl font-semibold tracking-[-0.03em] text-slate-950">Registration complete</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Your developer account is ready. Review the one-time credential handoff below, then continue to sign in.
               </p>
             </div>
 
-            {/* API Key Display */}
-            <div className="bg-gray-50 border-2 border-purple-200 rounded-lg p-6 mb-6">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-2">
-                  <Key className="w-5 h-5 text-purple-600" />
-                  <h3 className="font-semibold text-gray-900">Your API Key</h3>
-                </div>
-                <button
-                  onClick={handleCopyApiKey}
-                  className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700"
-                >
-                  Copy
-                </button>
-              </div>
-              <code className="block text-sm bg-white p-3 rounded border border-gray-200 break-all font-mono">
-                {apiKey}
-              </code>
-              <p className="text-xs text-red-600 mt-2">
-                ⚠️ Save this key securely. You won't be able to see it again!
-              </p>
-            </div>
-
-            {/* Agent Info */}
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-600">Agent Name:</span>
-                <span className="font-medium">{formData.agent_name}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-600">Email:</span>
-                <span className="font-medium">{formData.agent_email}</span>
-              </div>
-              {formData.company && (
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-gray-600">Company:</span>
-                  <span className="font-medium">{formData.company}</span>
-                </div>
+            <div className="mt-8 space-y-4">
+              {apiKey ? (
+                <InlineNotice tone="warning" title="Store this API key securely">
+                  This is the only time the full key will be shown.
+                </InlineNotice>
+              ) : (
+                <InlineNotice tone="info" title="No one-time API key was returned">
+                  The account was created successfully, but the backend did not return a new key in this response. Sign in to manage keys from the portal.
+                </InlineNotice>
               )}
+
+              {copyMessage ? <InlineNotice tone="success">{copyMessage}</InlineNotice> : null}
+
+              {apiKey ? (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-violet-900">Primary API key</p>
+                      <code className="mt-3 block break-all rounded-xl border border-violet-200 bg-white px-3 py-3 font-mono text-sm text-slate-800">
+                        {apiKey}
+                      </code>
+                    </div>
+                    <button
+                      onClick={() => void handleCopyApiKey()}
+                      className="inline-flex items-center justify-center rounded-xl bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700"
+                    >
+                      Copy key
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="space-y-2 text-sm text-slate-600">
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Agent name</span>
+                    <span className="font-medium text-slate-900">{formData.agent_name}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Email</span>
+                    <span className="font-medium text-slate-900">{formData.agent_email}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span>Company</span>
+                    <span className="font-medium text-slate-900">{formData.company}</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            {/* Next Steps */}
-            <div className="bg-blue-50 rounded-lg p-4 mb-6">
-              <h4 className="font-semibold text-blue-900 mb-2">Next Steps:</h4>
-              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-                <li>Save your API key in a secure location</li>
-                <li>Read the API documentation</li>
-                <li>Start integrating with our unified API</li>
-                <li>Test your first transaction</li>
-              </ol>
-            </div>
-
-            {/* Actions */}
-            <div className="space-y-3">
-              <button
-                onClick={handleContinueToDashboard}
-                className="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/login"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--portal-accent)] px-4 py-3 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
               >
-                Continue to Dashboard
-              </button>
-              <a
-                href="https://docs.pivota.com/agent-api"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full px-6 py-3 text-center border-2 border-purple-600 text-purple-600 font-semibold rounded-lg hover:bg-purple-50 transition-colors"
+                <span>Continue to sign in</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/docs"
+                className="inline-flex flex-1 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                View API Documentation
-              </a>
+                View docs
+              </Link>
             </div>
           </div>
         </div>
@@ -167,193 +169,156 @@ export default function AgentSignup() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 rounded-2xl mb-4">
-            <Bot className="w-8 h-8 text-white" />
+    <div className="min-h-screen bg-[linear-gradient(180deg,#eef2ff_0%,#f8fafc_38%,#ffffff_100%)] px-4 py-12">
+      <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <section className="space-y-6">
+          <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm">
+            <Bot className="h-4 w-4 text-[var(--portal-accent)]" />
+            <span>Developer onboarding</span>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Join Pivota as an AI Agent
-          </h1>
-          <p className="text-lg text-gray-600">
-            Get your API key and start building commerce experiences
-          </p>
-        </div>
+          <div>
+            <h1 className="max-w-xl text-4xl font-semibold tracking-[-0.04em] text-slate-950">
+              Create a production-ready Pivota developer account
+            </h1>
+            <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
+              Register your agent, receive a one-time API key handoff when available, and continue into the portal for keys, usage, docs, logs, and webhook setup.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            {[
+              'Use one account per integration surface or partner environment.',
+              'Store production API keys outside source control and rotate after incidents.',
+              'Return to the portal after registration to manage keys and monitor production health.',
+            ].map((item) => (
+              <div key={item} className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm leading-6 text-slate-600 shadow-sm">
+                {item}
+              </div>
+            ))}
+          </div>
+        </section>
 
-        {/* Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <section className="rounded-[28px] border border-slate-200 bg-white p-8 shadow-[0_24px_80px_rgba(15,23,42,0.08)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--portal-accent)]/10 text-[var(--portal-accent)]">
+              <Bot className="h-5 w-5" />
+            </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <User className="w-4 h-4 inline mr-2" />
-                Agent Name <span className="text-red-500">*</span>
-              </label>
+              <p className="text-sm font-semibold text-slate-950">Pivota</p>
+              <p className="text-sm text-slate-500">Developer Portal</p>
+            </div>
+          </div>
+
+          <div className="mt-6">
+            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-slate-950">Register your agent</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Create a public developer account for your production integration. Registration currently supports name, email, password, and company only.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            {formError ? <InlineNotice tone="critical">{formError}</InlineNotice> : null}
+
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+                <User className="h-4 w-4" />
+                <span>Agent name</span>
+              </span>
               <input
                 type="text"
                 required
                 value={formData.agent_name}
-                onChange={(e) => setFormData({ ...formData, agent_name: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                onChange={(event) => setFormData((current) => ({ ...current, agent_name: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[var(--portal-accent)]"
                 placeholder="My AI Shopping Assistant"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                A descriptive name for your AI agent
-              </p>
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Mail className="w-4 h-4 inline mr-2" />
-                Email <span className="text-red-500">*</span>
-              </label>
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Mail className="h-4 w-4" />
+                <span>Email</span>
+              </span>
               <input
                 type="email"
                 required
                 value={formData.agent_email}
-                onChange={(e) => setFormData({ ...formData, agent_email: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                onChange={(event) => setFormData((current) => ({ ...current, agent_email: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[var(--portal-accent)]"
                 placeholder="developer@company.com"
               />
+            </label>
+
+            <div className="grid gap-5 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+                  <Key className="h-4 w-4" />
+                  <span>Password</span>
+                </span>
+                <input
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={(event) => setFormData((current) => ({ ...current, password: event.target.value }))}
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[var(--portal-accent)]"
+                  placeholder="••••••••"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-slate-700">Confirm password</span>
+                <input
+                  type="password"
+                  required
+                  value={formData.confirmPassword}
+                  onChange={(event) => setFormData((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[var(--portal-accent)]"
+                  placeholder="••••••••"
+                />
+              </label>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Key className="w-4 h-4 inline mr-2" />
-                Password <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                At least 8 characters with uppercase, lowercase, and numbers
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="password"
-                required
-                value={formData.confirmPassword}
-                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Building className="w-4 h-4 inline mr-2" />
-                Company/Organization <span className="text-red-500">*</span>
-              </label>
+            <label className="block">
+              <span className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Building className="h-4 w-4" />
+                <span>Company</span>
+              </span>
               <input
                 type="text"
                 required
                 value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                onChange={(event) => setFormData((current) => ({ ...current, company: event.target.value }))}
+                className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[var(--portal-accent)]"
                 placeholder="Acme AI Labs"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Your organization or company name
-              </p>
-            </div>
+            </label>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone (Optional)
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="+1 (234) 567-8900"
-              />
-            </div>
+            <InlineNotice tone="info" title="One-time key handoff">
+              If the backend returns a new API key during registration, the portal will show it exactly once on the next screen.
+            </InlineNotice>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <FileText className="w-4 h-4 inline mr-2" />
-                Use Case Description (Optional)
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                rows={3}
-                placeholder="I'm building a conversational shopping assistant that helps users find products..."
-              />
-            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--portal-accent)] px-4 py-3.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span>{loading ? 'Creating account…' : 'Create developer account'}</span>
+              {!loading ? <ArrowRight className="h-4 w-4" /> : null}
+            </button>
 
-            {/* Info Box */}
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <Key className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <h4 className="font-semibold text-purple-900 mb-1">API Key Generation</h4>
-                  <p className="text-sm text-purple-700">
-                    Upon registration, you'll receive your unique API key. Save it securely as you won't be able to see it again after leaving this page.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Submit Button */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    <span>Generating API Key...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Get API Key & Register</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Terms */}
-            <p className="text-xs text-gray-500 text-center">
-              By registering, you agree to Pivota's{' '}
-              <a href="#" className="text-purple-600 hover:underline">API Terms of Service</a>
-              {' '}and{' '}
-              <a href="#" className="text-purple-600 hover:underline">Privacy Policy</a>
+            <p className="text-center text-xs leading-6 text-slate-500">
+              By registering, you agree to Pivota&apos;s developer terms and production integration policies.
             </p>
           </form>
-        </div>
 
-        {/* Links */}
-        <div className="text-center mt-6 space-y-2">
-          <a
-            href="/login"
-            className="block text-sm text-gray-600 hover:text-gray-900"
-          >
-            Already have an API key? Sign in
-          </a>
-          <a
-            href="https://pivota.cc"
-            className="block text-sm text-gray-600 hover:text-gray-900"
-          >
-            ← Back to Homepage
-          </a>
-        </div>
+          <div className="mt-6 flex flex-col gap-2 text-sm text-slate-600">
+            <Link href="/login" className="hover:text-slate-900">
+              Already have an account? Sign in
+            </Link>
+            <a href="https://pivota.cc" className="hover:text-slate-900">
+              Back to pivota.cc
+            </a>
+          </div>
+        </section>
       </div>
     </div>
   );

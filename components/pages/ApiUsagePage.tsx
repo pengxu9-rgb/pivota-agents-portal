@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Activity, ArrowRight, BarChart3, Gauge, RefreshCw, ShoppingCart } from 'lucide-react';
+import EmptyState from '@/components/portal/EmptyState';
+import InlineNotice from '@/components/portal/InlineNotice';
 import MetricCard from '@/components/portal/MetricCard';
 import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
@@ -24,6 +26,7 @@ export default function ApiUsagePage({
   const [timeRange, setTimeRange] = useState(24);
   const [summary, setSummary] = useState<any>(null);
   const [timeline, setTimeline] = useState<any[]>([]);
+  const [unavailableSources, setUnavailableSources] = useState<string[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -36,17 +39,33 @@ export default function ApiUsagePage({
   }, [router, timeRange]);
 
   const loadAnalytics = async (hours: number) => {
+    setLoading(true);
+
     try {
-      setLoading(true);
-      const [summaryResponse, timelineResponse] = await Promise.all([
+      const [summaryResult, timelineResult] = await Promise.allSettled([
         agentApi.getMetricsSummary(),
         agentApi.getAgentTimeline(hours),
       ]);
 
-      setSummary(summaryResponse);
-      setTimeline(timelineResponse?.timeline || []);
-    } catch (error) {
-      console.error('Failed to load API usage page:', error);
+      const nextUnavailableSources: string[] = [];
+
+      if (summaryResult.status === 'fulfilled') {
+        setSummary(summaryResult.value);
+      } else {
+        console.error('Failed to load usage summary:', summaryResult.reason);
+        setSummary(null);
+        nextUnavailableSources.push('summary metrics');
+      }
+
+      if (timelineResult.status === 'fulfilled') {
+        setTimeline(timelineResult.value?.timeline || []);
+      } else {
+        console.error('Failed to load usage timeline:', timelineResult.reason);
+        setTimeline([]);
+        nextUnavailableSources.push('performance timeline');
+      }
+
+      setUnavailableSources(nextUnavailableSources);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -65,6 +84,8 @@ export default function ApiUsagePage({
       : 'Endpoint traffic, response performance, and recent request patterns across your integration.';
 
   const topEndpoints = summary?.top_endpoints ?? [];
+  const summaryUnavailable = unavailableSources.includes('summary metrics');
+  const timelineUnavailable = unavailableSources.includes('performance timeline');
   const peakRequests = useMemo(
     () => Math.max(1, ...topEndpoints.map((endpoint: any) => endpoint.count ?? 0)),
     [topEndpoints],
@@ -100,34 +121,40 @@ export default function ApiUsagePage({
       />
 
       <div className="space-y-6 px-6 py-6">
+        {unavailableSources.length > 0 ? (
+          <InlineNotice tone="warning" title="Some analytics data is temporarily unavailable">
+            The portal could not load {unavailableSources.join(', ')}. Visible usage data below reflects only the feeds that responded successfully.
+          </InlineNotice>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label="Requests"
-            value={(summary?.overview?.requests_last_24h ?? 0).toLocaleString()}
-            hint="Last 24 hours"
+            value={summaryUnavailable ? 'Unavailable' : (summary?.overview?.requests_last_24h ?? 0).toLocaleString()}
+            hint={summaryUnavailable ? 'Summary metrics unavailable' : 'Last 24 hours'}
             icon={<Activity className="h-5 w-5" />}
-            tone="info"
+            tone={summaryUnavailable ? 'neutral' : 'info'}
           />
           <MetricCard
             label="Success rate"
-            value={`${summary?.performance?.success_rate_24h ?? 0}%`}
-            hint="Current production traffic"
+            value={summaryUnavailable ? 'Unavailable' : `${summary?.performance?.success_rate_24h ?? 0}%`}
+            hint={summaryUnavailable ? 'Summary metrics unavailable' : 'Current production traffic'}
             icon={<Gauge className="h-5 w-5" />}
-            tone={(summary?.performance?.success_rate_24h ?? 0) >= 99 ? 'success' : 'warning'}
+            tone={summaryUnavailable ? 'neutral' : (summary?.performance?.success_rate_24h ?? 0) >= 99 ? 'success' : 'warning'}
           />
           <MetricCard
             label="Average latency"
-            value={`${summary?.performance?.avg_response_time_ms ?? 0}ms`}
-            hint="P95 will replace this when available"
+            value={summaryUnavailable ? 'Unavailable' : `${summary?.performance?.avg_response_time_ms ?? 0}ms`}
+            hint={summaryUnavailable ? 'Summary metrics unavailable' : 'P95 will replace this when available'}
             icon={<BarChart3 className="h-5 w-5" />}
-            tone={(summary?.performance?.avg_response_time_ms ?? 0) > 800 ? 'warning' : 'neutral'}
+            tone={summaryUnavailable ? 'neutral' : (summary?.performance?.avg_response_time_ms ?? 0) > 800 ? 'warning' : 'neutral'}
           />
           <MetricCard
             label="Completed orders"
-            value={(summary?.orders?.total_paid_orders ?? 0).toLocaleString()}
-            hint="All-time completed flow count"
+            value={summaryUnavailable ? 'Unavailable' : (summary?.orders?.total_paid_orders ?? 0).toLocaleString()}
+            hint={summaryUnavailable ? 'Summary metrics unavailable' : 'All-time completed flow count'}
             icon={<ShoppingCart className="h-5 w-5" />}
-            tone="success"
+            tone={summaryUnavailable ? 'neutral' : 'success'}
           />
         </div>
 
@@ -140,6 +167,12 @@ export default function ApiUsagePage({
             <div className="mt-5 space-y-3">
               {loading ? (
                 [0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)
+              ) : timelineUnavailable ? (
+                <EmptyState
+                  icon={<BarChart3 className="h-5 w-5" />}
+                  title="Performance timeline unavailable"
+                  description="The selected timeline feed could not be loaded, so request rollups are temporarily unavailable."
+                />
               ) : timeline.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] px-4 py-8 text-center text-sm text-[var(--portal-fg-muted)]">
                   No timeline data available for this range.
@@ -189,6 +222,12 @@ export default function ApiUsagePage({
             <div className="mt-5 space-y-3">
               {loading ? (
                 [0, 1, 2].map((item) => <div key={item} className="h-14 animate-pulse rounded-2xl bg-slate-100" />)
+              ) : summaryUnavailable ? (
+                <EmptyState
+                  icon={<Activity className="h-5 w-5" />}
+                  title="Endpoint activity unavailable"
+                  description="The summary metrics feed could not be loaded, so the top-endpoint list is temporarily unavailable."
+                />
               ) : topEndpoints.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] px-4 py-8 text-center text-sm text-[var(--portal-fg-muted)]">
                   No endpoint activity available yet.

@@ -269,14 +269,7 @@ class AgentApiClient {
       };
     } catch (error) {
       console.error('[AgentApiClient] Failed to load integration overview:', error);
-      return {
-        api_connected: false,
-        connected_merchants: 0,
-        active_protocols: 0,
-        last_api_call: null,
-        last_sync: null,
-        raw: null,
-      };
+      throw error;
     }
   }
 
@@ -284,73 +277,28 @@ class AgentApiClient {
   
   // Analytics - Dashboard
   async getMetricsSummary() {
-    try {
-      const response = await this.client.get('/agent/metrics/summary');
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch metrics summary:', error);
-      return this.getEmptyMetricsSummary();
-    }
+    const response = await this.client.get('/agent/metrics/summary');
+    return response.data;
   }
 
   async getAgentTimeline(hours: number = 24) {
-    try {
-      const response = await this.client.get('/agent/metrics/timeline', { params: { hours } });
+    const response = await this.client.get('/agent/metrics/timeline', { params: { hours } });
     return response.data;
-    } catch (error) {
-      console.error('Failed to fetch agent timeline:', error);
-      return { timeline: [] };
-    }
   }
 
   async getRecentActivity(limit: number = 5) {
-    try {
-      const response = await this.client.get('/agent/metrics/recent', { params: { limit } });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch recent activity:', error);
-      return {
-        activities: [],
-        total: 0,
-        limit,
-      };
-    }
+    const response = await this.client.get('/agent/metrics/recent', { params: { limit } });
+    return response.data;
   }
 
   async getConversionFunnel(days: number = 7) {
-    try {
-      const response = await this.client.get('/agent/v1/analytics/funnel', { params: { days } });
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch conversion funnel:', error);
-      return {
-        orders_initiated: 0,
-        payment_attempted: 0,
-        orders_completed: 0,
-        conversion_rate: 0,
-        days,
-      };
-    }
+    const response = await this.client.get('/agent/v1/analytics/funnel', { params: { days } });
+    return response.data;
   }
 
   async getQueryAnalytics() {
-    try {
-      const response = await this.client.get('/agent/v1/analytics/queries');
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch query analytics:', error);
-      return {
-        product_searches: 0,
-        product_searches_trend: 'stable',
-        product_searches_change: 0,
-        inventory_checks: 0,
-        inventory_checks_trend: 'stable',
-        inventory_checks_change: 0,
-        price_queries: 0,
-        price_queries_trend: 'stable',
-        price_queries_change: 0,
-      };
-    }
+    const response = await this.client.get('/agent/v1/analytics/queries');
+    return response.data;
   }
 
   // Auth
@@ -384,6 +332,16 @@ class AgentApiClient {
     }
   }
 
+  async register(payload: {
+    email: string;
+    password: string;
+    agent_name: string;
+    company?: string | null;
+  }) {
+    const response = await this.client.post('/agent/account/register', payload);
+    return response.data;
+  }
+
   logout() {
     localStorage.removeItem('agent_token');
     localStorage.removeItem('agent_user');
@@ -415,20 +373,18 @@ class AgentApiClient {
   }
 
   async getOrders(limit: number = 50) {
-    // Call real backend API - requires X-API-Key
-    try {
-      const apiKey = localStorage.getItem('agent_api_key');
-      const response = await this.client.get('/agent/v1/orders', {
-      params: { limit },
-        headers: {
-          'X-API-Key': apiKey
-        }
-      });
-      return response.data.orders || [];
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-      return [];
+    const apiKey = localStorage.getItem('agent_api_key');
+    if (!apiKey) {
+      throw new Error('API key not found');
     }
+
+    const response = await this.client.get('/agent/v1/orders', {
+      params: { limit },
+      headers: {
+        'X-API-Key': apiKey,
+      },
+    });
+    return response.data.orders || [];
   }
 
   async refundOrder(orderId: string) {
@@ -480,10 +436,15 @@ class AgentApiClient {
   }
 
   async getApiKeys() {
+    const fallbackKey = this.getSessionFallbackApiKey();
+
     try {
       const agentId = this.getStoredAgentId();
       if (!agentId) {
-        return { status: 'success', keys: [] };
+        return {
+          status: 'success',
+          keys: fallbackKey ? [fallbackKey] : [],
+        };
       }
 
       const response = await this.client.get(`/agents/${agentId}/api-keys`);
@@ -507,16 +468,13 @@ class AgentApiClient {
         return { status: 'success', keys: normalized };
       }
 
-      const fallbackKey = this.getSessionFallbackApiKey();
       return {
         status: 'success',
         keys: fallbackKey ? [fallbackKey] : [],
       };
     } catch (error: any) {
       console.error('[AgentApiClient] Failed to get API keys:', error?.response?.status, error?.message);
-
-      const fallbackKey = this.getSessionFallbackApiKey();
-      return { status: 'success', keys: fallbackKey ? [fallbackKey] : [] };
+      throw error;
     }
   }
 
@@ -582,18 +540,7 @@ class AgentApiClient {
       };
     } catch (error: any) {
       console.error('[AgentApiClient] Failed to load agent profile:', error?.response?.status, error?.message);
-
-      return {
-        status: 'success',
-        agent: storedUser
-          ? this.normalizeProfile({
-              agent_name: storedUser.name,
-              owner_email: storedUser.email,
-              company: storedUser.company,
-              webhook_url: '',
-            })
-          : null,
-      };
+      throw error;
     }
   }
 

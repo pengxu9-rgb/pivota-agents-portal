@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle, Copy, Eye, EyeOff, KeyRound, Plus, Trash2 } from 'lucide-react';
+import { CheckCircle, Copy, Eye, EyeOff, KeyRound, Plus, Trash2 } from 'lucide-react';
+import ConfirmDialog from '@/components/portal/ConfirmDialog';
 import EmptyState from '@/components/portal/EmptyState';
+import InlineNotice from '@/components/portal/InlineNotice';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
@@ -32,6 +34,8 @@ export default function ApiKeyManager({
   const [error, setError] = useState<string | null>(null);
   const [newKeyName, setNewKeyName] = useState('');
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<{ id: string; key: string } | null>(null);
+  const [keyPendingRevocation, setKeyPendingRevocation] = useState<ApiKey | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   useEffect(() => {
     void fetchApiKeys();
@@ -45,9 +49,9 @@ export default function ApiKeyManager({
       if (response.status === 'success') {
         setApiKeys(response.keys || []);
       }
-    } catch (requestError) {
+    } catch (requestError: any) {
       console.error('Failed to fetch API keys:', requestError);
-      setError('Failed to load API keys.');
+      setError(requestError?.response?.data?.detail || requestError?.message || 'Failed to load API keys.');
     } finally {
       setLoading(false);
     }
@@ -76,27 +80,31 @@ export default function ApiKeyManager({
       } else {
         setError('API key created, but the full key was not returned by the server.');
       }
-    } catch (requestError) {
+    } catch (requestError: any) {
       console.error('Failed to create API key:', requestError);
-      setError('Failed to create API key.');
+      setError(requestError?.response?.data?.detail || requestError?.message || 'Failed to create API key.');
     } finally {
       setCreating(false);
     }
   };
 
-  const revokeApiKey = async (keyId: string) => {
-    if (!confirm('Revoke this API key? This action cannot be undone.')) {
+  const revokeApiKey = async () => {
+    if (!keyPendingRevocation) {
       return;
     }
 
+    setRevoking(true);
     try {
-      const response = await agentApi.revokeApiKey(keyId);
+      const response = await agentApi.revokeApiKey(keyPendingRevocation.id);
       if (response.status === 'success') {
         await fetchApiKeys();
+        setKeyPendingRevocation(null);
       }
-    } catch (requestError) {
+    } catch (requestError: any) {
       console.error('Failed to revoke API key:', requestError);
-      setError('Failed to revoke API key.');
+      setError(requestError?.response?.data?.detail || requestError?.message || 'Failed to revoke API key.');
+    } finally {
+      setRevoking(false);
     }
   };
 
@@ -113,36 +121,33 @@ export default function ApiKeyManager({
   return (
     <div className="space-y-5">
       {error ? (
-        <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>{error}</span>
-        </div>
+        <InlineNotice tone="critical" title="API key request failed">
+          {error}
+        </InlineNotice>
       ) : null}
 
       {newlyCreatedKey ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-          <div className="flex items-start gap-3">
-            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-emerald-800">New API key created</p>
-              <p className="mt-1 text-sm text-emerald-700">
-                Copy this key now. It will not be shown in full again.
-              </p>
-              <div className="mt-3 flex items-start gap-2">
-                <code className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-emerald-200 bg-white px-3 py-3 font-mono text-sm text-slate-800">
-                  {newlyCreatedKey.key}
-                </code>
-                <button
-                  onClick={() => copyToClipboard(newlyCreatedKey.key, newlyCreatedKey.id)}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-100"
-                  title={copiedKey === newlyCreatedKey.id ? 'Copied' : 'Copy API key'}
-                >
-                  {copiedKey === newlyCreatedKey.id ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+        <InlineNotice tone="success" title="New API key created">
+          <p>Copy this key now. It will not be shown in full again.</p>
+          <div className="mt-3 flex items-start gap-2">
+            <code className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-emerald-200 bg-white px-3 py-3 font-mono text-sm text-slate-800">
+              {newlyCreatedKey.key}
+            </code>
+            <button
+              onClick={() => copyToClipboard(newlyCreatedKey.key, newlyCreatedKey.id)}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-100"
+              title={copiedKey === newlyCreatedKey.id ? 'Copied' : 'Copy API key'}
+            >
+              {copiedKey === newlyCreatedKey.id ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </button>
           </div>
-        </div>
+        </InlineNotice>
+      ) : null}
+
+      {apiKeys.some((key) => key.source === 'session') ? (
+        <InlineNotice tone="warning" title="Showing your current authenticated session key">
+          The backend did not return any persisted API key records for this account, so the portal is temporarily displaying the active session key as a fallback.
+        </InlineNotice>
       ) : null}
 
       <SurfaceCard className="p-5">
@@ -267,7 +272,7 @@ export default function ApiKeyManager({
 
                     {key.status === 'active' ? (
                       <button
-                        onClick={() => void revokeApiKey(key.id)}
+                        onClick={() => setKeyPendingRevocation(key)}
                         className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -281,6 +286,24 @@ export default function ApiKeyManager({
           )}
         </div>
       </SurfaceCard>
+
+      <ConfirmDialog
+        open={Boolean(keyPendingRevocation)}
+        title="Revoke API key"
+        description={
+          keyPendingRevocation
+            ? `Revoke ${keyPendingRevocation.name}? This action cannot be undone and any service still using this key will stop authenticating.`
+            : ''
+        }
+        confirmLabel="Revoke key"
+        loading={revoking}
+        onConfirm={() => void revokeApiKey()}
+        onCancel={() => {
+          if (!revoking) {
+            setKeyPendingRevocation(null);
+          }
+        }}
+      />
     </div>
   );
 }

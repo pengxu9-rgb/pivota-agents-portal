@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Settings, Webhook } from 'lucide-react';
+import EmptyState from '@/components/portal/EmptyState';
+import InlineNotice from '@/components/portal/InlineNotice';
 import MetricCard from '@/components/portal/MetricCard';
 import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
@@ -15,6 +17,7 @@ export default function WebhooksPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
+  const [profileUnavailable, setProfileUnavailable] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -31,22 +34,29 @@ export default function WebhooksPage() {
       setLoading(true);
       const response = await agentApi.getProfile();
       setProfile(response?.agent ?? null);
+      setProfileUnavailable(false);
     } catch (error) {
       console.error('Failed to load webhook setup:', error);
+      setProfile(null);
+      setProfileUnavailable(true);
     } finally {
       setLoading(false);
     }
   };
 
   const webhookUrl = profile?.webhook_url || '';
-  const configured = Boolean(webhookUrl);
+  const configured = profileUnavailable ? false : Boolean(webhookUrl);
 
   return (
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Webhook deliveries"
         description="Configuration-first webhook surface until delivery telemetry is promoted to a dedicated backend feed."
-        badge={<StatusBadge tone={configured ? 'success' : 'warning'}>{configured ? 'Configured' : 'Setup incomplete'}</StatusBadge>}
+        badge={
+          <StatusBadge tone={profileUnavailable ? 'warning' : configured ? 'success' : 'warning'}>
+            {profileUnavailable ? 'Status unavailable' : configured ? 'Configured' : 'Setup incomplete'}
+          </StatusBadge>
+        }
         meta={<StatusBadge tone="neutral">Phase 1 telemetry</StatusBadge>}
         actions={
           <Link
@@ -60,13 +70,19 @@ export default function WebhooksPage() {
       />
 
       <div className="space-y-6 px-6 py-6">
+        {profileUnavailable ? (
+          <InlineNotice tone="warning" title="Webhook configuration is temporarily unavailable">
+            The portal could not load your current webhook setup. Refresh and retry once the profile feed is available.
+          </InlineNotice>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-3">
           <MetricCard
             label="Configuration"
-            value={configured ? 'Ready' : 'Missing'}
-            hint={configured ? 'Production endpoint configured' : 'Production endpoint not configured'}
+            value={profileUnavailable ? 'Unavailable' : configured ? 'Ready' : 'Missing'}
+            hint={profileUnavailable ? 'Webhook setup unavailable' : configured ? 'Production endpoint configured' : 'Production endpoint not configured'}
             icon={<Webhook className="h-5 w-5" />}
-            tone={configured ? 'success' : 'warning'}
+            tone={profileUnavailable ? 'neutral' : configured ? 'success' : 'warning'}
           />
           <MetricCard
             label="Delivery telemetry"
@@ -91,6 +107,12 @@ export default function WebhooksPage() {
             <div className="mt-5 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
               {loading ? (
                 <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
+              ) : profileUnavailable ? (
+                <EmptyState
+                  icon={<Webhook className="h-5 w-5" />}
+                  title="Webhook configuration unavailable"
+                  description="The portal could not load your current destination URL or setup state."
+                />
               ) : configured ? (
                 <>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Destination URL</p>

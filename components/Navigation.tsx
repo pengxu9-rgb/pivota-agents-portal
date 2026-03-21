@@ -7,22 +7,15 @@ import {
   LayoutDashboard,
   KeyRound,
   Activity,
-  BarChart3, 
-  Store, 
-  ShoppingCart, 
+  BarChart3,
+  ShoppingCart,
   Settings,
   BookOpen,
   LogOut,
-  DollarSign,
-  Shield,
-  CreditCard,
   Webhook,
   RadioTower,
-  ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  ScrollText,
-  Bug,
   Command,
 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
@@ -89,48 +82,10 @@ const secondaryNavigationItems: NavigationItem[] = [
   },
 ];
 
-const operationsNavigationItems: NavigationItem[] = [
-  {
-    name: 'Merchant connections',
-    href: '/merchants',
-    icon: Store,
-  },
-  {
-    name: 'Revenue',
-    href: '/revenue',
-    icon: DollarSign,
-  },
-  {
-    name: 'Payouts',
-    href: '/payouts',
-    icon: CreditCard,
-  },
-];
-
-const adminNavigationItems: NavigationItem[] = [
-  {
-    name: 'Protocol adapters',
-    href: '/protocols',
-    icon: Shield,
-  },
-  {
-    name: 'Recent logs',
-    href: '/logs',
-    icon: ScrollText,
-  },
-  {
-    name: 'Activity inspector',
-    href: '/debug-orders',
-    icon: Bug,
-  },
-];
-
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
-  const [operationsOpen, setOperationsOpen] = React.useState(false);
-  const [adminOpen, setAdminOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -138,12 +93,8 @@ export default function Navigation() {
     }
 
     const savedCollapsed = window.localStorage.getItem('portal_sidebar_collapsed');
-    const savedOperations = window.localStorage.getItem('portal_nav_operations_open');
-    const savedAdmin = window.localStorage.getItem('portal_nav_admin_open');
 
     setCollapsed(savedCollapsed === 'true');
-    setOperationsOpen(savedOperations === 'true');
-    setAdminOpen(savedAdmin === 'true');
   }, []);
 
   React.useEffect(() => {
@@ -152,9 +103,7 @@ export default function Navigation() {
     }
 
     window.localStorage.setItem('portal_sidebar_collapsed', String(collapsed));
-    window.localStorage.setItem('portal_nav_operations_open', String(operationsOpen));
-    window.localStorage.setItem('portal_nav_admin_open', String(adminOpen));
-  }, [collapsed, operationsOpen, adminOpen]);
+  }, [collapsed]);
   
   // Skip navigation on login/signup pages - AFTER hooks
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
@@ -220,11 +169,6 @@ export default function Navigation() {
   const renderSection = (
     label: string,
     items: NavigationItem[],
-    options?: {
-      collapsible?: boolean;
-      open?: boolean;
-      onToggle?: () => void;
-    },
   ) => {
     const content = (
       <div className="space-y-1">
@@ -236,25 +180,10 @@ export default function Navigation() {
       return <div className="space-y-1">{content}</div>;
     }
 
-    if (!options?.collapsible) {
-      return (
-        <div>
-          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-          {content}
-        </div>
-      );
-    }
-
     return (
       <div>
-        <button
-          onClick={options.onToggle}
-          className="mb-2 flex w-full items-center justify-between rounded-lg px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 hover:bg-white/5"
-        >
-          <span>{label}</span>
-          <ChevronDown className={cx('h-4 w-4 transition-transform', options.open ? 'rotate-0' : '-rotate-90')} />
-        </button>
-        {options.open ? content : null}
+        <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+        {content}
       </div>
     );
   };
@@ -307,10 +236,10 @@ export default function Navigation() {
               {user.email || 'No login email'}
             </p>
             <p
-              className="truncate pt-0.5 font-mono text-[11px] text-slate-500"
+              className="break-all pt-0.5 font-mono text-[11px] leading-5 text-slate-500"
               title={user.agent_id || undefined}
             >
-              {user.agent_id ? `Agent ID ${user.agent_id}` : 'Agent ID unavailable'}
+              {user.agent_id ? `ID ${user.agent_id}` : 'ID unavailable'}
             </p>
           </div>
         ) : null}
@@ -320,16 +249,6 @@ export default function Navigation() {
         <div className="space-y-5">
           {renderSection('Primary', primaryNavigationItems)}
           {renderSection('Secondary', secondaryNavigationItems)}
-          {renderSection('Operations', operationsNavigationItems, {
-            collapsible: true,
-            open: operationsOpen,
-            onToggle: () => setOperationsOpen((current) => !current),
-          })}
-          {renderSection('Advanced/Admin', adminNavigationItems, {
-            collapsible: true,
-            open: adminOpen,
-            onToggle: () => setAdminOpen((current) => !current),
-          })}
         </div>
       </nav>
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, RadioTower, RefreshCw, Shield, XCircle } from 'lucide-react';
 import ConsoleTabs from '@/components/portal/ConsoleTabs';
 import EmptyState from '@/components/portal/EmptyState';
+import InlineNotice from '@/components/portal/InlineNotice';
 import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
@@ -24,7 +25,7 @@ const CORE_ENDPOINTS = [
   { method: 'GET', path: '/agent/v1/merchants', description: 'List active merchant connections' },
   { method: 'GET', path: '/agent/v1/orders', description: 'Read orders created through the API' },
   { method: 'POST', path: '/agent/v1/checkout/intents', description: 'Create hosted checkout sessions' },
-  { method: 'POST', path: '/agent/v1/orders/{id}/refund', description: 'Issue a refund for a completed order' },
+  { method: 'POST', path: '/agent/v1/orders/{order_id}/refund', description: 'Issue a refund for a completed order' },
 ];
 
 export default function EndpointsPage({
@@ -36,6 +37,7 @@ export default function EndpointsPage({
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<any>(null);
   const [protocols, setProtocols] = useState<Protocol[]>([]);
+  const [unavailableSources, setUnavailableSources] = useState<string[]>([]);
   const [selectedTab, setSelectedTab] = useState<'active' | 'adapters'>(mode === 'protocols' ? 'adapters' : 'active');
 
   useEffect(() => {
@@ -49,24 +51,41 @@ export default function EndpointsPage({
   }, [router]);
 
   const loadData = async () => {
+    setLoading(true);
+
     try {
-      setLoading(true);
       const agentId = localStorage.getItem('agent_id');
-      const [summaryResponse, protocolsResponse] = await Promise.all([
+      const [summaryResult, protocolsResult] = await Promise.allSettled([
         agentApi.getMetricsSummary(),
         agentId ? agentApi.getProtocols(agentId) : Promise.resolve({ protocols: [] }),
       ]);
 
-      setSummary(summaryResponse);
-      setProtocols(protocolsResponse?.protocols || protocolsResponse || []);
-    } catch (error) {
-      console.error('Failed to load endpoints page:', error);
-      setProtocols([]);
+      const nextUnavailableSources: string[] = [];
+
+      if (summaryResult.status === 'fulfilled') {
+        setSummary(summaryResult.value);
+      } else {
+        console.error('Failed to load endpoint summary:', summaryResult.reason);
+        setSummary(null);
+        nextUnavailableSources.push('endpoint activity');
+      }
+
+      if (protocolsResult.status === 'fulfilled') {
+        setProtocols(protocolsResult.value?.protocols || protocolsResult.value || []);
+      } else {
+        console.error('Failed to load protocol adapters:', protocolsResult.reason);
+        setProtocols([]);
+        nextUnavailableSources.push('protocol adapters');
+      }
+
+      setUnavailableSources(nextUnavailableSources);
     } finally {
       setLoading(false);
     }
   };
 
+  const summaryUnavailable = unavailableSources.includes('endpoint activity');
+  const protocolsUnavailable = unavailableSources.includes('protocol adapters');
   const liveCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const endpoint of summary?.top_endpoints ?? []) {
@@ -94,6 +113,12 @@ export default function EndpointsPage({
       />
 
       <div className="space-y-6 px-6 py-6">
+        {unavailableSources.length > 0 ? (
+          <InlineNotice tone="warning" title="Some endpoint data is temporarily unavailable">
+            The portal could not load {unavailableSources.join(', ')}. Visible content below reflects only the feeds that responded successfully.
+          </InlineNotice>
+        ) : null}
+
         <ConsoleTabs
           items={[
             { id: 'active', label: 'Active endpoints', icon: <RadioTower className="h-4 w-4" /> },
@@ -110,28 +135,36 @@ export default function EndpointsPage({
               description="Core request paths with current usage pulled from live summary metrics."
             />
             <div className="mt-5 grid gap-3">
-              {CORE_ENDPOINTS.map((endpoint) => {
-                const count = liveCounts.get(endpoint.path) ?? 0;
-                return (
-                  <div
-                    key={endpoint.path}
-                    className="grid gap-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 lg:grid-cols-[0.9fr_1.8fr_0.8fr]"
-                  >
-                    <div className="flex items-center gap-2">
-                      <StatusBadge tone={endpoint.method === 'GET' ? 'success' : 'info'}>{endpoint.method}</StatusBadge>
-                      <span className="text-xs text-[var(--portal-fg-subtle)]">Request method</span>
+              {summaryUnavailable ? (
+                <EmptyState
+                  icon={<RadioTower className="h-5 w-5" />}
+                  title="Endpoint activity unavailable"
+                  description="Recent endpoint counts could not be loaded from summary metrics."
+                />
+              ) : (
+                CORE_ENDPOINTS.map((endpoint) => {
+                  const count = liveCounts.get(endpoint.path) ?? 0;
+                  return (
+                    <div
+                      key={endpoint.path}
+                      className="grid gap-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 lg:grid-cols-[0.9fr_1.8fr_0.8fr]"
+                    >
+                      <div className="flex items-center gap-2">
+                        <StatusBadge tone={endpoint.method === 'GET' ? 'success' : 'info'}>{endpoint.method}</StatusBadge>
+                        <span className="text-xs text-[var(--portal-fg-subtle)]">Request method</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-mono text-sm text-[var(--portal-fg)]">{endpoint.path}</p>
+                        <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">{endpoint.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="tabular-nums text-lg font-semibold text-[var(--portal-fg)]">{count}</p>
+                        <p className="text-xs text-[var(--portal-fg-subtle)]">recent calls</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate font-mono text-sm text-[var(--portal-fg)]">{endpoint.path}</p>
-                      <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">{endpoint.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="tabular-nums text-lg font-semibold text-[var(--portal-fg)]">{count}</p>
-                      <p className="text-xs text-[var(--portal-fg-subtle)]">recent calls</p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </SurfaceCard>
         ) : (
@@ -145,6 +178,12 @@ export default function EndpointsPage({
                 <div className="space-y-3">
                   {[0, 1].map((item) => <div key={item} className="h-24 animate-pulse rounded-2xl bg-slate-100" />)}
                 </div>
+              ) : protocolsUnavailable ? (
+                <EmptyState
+                  icon={<Shield className="h-5 w-5" />}
+                  title="Protocol adapters unavailable"
+                  description="Adapter metadata could not be loaded for this agent."
+                />
               ) : protocols.length === 0 ? (
                 <EmptyState
                   icon={<Shield className="h-5 w-5" />}

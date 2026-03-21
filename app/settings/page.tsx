@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, RefreshCw, Save, User, Webhook } from 'lucide-react';
+import ConfirmDialog from '@/components/portal/ConfirmDialog';
+import InlineNotice from '@/components/portal/InlineNotice';
 import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
@@ -37,6 +39,10 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
   const [saveMessage, setSaveMessage] = useState('');
+  const [loadMessage, setLoadMessage] = useState('');
+  const [showResetKeyConfirm, setShowResetKeyConfirm] = useState(false);
+  const [rotatingKey, setRotatingKey] = useState(false);
+  const [apiKeyUnavailable, setApiKeyUnavailable] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -52,25 +58,37 @@ export default function SettingsPage() {
   }, [router]);
 
   const loadProfile = async () => {
-    try {
-      const [data, apiKeyResponse] = await Promise.all([
-        agentApi.getProfile(),
-        agentApi.getApiKeys().catch(() => ({ keys: [] })),
-      ]);
+    setLoadMessage('');
+    const [profileResult, apiKeyResult] = await Promise.allSettled([
+      agentApi.getProfile(),
+      agentApi.getApiKeys(),
+    ]);
 
-      if (data?.agent) {
-        setProfile({
-          name: data.agent.agent_name || '',
-          email: data.agent.owner_email || '',
-          company: data.agent.company || '',
-          webhook_url: data.agent.webhook_url || '',
-        });
-      }
+    if (profileResult.status === 'fulfilled' && profileResult.value?.agent) {
+      setProfile({
+        name: profileResult.value.agent.agent_name || '',
+        email: profileResult.value.agent.owner_email || '',
+        company: profileResult.value.agent.company || '',
+        webhook_url: profileResult.value.agent.webhook_url || '',
+      });
+    } else if (profileResult.status === 'rejected') {
+      console.error('Failed to load profile:', profileResult.reason);
+      setLoadMessage('Profile data is temporarily unavailable. You can retry after the backend feed recovers.');
+    }
 
-      const primaryKey = apiKeyResponse?.keys?.find((key: any) => key?.status === 'active')?.key || '';
+    if (apiKeyResult.status === 'fulfilled') {
+      const primaryKey = apiKeyResult.value?.keys?.find((key: any) => key?.status === 'active')?.key || '';
       setApiKey(primaryKey || localStorage.getItem('agent_api_key') || '');
-    } catch (error) {
-      console.error('Failed to load profile:', error);
+      setApiKeyUnavailable(false);
+    } else {
+      console.error('Failed to load API key preview:', apiKeyResult.reason);
+      setApiKey(localStorage.getItem('agent_api_key') || '');
+      setApiKeyUnavailable(true);
+      setLoadMessage((current) =>
+        current
+          ? `${current} API key metadata is also unavailable right now.`
+          : 'API key metadata is temporarily unavailable. The portal is showing the current session key preview if one exists.',
+      );
     }
   };
 
@@ -88,10 +106,7 @@ export default function SettingsPage() {
   };
 
   const handleResetKey = async () => {
-    if (!confirm('Reset the primary API key? This will invalidate the current key.')) {
-      return;
-    }
-
+    setRotatingKey(true);
     try {
       const result = await agentApi.resetApiKey();
 
@@ -105,8 +120,11 @@ export default function SettingsPage() {
         setApiKey(nextKey);
         setSaveMessage('Primary key rotated. Refresh the API Keys page to confirm the active credential.');
       }
+      setShowResetKeyConfirm(false);
     } catch (error: any) {
       setSaveMessage(`Failed to rotate key: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setRotatingKey(false);
     }
   };
 
@@ -173,10 +191,16 @@ export default function SettingsPage() {
       />
 
       <div className="space-y-6 px-6 py-6">
+        {loadMessage ? (
+          <InlineNotice tone="warning" title="Some settings data is temporarily unavailable">
+            {loadMessage}
+          </InlineNotice>
+        ) : null}
+
         {saveMessage ? (
-          <div className={`rounded-2xl border px-4 py-3 text-sm ${saveMessage.startsWith('Failed') ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+          <InlineNotice tone={saveMessage.startsWith('Failed') ? 'critical' : 'success'}>
             {saveMessage}
-          </div>
+          </InlineNotice>
         ) : null}
 
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
@@ -233,10 +257,12 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm font-semibold text-[var(--portal-fg)]">Primary key preview</p>
                     <p className="mt-2 break-all font-mono text-sm text-[var(--portal-fg-muted)]">
-                      {apiKey ? `${apiKey.slice(0, 16)}••••••••••••` : 'No key loaded'}
+                      {apiKey ? `${apiKey.slice(0, 16)}••••••••••••` : apiKeyUnavailable ? 'Unavailable' : 'No key loaded'}
                     </p>
                   </div>
-                  <StatusBadge tone="info">Managed</StatusBadge>
+                  <StatusBadge tone={apiKeyUnavailable ? 'warning' : 'info'}>
+                    {apiKeyUnavailable ? 'Preview unavailable' : 'Managed'}
+                  </StatusBadge>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -248,11 +274,11 @@ export default function SettingsPage() {
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <button
-                  onClick={() => void handleResetKey()}
+                  onClick={() => setShowResetKeyConfirm(true)}
                   className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  <span>Rotate primary key</span>
+                  <span>{rotatingKey ? 'Rotating…' : 'Rotate primary key'}</span>
                 </button>
               </div>
             </div>
@@ -338,6 +364,20 @@ export default function SettingsPage() {
           </SurfaceCard>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={showResetKeyConfirm}
+        title="Rotate primary key"
+        description="Rotate the current primary API key? Any service still using the existing key will stop authenticating after rotation."
+        confirmLabel="Rotate key"
+        loading={rotatingKey}
+        onConfirm={() => void handleResetKey()}
+        onCancel={() => {
+          if (!rotatingKey) {
+            setShowResetKeyConfirm(false);
+          }
+        }}
+      />
     </div>
   );
 }

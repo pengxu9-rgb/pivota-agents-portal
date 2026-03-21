@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Download, Package, RefreshCw, RotateCcw, Search, ShoppingCart, XCircle } from 'lucide-react';
+import ConfirmDialog from '@/components/portal/ConfirmDialog';
 import EmptyState from '@/components/portal/EmptyState';
+import InlineNotice from '@/components/portal/InlineNotice';
 import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
@@ -26,6 +28,10 @@ export default function OrdersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [statusMessage, setStatusMessage] = useState<{ tone: 'success' | 'critical'; text: string } | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ type: 'refund' | 'cancel'; orderId: string } | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -40,6 +46,7 @@ export default function OrdersPage() {
   const loadOrders = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const data = await agentApi.getOrders(100);
       const mappedOrders = (data || []).map((order: any) => ({
         id: order.order_id,
@@ -52,40 +59,49 @@ export default function OrdersPage() {
         merchant_id: order.merchant_id,
       }));
       setOrders(mappedOrders);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load orders:', error);
       setOrders([]);
+      setLoadError(error?.response?.data?.detail || error?.message || 'Failed to load orders.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  const handleRefund = async (orderId: string) => {
-    if (!confirm('Issue a full refund for this order?')) {
+  const handleOrderAction = async () => {
+    if (!pendingAction) {
       return;
     }
 
+    setActionLoading(true);
     try {
-      await agentApi.refundOrder(orderId);
-      alert('Refund initiated successfully.');
+      if (pendingAction.type === 'refund') {
+        await agentApi.refundOrder(pendingAction.orderId);
+        setStatusMessage({
+          tone: 'success',
+          text: 'Refund initiated successfully.',
+        });
+      } else {
+        await agentApi.cancelOrder(pendingAction.orderId);
+        setStatusMessage({
+          tone: 'success',
+          text: 'Order cancelled successfully.',
+        });
+      }
+
+      setPendingAction(null);
       await loadOrders();
     } catch (error: any) {
-      alert(`Refund failed: ${error.response?.data?.detail || error.message}`);
-    }
-  };
-
-  const handleCancel = async (orderId: string) => {
-    if (!confirm('Cancel this order?')) {
-      return;
-    }
-
-    try {
-      await agentApi.cancelOrder(orderId);
-      alert('Order cancelled successfully.');
-      await loadOrders();
-    } catch (error: any) {
-      alert(`Cancel failed: ${error.response?.data?.detail || error.message}`);
+      setStatusMessage({
+        tone: 'critical',
+        text:
+          pendingAction.type === 'refund'
+            ? `Refund failed: ${error.response?.data?.detail || error.message}`
+            : `Cancel failed: ${error.response?.data?.detail || error.message}`,
+      });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -129,6 +145,18 @@ export default function OrdersPage() {
       />
 
       <div className="space-y-6 px-6 py-6">
+        {statusMessage ? (
+          <InlineNotice tone={statusMessage.tone}>
+            {statusMessage.text}
+          </InlineNotice>
+        ) : null}
+
+        {loadError ? (
+          <InlineNotice tone="warning" title="Orders are temporarily unavailable">
+            {loadError}
+          </InlineNotice>
+        ) : null}
+
         <SurfaceCard className="p-5">
           <SectionHeader title="Filters" description="Search orders and narrow by current payment state." />
           <div className="mt-5 flex flex-col gap-3 lg:flex-row">
@@ -166,6 +194,12 @@ export default function OrdersPage() {
               <div className="space-y-3">
                 {[0, 1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
               </div>
+            ) : loadError ? (
+              <EmptyState
+                icon={<ShoppingCart className="h-5 w-5" />}
+                title="Orders unavailable"
+                description="The orders feed could not be loaded, so the commerce operations surface is temporarily unavailable."
+              />
             ) : filteredOrders.length === 0 ? (
               <EmptyState
                 icon={<ShoppingCart className="h-5 w-5" />}
@@ -203,7 +237,7 @@ export default function OrdersPage() {
                           <div className="flex items-center gap-2">
                             {(order.status === 'completed' || order.status === 'paid') && (
                               <button
-                                onClick={() => void handleRefund(order.order_id)}
+                                onClick={() => setPendingAction({ type: 'refund', orderId: order.order_id })}
                                 className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
                               >
                                 <RotateCcw className="h-3.5 w-3.5" />
@@ -212,7 +246,7 @@ export default function OrdersPage() {
                             )}
                             {order.status === 'pending' && (
                               <button
-                                onClick={() => void handleCancel(order.order_id)}
+                                onClick={() => setPendingAction({ type: 'cancel', orderId: order.order_id })}
                                 className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
                               >
                                 <XCircle className="h-3.5 w-3.5" />
@@ -234,6 +268,26 @@ export default function OrdersPage() {
           </div>
         </SurfaceCard>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.type === 'refund' ? 'Issue full refund' : 'Cancel order'}
+        description={
+          pendingAction?.type === 'refund'
+            ? `Issue a full refund for ${pendingAction.orderId}?`
+            : pendingAction
+              ? `Cancel ${pendingAction.orderId}?`
+              : ''
+        }
+        confirmLabel={pendingAction?.type === 'refund' ? 'Issue refund' : 'Cancel order'}
+        loading={actionLoading}
+        onConfirm={() => void handleOrderAction()}
+        onCancel={() => {
+          if (!actionLoading) {
+            setPendingAction(null);
+          }
+        }}
+      />
     </div>
   );
 }

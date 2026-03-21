@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, RefreshCw, ScrollText } from 'lucide-react';
 import EmptyState from '@/components/portal/EmptyState';
+import InlineNotice from '@/components/portal/InlineNotice';
 import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
@@ -16,6 +17,7 @@ export default function LogsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
+  const [eventsUnavailable, setEventsUnavailable] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -32,9 +34,11 @@ export default function LogsPage() {
       setLoading(true);
       const response = await agentApi.getRecentActivity(25);
       setEvents(response?.activities || []);
+      setEventsUnavailable(false);
     } catch (error) {
       console.error('Failed to load recent events:', error);
       setEvents([]);
+      setEventsUnavailable(true);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -64,6 +68,12 @@ export default function LogsPage() {
       />
 
       <div className="space-y-6 px-6 py-6">
+        {eventsUnavailable ? (
+          <InlineNotice tone="warning" title="Recent activity is temporarily unavailable">
+            The portal could not load the recent request activity feed. Retry loading when production telemetry is available again.
+          </InlineNotice>
+        ) : null}
+
         <SurfaceCard className="overflow-hidden">
           <div className="border-b border-[var(--portal-border)] px-5 py-4">
             <SectionHeader
@@ -85,6 +95,12 @@ export default function LogsPage() {
               <div className="space-y-3">
                 {[0, 1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
               </div>
+            ) : eventsUnavailable ? (
+              <EmptyState
+                icon={<ScrollText className="h-5 w-5" />}
+                title="Recent events unavailable"
+                description="The recent activity feed could not be loaded, so the temporary operational log surface is unavailable."
+              />
             ) : events.length === 0 ? (
               <EmptyState
                 icon={<ScrollText className="h-5 w-5" />}

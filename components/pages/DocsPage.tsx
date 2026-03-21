@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { BookOpen, Braces, Cable, ExternalLink, FileCode2, KeyRound, Package, RefreshCw } from 'lucide-react';
 import CodePanel from '@/components/portal/CodePanel';
 import ConsoleTabs from '@/components/portal/ConsoleTabs';
+import InlineNotice from '@/components/portal/InlineNotice';
 import MetricCard from '@/components/portal/MetricCard';
 import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
@@ -40,6 +41,7 @@ export default function DocsPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<'python' | 'typescript'>('python');
   const [integrationStatus, setIntegrationStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [integrationUnavailable, setIntegrationUnavailable] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -63,12 +65,17 @@ export default function DocsPage() {
       setLoading(true);
       const agentId = localStorage.getItem('agent_id');
       if (!agentId) {
+        setIntegrationStatus(null);
+        setIntegrationUnavailable(true);
         return;
       }
       const response = await agentApi.getIntegrationStatus(agentId);
       setIntegrationStatus(response);
+      setIntegrationUnavailable(false);
     } catch (error) {
       console.error('Failed to load docs integration status:', error);
+      setIntegrationStatus(null);
+      setIntegrationUnavailable(true);
     } finally {
       setLoading(false);
     }
@@ -78,27 +85,27 @@ export default function DocsPage() {
     () => [
       {
         label: 'API connection',
-        value: integrationStatus?.api_connected ? 'Connected' : 'Pending',
-        tone: integrationStatus?.api_connected ? ('success' as const) : ('warning' as const),
+        value: integrationUnavailable ? 'Unavailable' : integrationStatus?.api_connected ? 'Connected' : 'Pending',
+        tone: integrationUnavailable ? ('neutral' as const) : integrationStatus?.api_connected ? ('success' as const) : ('warning' as const),
         icon: <Cable className="h-5 w-5" />,
-        hint: 'Backend connection status',
+        hint: integrationUnavailable ? 'Integration status unavailable' : 'Backend connection status',
       },
       {
         label: 'Connected merchants',
-        value: integrationStatus?.connected_merchants ?? 0,
-        tone: 'info' as const,
+        value: integrationUnavailable ? 'Unavailable' : integrationStatus?.connected_merchants ?? 0,
+        tone: integrationUnavailable ? ('neutral' as const) : ('info' as const),
         icon: <BookOpen className="h-5 w-5" />,
-        hint: 'Current connected merchants',
+        hint: integrationUnavailable ? 'Integration status unavailable' : 'Current connected merchants',
       },
       {
         label: 'Active protocols',
-        value: integrationStatus?.active_protocols ?? 0,
+        value: integrationUnavailable ? 'Unavailable' : integrationStatus?.active_protocols ?? 0,
         tone: 'neutral' as const,
         icon: <Braces className="h-5 w-5" />,
-        hint: 'Protocol adapters available',
+        hint: integrationUnavailable ? 'Integration status unavailable' : 'Protocol adapters available',
       },
     ],
-    [integrationStatus],
+    [integrationStatus, integrationUnavailable],
   );
 
   return (
@@ -110,6 +117,8 @@ export default function DocsPage() {
         meta={
           loading ? (
             <StatusBadge tone="neutral">Loading status</StatusBadge>
+          ) : integrationUnavailable ? (
+            <StatusBadge tone="warning">Status unavailable</StatusBadge>
           ) : (
             <StatusBadge tone="neutral">
               Last sync {integrationStatus?.last_sync ? new Date(integrationStatus.last_sync).toLocaleTimeString() : 'Unavailable'}
@@ -137,6 +146,12 @@ export default function DocsPage() {
       />
 
       <div className="space-y-6 px-6 py-6">
+        {integrationUnavailable ? (
+          <InlineNotice tone="warning" title="Integration status is temporarily unavailable">
+            The docs content below is still usable, but live connection status, merchant counts, and protocol counts could not be loaded from the backend.
+          </InlineNotice>
+        ) : null}
+
         <div className="grid gap-4 md:grid-cols-3">
           {docsMetrics.map((metric) => (
             <MetricCard
@@ -245,7 +260,7 @@ export default function DocsPage() {
                 <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Common endpoints</p>
                   <div className="mt-3 space-y-2 text-sm">
-                    {['GET /merchants', 'POST /checkout/intents', 'GET /orders', 'POST /orders/{id}/refund'].map((endpoint) => (
+                    {['GET /merchants', 'POST /checkout/intents', 'GET /orders', 'POST /orders/{order_id}/refund', 'GET /orders/{order_id}/track'].map((endpoint) => (
                       <p key={endpoint} className="font-mono text-[var(--portal-fg)]">{endpoint}</p>
                     ))}
                   </div>
