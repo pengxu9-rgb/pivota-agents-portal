@@ -3,8 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  LayoutDashboard, 
+import {
+  LayoutDashboard,
   KeyRound,
   Activity,
   BarChart3, 
@@ -27,7 +27,6 @@ import {
   Command,
 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
-import StatusBadge from '@/components/portal/StatusBadge';
 import { cx } from '@/lib/cx';
 
 type NavigationItem = {
@@ -133,33 +132,6 @@ export default function Navigation() {
   const [collapsed, setCollapsed] = React.useState(false);
   const [operationsOpen, setOperationsOpen] = React.useState(false);
   const [adminOpen, setAdminOpen] = React.useState(false);
-  
-  // [Phase 6.2] Get agent_type from API - MUST be before early return
-  const [agentType, setAgentType] = React.useState<'basic' | 'premium' | null>(null);
-  
-  React.useEffect(() => {
-    // Skip if on login/signup pages
-    if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
-      return;
-    }
-    
-    const loadAgentType = async () => {
-      const agentId = localStorage.getItem('agent_id');
-      
-      if (!agentId) {
-        return;
-      }
-      
-      try {
-        const response = await agentApi.getAgentDetails(agentId);
-        const type = response?.agent?.agent_type || 'basic';
-        setAgentType(type);
-      } catch (err: any) {
-        console.error('[Navigation] Could not load agent type:', err?.response?.status, err?.message);
-      }
-    };
-    loadAgentType();
-  }, [pathname]);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -288,20 +260,6 @@ export default function Navigation() {
     );
   };
 
-  // Normalize tier from either API-loaded agentType or stored user info.
-  const rawTier =
-    (agentType as string | null) ??
-    ((user as any)?.agent_type as string | undefined) ??
-    'basic';
-
-  const normalizedTier =
-    typeof rawTier === 'string'
-      ? rawTier.toLowerCase().trim()
-      : 'basic';
-
-  const effectiveTier: 'basic' | 'premium' =
-    normalizedTier === 'premium' ? 'premium' : 'basic';
-  
   return (
     <aside
       className={cx(
@@ -341,21 +299,19 @@ export default function Navigation() {
       </div>
 
       {user ? (
-        <div className={cx('border-b border-white/8 px-4 py-4', collapsed ? 'flex justify-center' : '')}>
-          <div className={cx('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
-              <User className="h-5 w-5" />
+        <div className={cx('border-b border-white/8 px-4 py-3', collapsed ? 'flex justify-center' : '')}>
+          <div className={cx('flex items-center', collapsed ? 'justify-center' : 'gap-2.5')}>
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
+              <User className="h-4 w-4" />
             </div>
             {!collapsed ? (
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-[var(--portal-sidebar-fg-strong)]">
+              <div className="min-w-0 space-y-0.5" title={user.email || undefined}>
+                <p className="truncate text-[13px] font-medium leading-5 text-[var(--portal-sidebar-fg-strong)]">
                   {user.name || user.email?.split('@')[0]}
                 </p>
-                <p className="truncate text-xs text-slate-400">{user.email}</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <StatusBadge tone="production">Production</StatusBadge>
-                  {effectiveTier === 'premium' ? <StatusBadge tone="info">Premium</StatusBadge> : null}
-                </div>
+                <p className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                  Account
+                </p>
               </div>
             ) : null}
           </div>
