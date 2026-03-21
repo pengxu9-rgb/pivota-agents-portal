@@ -13,7 +13,6 @@ import {
   Settings,
   BookOpen,
   LogOut,
-  User,
   DollarSign,
   Shield,
   CreditCard,
@@ -267,56 +266,55 @@ export default function Navigation() {
         collapsed ? 'w-20' : 'w-60',
       )}
     >
-      <div className="flex items-center justify-between border-b border-white/8 px-4 py-4">
-        <Link href="/dashboard" className={cx('flex min-w-0 items-center', collapsed ? 'justify-center' : 'gap-3')}>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
-            <Command className="h-5 w-5" />
-          </div>
-          {!collapsed ? (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold tracking-[0.02em] text-[var(--portal-sidebar-fg-strong)]">Pivota</p>
-              <p className="truncate text-xs text-slate-400">Developer Portal</p>
-            </div>
-          ) : null}
-        </Link>
-        {!collapsed ? (
-          <button
-            onClick={() => setCollapsed(true)}
-            className="rounded-lg p-2 text-[var(--portal-sidebar-fg)] hover:bg-white/5 hover:text-[var(--portal-sidebar-fg-strong)]"
-            title="Collapse sidebar"
-          >
-            <PanelLeftClose className="h-4 w-4" />
-          </button>
-        ) : (
-          <button
-            onClick={() => setCollapsed(false)}
-            className="rounded-lg p-2 text-[var(--portal-sidebar-fg)] hover:bg-white/5 hover:text-[var(--portal-sidebar-fg-strong)]"
-            title="Expand sidebar"
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      {user ? (
-        <div className={cx('border-b border-white/8 px-4 py-3', collapsed ? 'flex justify-center' : '')}>
-          <div className={cx('flex items-center', collapsed ? 'justify-center' : 'gap-2.5')}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
-              <User className="h-4 w-4" />
+      <div className="border-b border-white/8 px-4 py-4">
+        <div className={cx('flex items-center justify-between', collapsed ? 'justify-center' : '')}>
+          <Link href="/dashboard" className={cx('flex min-w-0 items-center', collapsed ? 'justify-center' : 'gap-3')}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
+              <Command className="h-5 w-5" />
             </div>
             {!collapsed ? (
-              <div className="min-w-0 space-y-0.5" title={user.email || undefined}>
-                <p className="truncate text-[13px] font-medium leading-5 text-[var(--portal-sidebar-fg-strong)]">
-                  {user.name || user.email?.split('@')[0]}
-                </p>
-                <p className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                  Account
-                </p>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold tracking-[0.02em] text-[var(--portal-sidebar-fg-strong)]">Pivota</p>
+                <p className="truncate text-xs text-slate-400">Developer Portal</p>
               </div>
             ) : null}
-          </div>
+          </Link>
+          {!collapsed ? (
+            <button
+              onClick={() => setCollapsed(true)}
+              className="rounded-lg p-2 text-[var(--portal-sidebar-fg)] hover:bg-white/5 hover:text-[var(--portal-sidebar-fg-strong)]"
+              title="Collapse sidebar"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              onClick={() => setCollapsed(false)}
+              className="rounded-lg p-2 text-[var(--portal-sidebar-fg)] hover:bg-white/5 hover:text-[var(--portal-sidebar-fg-strong)]"
+              title="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          )}
         </div>
-      ) : null}
+
+        {!collapsed && user ? (
+          <div className="mt-4 rounded-xl border border-white/8 bg-white/5 px-3 py-3">
+            <p
+              className="truncate text-[12px] font-medium leading-5 text-[var(--portal-sidebar-fg-strong)]"
+              title={user.email || undefined}
+            >
+              {user.email || 'No login email'}
+            </p>
+            <p
+              className="truncate pt-0.5 font-mono text-[11px] text-slate-500"
+              title={user.agent_id || undefined}
+            >
+              {user.agent_id ? `Agent ID ${user.agent_id}` : 'Agent ID unavailable'}
+            </p>
+          </div>
+        ) : null}
+      </div>
 
       <nav className="portal-scrollbar flex-1 overflow-y-auto px-3 py-4">
         <div className="space-y-5">
