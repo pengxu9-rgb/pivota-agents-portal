@@ -28,6 +28,35 @@ type NavigationItem = {
   aliases?: string[];
 };
 
+type StoredUser = {
+  email?: string;
+  agent_id?: string;
+  [key: string]: unknown;
+} | null;
+
+const readStoredUser = (): StoredUser => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const userRaw = window.localStorage.getItem('agent_user');
+  const agentIdRaw = window.localStorage.getItem('agent_id');
+
+  if (!userRaw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(userRaw);
+    return {
+      ...parsed,
+      agent_id: agentIdRaw || parsed.agent_id,
+    };
+  } catch {
+    return null;
+  }
+};
+
 const primaryNavigationItems: NavigationItem[] = [
   {
     name: 'Overview',
@@ -86,6 +115,7 @@ export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = React.useState(false);
+  const [user, setUser] = React.useState<StoredUser>(null);
 
   React.useEffect(() => {
     if (typeof window === 'undefined') {
@@ -95,6 +125,7 @@ export default function Navigation() {
     const savedCollapsed = window.localStorage.getItem('portal_sidebar_collapsed');
 
     setCollapsed(savedCollapsed === 'true');
+    setUser(readStoredUser());
   }, []);
 
   React.useEffect(() => {
@@ -112,30 +143,9 @@ export default function Navigation() {
   
   const handleLogout = () => {
     agentApi.logout();
+    setUser(null);
     router.push('/login');
   };
-  
-  // Get user info from localStorage
-  const getUserInfo = () => {
-    if (typeof window !== 'undefined') {
-      const userRaw = localStorage.getItem('agent_user');
-      const agentIdRaw = localStorage.getItem('agent_id');
-      if (userRaw) {
-        try {
-          const parsed = JSON.parse(userRaw);
-          return {
-            ...parsed,
-            agent_id: agentIdRaw || parsed.agent_id
-          };
-        } catch {
-          return null;
-        }
-      }
-    }
-    return null;
-  };
-
-  const user = getUserInfo();
 
   const isActive = (item: NavigationItem) =>
     pathname === item.href ||
