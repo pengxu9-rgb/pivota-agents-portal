@@ -2,13 +2,17 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { ArrowLeft, ExternalLink, LifeBuoy, Mail, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, ExternalLink, LifeBuoy, Loader2, Mail, ShieldAlert } from 'lucide-react';
+import { agentApi } from '@/lib/api-client';
 
 const SUPPORT_EMAIL = 'contact@pivota.cc';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [requested, setRequested] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   const mailtoHref = useMemo(() => {
     const subject = encodeURIComponent('Pivota Developer Portal password reset request');
@@ -19,10 +23,26 @@ export default function ForgotPasswordPage() {
     return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
   }, [email]);
 
-  const handleRequest = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setRequested(true);
-    window.location.href = mailtoHref;
+    setRequesting(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const response = await agentApi.forgotPassword(email);
+      setRequested(true);
+      setMessage(response?.message || 'If the email exists, a password reset link has been sent.');
+    } catch (requestError: any) {
+      setError(
+        requestError?.response?.data?.detail ||
+          requestError?.response?.data?.message ||
+          requestError?.message ||
+          'Failed to request password reset.',
+      );
+    } finally {
+      setRequesting(false);
+    }
   };
 
   return (
@@ -45,10 +65,16 @@ export default function ForgotPasswordPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--portal-fg-subtle)]">Account recovery</p>
               <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[var(--portal-fg)]">Recover developer portal access</h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--portal-fg-muted)]">
-                Self-serve password reset is not live yet. Use this recovery flow to open a support request from your account email and get access restored.
+                Request a password reset link for your developer account. If email delivery fails, support can still help you recover access.
               </p>
             </div>
           </div>
+
+          {error ? (
+            <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {error}
+            </div>
+          ) : null}
 
           <form onSubmit={handleRequest} className="mt-8 space-y-5">
             <label className="block">
@@ -67,27 +93,28 @@ export default function ForgotPasswordPage() {
             <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
               <div className="flex items-center gap-2 text-sm font-medium text-[var(--portal-fg)]">
                 <LifeBuoy className="h-4 w-4 text-[var(--portal-accent)]" />
-                <span>Support-managed recovery</span>
+                <span>Recovery fallback</span>
               </div>
               <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
-                We will open your email client with a prefilled reset request addressed to{' '}
+                If the reset email does not arrive, contact{' '}
                 <a
                   href={`mailto:${SUPPORT_EMAIL}`}
                   className="font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
                 >
                   {SUPPORT_EMAIL}
                 </a>
-                .
+                {' '}from the email tied to your developer account.
               </p>
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="submit"
+                disabled={requesting}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[var(--portal-accent)] px-4 py-3 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
               >
-                <Mail className="h-4 w-4" />
-                <span>Request password reset</span>
+                {requesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                <span>{requesting ? 'Requesting reset…' : 'Request password reset'}</span>
               </button>
               <a
                 href={mailtoHref}
@@ -101,7 +128,7 @@ export default function ForgotPasswordPage() {
 
           {requested ? (
             <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-              If your mail app did not open, send your request manually to {SUPPORT_EMAIL} from the email tied to your developer account.
+              {message}
             </div>
           ) : null}
 

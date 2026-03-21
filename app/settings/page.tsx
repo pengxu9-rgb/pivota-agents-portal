@@ -45,16 +45,19 @@ export default function SettingsPage() {
       return;
     }
 
-    const mockKey = localStorage.getItem('agent_api_key') || `pk_live_${Math.random().toString(36).slice(2, 15)}`;
-    setApiKey(mockKey);
-    localStorage.setItem('agent_api_key', mockKey);
+    const storedKey = localStorage.getItem('agent_api_key') || '';
+    setApiKey(storedKey);
 
     void loadProfile();
   }, [router]);
 
   const loadProfile = async () => {
     try {
-      const data = await agentApi.getProfile();
+      const [data, apiKeyResponse] = await Promise.all([
+        agentApi.getProfile(),
+        agentApi.getApiKeys().catch(() => ({ keys: [] })),
+      ]);
+
       if (data?.agent) {
         setProfile({
           name: data.agent.agent_name || '',
@@ -63,6 +66,9 @@ export default function SettingsPage() {
           webhook_url: data.agent.webhook_url || '',
         });
       }
+
+      const primaryKey = apiKeyResponse?.keys?.find((key: any) => key?.status === 'active')?.key || '';
+      setApiKey(primaryKey || localStorage.getItem('agent_api_key') || '');
     } catch (error) {
       console.error('Failed to load profile:', error);
     }
@@ -73,7 +79,7 @@ export default function SettingsPage() {
     setSaveMessage('');
     try {
       await agentApi.updateProfile(profile);
-      setSaveMessage('Settings saved.');
+      setSaveMessage('Profile and webhook settings saved.');
     } catch (error: any) {
       setSaveMessage(`Failed to save settings: ${error.response?.data?.detail || error.message}`);
     } finally {
@@ -88,9 +94,17 @@ export default function SettingsPage() {
 
     try {
       const result = await agentApi.resetApiKey();
-      setApiKey(result.new_api_key);
-      localStorage.setItem('agent_api_key', result.new_api_key);
-      setSaveMessage('Primary key rotated.');
+
+      if (result.new_api_key) {
+        setApiKey(result.new_api_key);
+        localStorage.setItem('agent_api_key', result.new_api_key);
+        setSaveMessage('Primary key rotated. Copy the new key from the API Keys page if needed.');
+      } else {
+        const refreshed = await agentApi.getApiKeys().catch(() => ({ keys: [] }));
+        const nextKey = refreshed?.keys?.find((key: any) => key?.status === 'active')?.key || '';
+        setApiKey(nextKey);
+        setSaveMessage('Primary key rotated. Refresh the API Keys page to confirm the active credential.');
+      }
     } catch (error: any) {
       setSaveMessage(`Failed to rotate key: ${error.response?.data?.detail || error.message}`);
     }
@@ -184,9 +198,10 @@ export default function SettingsPage() {
                 <input
                   type="email"
                   value={profile.email}
-                  onChange={(event) => setProfile({ ...profile, email: event.target.value })}
-                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
+                  readOnly
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] px-3 py-2.5 text-sm text-[var(--portal-fg-muted)] outline-none"
                 />
+                <span className="mt-2 block text-xs text-[var(--portal-fg-subtle)]">Email is managed by your account authentication record.</span>
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Company</span>

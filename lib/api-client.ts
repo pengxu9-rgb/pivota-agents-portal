@@ -52,6 +52,108 @@ class AgentApiClient {
     });
   }
 
+  private getStoredUser() {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const raw = localStorage.getItem('agent_user');
+    if (!raw) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private getStoredAgentId() {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return localStorage.getItem('agent_id');
+  }
+
+  private getStoredPrimaryApiKey() {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    return localStorage.getItem('agent_api_key');
+  }
+
+  private normalizeProfile(agent: any) {
+    const storedUser = this.getStoredUser();
+    const metadata = agent?.metadata && typeof agent.metadata === 'object' ? agent.metadata : {};
+
+    return {
+      ...(agent || {}),
+      agent_name: agent?.agent_name || agent?.name || storedUser?.name || '',
+      owner_email: agent?.owner_email || agent?.email || storedUser?.email || '',
+      company: agent?.company || metadata.company || storedUser?.company || '',
+      webhook_url: typeof agent?.webhook_url === 'string' ? agent.webhook_url : '',
+      metadata,
+    };
+  }
+
+  private normalizeApiKeyRecord(record: any, index: number) {
+    const rawValue =
+      record?.key ||
+      record?.api_key ||
+      record?.full_key ||
+      record?.token ||
+      record?.masked_key ||
+      record?.key_preview ||
+      record?.api_key_prefix ||
+      '';
+
+    const status =
+      record?.status === 'revoked' || record?.is_active === false || record?.revoked_at
+        ? 'revoked'
+        : 'active';
+
+    const partial =
+      !record?.key &&
+      !record?.api_key &&
+      !record?.full_key &&
+      Boolean(rawValue);
+
+    return {
+      id: record?.id || record?.key_id || record?.api_key_id || `key_${index}`,
+      name: record?.name || record?.label || record?.key_name || `API Key ${index + 1}`,
+      key: rawValue,
+      created_at: record?.created_at || record?.createdAt || null,
+      last_used: record?.last_used || record?.last_used_at || record?.last_active || null,
+      status,
+      usage_count:
+        Number(record?.usage_count ?? record?.request_count ?? record?.usage ?? 0) || 0,
+      partial,
+      source: 'api',
+    };
+  }
+
+  private getSessionFallbackApiKey() {
+    const storedKey = this.getStoredPrimaryApiKey();
+    if (!storedKey) {
+      return null;
+    }
+
+    return {
+      id: 'session-primary',
+      name: 'Primary API Key',
+      key: storedKey,
+      created_at: null,
+      last_used: null,
+      status: 'active' as const,
+      usage_count: 0,
+      partial: false,
+      source: 'session' as const,
+    };
+  }
+
   // [Phase 5.6] Settlement APIs
   async getSettlements(agentId: string, status?: string) {
     const params = status ? { status } : {};
@@ -153,17 +255,27 @@ class AgentApiClient {
   // [Phase 6] Integration Status API
   async getIntegrationStatus(agentId: string) {
     try {
-      const response = await this.client.get(`/agents/${agentId}/integration-status`);
-    return response.data;
-    } catch (error) {
-      // Return mock data if endpoint doesn't exist yet
-      console.log('[AgentApiClient] Integration status endpoint not available, using default');
+      const response = await this.client.get(`/agents/${agentId}/integration/overview`);
+      const data = response.data || {};
+      const protocols = Array.isArray(data.protocols) ? data.protocols : [];
+
       return {
         api_connected: true,
-        connected_merchants: 3,
-        active_protocols: 2,
-        last_api_call: new Date().toISOString(),
-        last_sync: new Date().toISOString()
+        connected_merchants: Number(data?.routing?.unique_merchants ?? 0) || 0,
+        active_protocols: protocols.filter((item: any) => item?.status === 'active').length,
+        last_api_call: data?.last_updated || null,
+        last_sync: data?.last_updated || null,
+        raw: data,
+      };
+    } catch (error) {
+      console.error('[AgentApiClient] Failed to load integration overview:', error);
+      return {
+        api_connected: false,
+        connected_merchants: 0,
+        active_protocols: 0,
+        last_api_call: null,
+        last_sync: null,
+        raw: null,
       };
     }
   }
@@ -369,47 +481,42 @@ class AgentApiClient {
 
   async getApiKeys() {
     try {
-      // Use the new self-service endpoint that returns full API key
-      const response = await this.client.get('/agent/self/api-key');
-      const data = response.data;
-      
-      if (data.status === 'success' && data.api_key) {
-        return {
-          status: 'success',
-          keys: [{
-            id: 'primary',
-            key: data.api_key,  // Full key from backend
-            name: data.name || 'Primary API Key',
-            status: 'active' as 'active' | 'revoked',
-            created_at: data.created_at || new Date().toISOString(),
-            last_used: data.last_active,
-            usage_count: data.usage_count || 0
-          }]
-        };
+      const agentId = this.getStoredAgentId();
+      if (!agentId) {
+        return { status: 'success', keys: [] };
       }
-      
-      return { status: 'success', keys: [] };
+
+      const response = await this.client.get(`/agents/${agentId}/api-keys`);
+      const data = response.data;
+
+      const records = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.keys)
+          ? data.keys
+          : Array.isArray(data?.api_keys)
+            ? data.api_keys
+            : Array.isArray(data?.data?.keys)
+              ? data.data.keys
+              : [];
+
+      const normalized = records
+        .map((record: any, index: number) => this.normalizeApiKeyRecord(record, index))
+        .filter((record: any) => Boolean(record.key));
+
+      if (normalized.length > 0) {
+        return { status: 'success', keys: normalized };
+      }
+
+      const fallbackKey = this.getSessionFallbackApiKey();
+      return {
+        status: 'success',
+        keys: fallbackKey ? [fallbackKey] : [],
+      };
     } catch (error: any) {
       console.error('[AgentApiClient] Failed to get API keys:', error?.response?.status, error?.message);
-      
-      // Fallback to mock for development
-      if (error?.response?.status === 404) {
-        console.log('[AgentApiClient] Using mock API key for development');
-        return {
-          status: 'success',
-          keys: [{
-            id: 'mock',
-            key: 'ak_live_mock_key_for_development_only',
-            name: 'Mock API Key',
-            status: 'active' as 'active' | 'revoked',
-            created_at: new Date().toISOString(),
-            last_used: null,
-            usage_count: 0
-          }]
-        };
-      }
-      
-      return { status: 'success', keys: [] };
+
+      const fallbackKey = this.getSessionFallbackApiKey();
+      return { status: 'success', keys: fallbackKey ? [fallbackKey] : [] };
     }
   }
 
@@ -447,33 +554,97 @@ class AgentApiClient {
   }
 
   async getProfile() {
-    // TODO: Implement when backend ready
-    const mockProfile = localStorage.getItem('agent_user');
-    const agent = mockProfile ? JSON.parse(mockProfile) : null;
-    return {
-      status: 'success',
-      agent: agent
-        ? {
-            agent_name: agent.name,
-            owner_email: agent.email,
-            company: 'Demo Company',
-            webhook_url: 'https://example.com/webhook',
-          }
-        : null,
-    };
+    const agentId = this.getStoredAgentId();
+    const storedUser = this.getStoredUser();
+
+    if (!agentId) {
+      return {
+        status: 'success',
+        agent: storedUser
+          ? this.normalizeProfile({
+              agent_name: storedUser.name,
+              owner_email: storedUser.email,
+              company: storedUser.company,
+              webhook_url: '',
+            })
+          : null,
+      };
+    }
+
+    try {
+      const response = await this.client.get(`/agents/${agentId}`);
+      const payload = response.data;
+      const normalized = this.normalizeProfile(payload?.agent || payload);
+
+      return {
+        status: payload?.status || 'success',
+        agent: normalized,
+      };
+    } catch (error: any) {
+      console.error('[AgentApiClient] Failed to load agent profile:', error?.response?.status, error?.message);
+
+      return {
+        status: 'success',
+        agent: storedUser
+          ? this.normalizeProfile({
+              agent_name: storedUser.name,
+              owner_email: storedUser.email,
+              company: storedUser.company,
+              webhook_url: '',
+            })
+          : null,
+      };
+    }
   }
 
   async updateProfile(profile: { name: string; email: string; company: string; webhook_url: string }) {
-    // TODO: Implement when backend ready
-    const stored = {
-      agent_id: localStorage.getItem('agent_id') || 'agent_demo_portal',
-      name: profile.name,
-      email: profile.email,
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const currentDetails = await this.getAgentDetails(agentId).catch(() => null);
+    const currentAgent = currentDetails?.agent || {};
+    const currentMetadata =
+      currentAgent?.metadata && typeof currentAgent.metadata === 'object'
+        ? currentAgent.metadata
+        : {};
+
+    const company = profile.company.trim();
+    const metadata = {
+      ...currentMetadata,
+      company: company || null,
     };
-    localStorage.setItem('agent_user', JSON.stringify(stored));
+
+    const payload = {
+      agent_name: profile.name.trim() || null,
+      webhook_url: profile.webhook_url.trim() || null,
+      metadata,
+    };
+
+    const response = await this.client.put(`/agents/${agentId}`, payload);
+    const updatedAgent = this.normalizeProfile({
+      ...currentAgent,
+      ...payload,
+      owner_email: currentAgent.owner_email || profile.email,
+    });
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(
+        'agent_user',
+        JSON.stringify({
+          ...(this.getStoredUser() || {}),
+          name: updatedAgent.agent_name,
+          email: updatedAgent.owner_email,
+          company: updatedAgent.company,
+        }),
+      );
+    }
+
     return {
-      status: 'success',
-      agent: profile,
+      ...(response.data || {}),
+      status: response.data?.status || 'success',
+      agent: updatedAgent,
     };
   }
 
@@ -482,13 +653,29 @@ class AgentApiClient {
     return response.data;
   }
 
+  async forgotPassword(email: string) {
+    const response = await this.client.post('/api/auth/forgot-password', { email });
+    return response.data;
+  }
+
   async resetApiKey() {
-    // TODO: Implement when backend ready
-    const newKey = `ak_live_${Math.random().toString(16).slice(2).padEnd(32, '0')}`;
-    localStorage.setItem('agent_api_key', newKey);
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.post(`/agents/${agentId}/reset-api-key`);
+    const data = response.data || {};
+    const nextKey = data.new_api_key || data.api_key || data.key || null;
+
+    if (nextKey && typeof window !== 'undefined') {
+      localStorage.setItem('agent_api_key', nextKey);
+    }
+
     return {
-      status: 'success',
-      new_api_key: newKey,
+      ...data,
+      status: data.status || 'success',
+      new_api_key: nextKey,
     };
   }
 

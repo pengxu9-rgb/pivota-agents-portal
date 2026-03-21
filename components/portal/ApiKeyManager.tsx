@@ -11,10 +11,12 @@ interface ApiKey {
   id: string;
   name: string;
   key: string;
-  created_at: string;
+  created_at: string | null;
   last_used: string | null;
   status: 'active' | 'revoked';
   usage_count: number;
+  partial?: boolean;
+  source?: 'api' | 'session';
 }
 
 export default function ApiKeyManager({
@@ -61,13 +63,18 @@ export default function ApiKeyManager({
     setError(null);
     try {
       const response = await agentApi.createApiKey(newKeyName.trim());
-      if (response.status === 'success') {
+      const fullKey = response.key || response.api_key || response.new_api_key;
+      const keyId = response.key_id || response.id || response.api_key_id || `created_${Date.now()}`;
+
+      if (response.status === 'success' && fullKey) {
         setNewlyCreatedKey({
-          id: response.key_id,
-          key: response.key,
+          id: keyId,
+          key: fullKey,
         });
         setNewKeyName('');
         await fetchApiKeys();
+      } else {
+        setError('API key created, but the full key was not returned by the server.');
       }
     } catch (requestError) {
       console.error('Failed to create API key:', requestError);
@@ -215,30 +222,46 @@ export default function ApiKeyManager({
                         </StatusBadge>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--portal-fg-subtle)]">
-                        <span>Created {new Date(key.created_at).toLocaleDateString()}</span>
+                        <span>
+                          Created {key.created_at ? new Date(key.created_at).toLocaleDateString() : 'Date unavailable'}
+                        </span>
                         <span>Last used {key.last_used ? key.last_used : 'Never'}</span>
                         <span>{key.usage_count} requests tracked</span>
+                        {key.source === 'session' ? <span>Current authenticated session</span> : null}
                       </div>
                       {key.status === 'active' ? (
                         <div className="mt-3 flex items-start gap-2">
                           <code className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-[var(--portal-border)] bg-white px-3 py-2 font-mono text-sm text-slate-800">
-                            {showKey[key.id] ? key.key : `${key.key.slice(0, 10)}••••••••••••`}
+                            {key.partial
+                              ? key.key
+                              : showKey[key.id]
+                                ? key.key
+                                : `${key.key.slice(0, 10)}••••••••••••`}
                           </code>
-                          <button
-                            onClick={() => setShowKey((current) => ({ ...current, [key.id]: !current[key.id] }))}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--portal-border)] bg-white text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
-                            title={showKey[key.id] ? 'Hide key' : 'Show key'}
-                          >
-                            {showKey[key.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                          <button
-                            onClick={() => void copyToClipboard(key.key, key.id)}
-                            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--portal-border)] bg-white text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
-                            title={copiedKey === key.id ? 'Copied' : 'Copy key'}
-                          >
-                            {copiedKey === key.id ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                          </button>
+                          {!key.partial ? (
+                            <>
+                              <button
+                                onClick={() => setShowKey((current) => ({ ...current, [key.id]: !current[key.id] }))}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--portal-border)] bg-white text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+                                title={showKey[key.id] ? 'Hide key' : 'Show key'}
+                              >
+                                {showKey[key.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </button>
+                              <button
+                                onClick={() => void copyToClipboard(key.key, key.id)}
+                                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--portal-border)] bg-white text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+                                title={copiedKey === key.id ? 'Copied' : 'Copy key'}
+                              >
+                                {copiedKey === key.id ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                              </button>
+                            </>
+                          ) : null}
                         </div>
+                      ) : null}
+                      {key.partial ? (
+                        <p className="mt-2 text-xs text-[var(--portal-fg-subtle)]">
+                          Full key disclosure is only available when the key is created or returned in the current authenticated session.
+                        </p>
                       ) : null}
                     </div>
 
