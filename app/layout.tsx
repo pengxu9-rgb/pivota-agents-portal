@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Navigation from "@/components/Navigation";
+import PortalShell from "@/components/PortalShell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pivota Agent Portal - AI Commerce Infrastructure",
-  description: "Connect AI agents to merchants through unified payment infrastructure. Real-time analytics, MCP integration, and comprehensive API documentation.",
+  title: "Pivota Developer Portal",
+  description: "Production developer console for API keys, usage, orders, webhooks, and integration docs.",
 };
 
 export default function RootLayout({
@@ -25,11 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}>
-        <div className="flex h-screen overflow-hidden">
-          <Navigation />
-          <main className="flex-1 overflow-auto">{children}</main>
-        </div>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <PortalShell>{children}</PortalShell>
       </body>
     </html>
   );

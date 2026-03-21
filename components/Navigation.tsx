@@ -5,37 +5,65 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
-  Code, 
+  KeyRound,
+  Activity,
   BarChart3, 
   Store, 
   ShoppingCart, 
-  Wallet, 
   Settings,
-  Terminal,
-  Zap,
+  BookOpen,
   LogOut,
   User,
   DollarSign,
   Shield,
-  CreditCard
+  CreditCard,
+  Webhook,
+  RadioTower,
+  ChevronDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ScrollText,
+  Bug,
+  Command,
 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
+import StatusBadge from '@/components/portal/StatusBadge';
+import { cx } from '@/lib/cx';
 
-const navigationItems = [
+type NavigationItem = {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  aliases?: string[];
+};
+
+const primaryNavigationItems: NavigationItem[] = [
   {
-    name: 'Dashboard',
+    name: 'Overview',
     href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
-    name: 'Analytics',
-    href: '/analytics',
-    icon: BarChart3,
+    name: 'API Keys',
+    href: '/api-keys',
+    icon: KeyRound,
   },
   {
-    name: 'Merchants',
-    href: '/merchants',
-    icon: Store,
+    name: 'API Usage',
+    href: '/api-usage',
+    icon: Activity,
+    aliases: ['/analytics'],
+  },
+  {
+    name: 'Webhooks',
+    href: '/webhooks',
+    icon: Webhook,
+  },
+  {
+    name: 'Endpoints',
+    href: '/endpoints',
+    icon: RadioTower,
+    aliases: ['/protocols'],
   },
   {
     name: 'Orders',
@@ -43,30 +71,18 @@ const navigationItems = [
     icon: ShoppingCart,
   },
   {
-    name: 'Revenue',
-    href: '/revenue',
-    icon: DollarSign,
+    name: 'Docs',
+    href: '/docs',
+    icon: BookOpen,
+    aliases: ['/integration'],
   },
+];
+
+const secondaryNavigationItems: NavigationItem[] = [
   {
-    name: 'Protocols',
-    href: '/protocols',
-    icon: Shield,
-  },
-  {
-    name: 'Integration',
-    href: '/integration',
-    icon: Terminal,
-  },
-  // Wallet tab hidden - all functionality moved to Payout tab
-  // {
-  //   name: 'Wallet',
-  //   href: '/wallet',
-  //   icon: Wallet,
-  // },
-  {
-    name: 'Payout',
-    href: '/payouts',
-    icon: CreditCard,
+    name: 'Analytics',
+    href: '/analytics',
+    icon: BarChart3,
   },
   {
     name: 'Settings',
@@ -75,9 +91,48 @@ const navigationItems = [
   },
 ];
 
+const operationsNavigationItems: NavigationItem[] = [
+  {
+    name: 'Merchant connections',
+    href: '/merchants',
+    icon: Store,
+  },
+  {
+    name: 'Revenue',
+    href: '/revenue',
+    icon: DollarSign,
+  },
+  {
+    name: 'Payouts',
+    href: '/payouts',
+    icon: CreditCard,
+  },
+];
+
+const adminNavigationItems: NavigationItem[] = [
+  {
+    name: 'Protocol adapters',
+    href: '/protocols',
+    icon: Shield,
+  },
+  {
+    name: 'Recent logs',
+    href: '/logs',
+    icon: ScrollText,
+  },
+  {
+    name: 'Activity inspector',
+    href: '/debug-orders',
+    icon: Bug,
+  },
+];
+
 export default function Navigation() {
   const pathname = usePathname();
   const router = useRouter();
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [operationsOpen, setOperationsOpen] = React.useState(false);
+  const [adminOpen, setAdminOpen] = React.useState(false);
   
   // [Phase 6.2] Get agent_type from API - MUST be before early return
   const [agentType, setAgentType] = React.useState<'basic' | 'premium' | null>(null);
@@ -90,18 +145,14 @@ export default function Navigation() {
     
     const loadAgentType = async () => {
       const agentId = localStorage.getItem('agent_id');
-      console.log('[Navigation] Loading agent type for:', agentId);
       
       if (!agentId) {
-        console.warn('[Navigation] No agent_id in localStorage');
         return;
       }
       
       try {
         const response = await agentApi.getAgentDetails(agentId);
-        console.log('[Navigation] API response:', response);
         const type = response?.agent?.agent_type || 'basic';
-        console.log('[Navigation] Setting agentType to:', type);
         setAgentType(type);
       } catch (err: any) {
         console.error('[Navigation] Could not load agent type:', err?.response?.status, err?.message);
@@ -109,6 +160,30 @@ export default function Navigation() {
     };
     loadAgentType();
   }, [pathname]);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const savedCollapsed = window.localStorage.getItem('portal_sidebar_collapsed');
+    const savedOperations = window.localStorage.getItem('portal_nav_operations_open');
+    const savedAdmin = window.localStorage.getItem('portal_nav_admin_open');
+
+    setCollapsed(savedCollapsed === 'true');
+    setOperationsOpen(savedOperations === 'true');
+    setAdminOpen(savedAdmin === 'true');
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem('portal_sidebar_collapsed', String(collapsed));
+    window.localStorage.setItem('portal_nav_operations_open', String(operationsOpen));
+    window.localStorage.setItem('portal_nav_admin_open', String(adminOpen));
+  }, [collapsed, operationsOpen, adminOpen]);
   
   // Skip navigation on login/signup pages - AFTER hooks
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
@@ -139,8 +214,79 @@ export default function Navigation() {
     }
     return null;
   };
-  
+
   const user = getUserInfo();
+
+  const isActive = (item: NavigationItem) =>
+    pathname === item.href ||
+    (item.href !== '/' && pathname.startsWith(item.href)) ||
+    item.aliases?.some((alias) => pathname === alias || pathname.startsWith(alias));
+
+  const renderNavItem = (item: NavigationItem) => {
+    const Icon = item.icon;
+    const active = isActive(item);
+
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        title={collapsed ? item.name : undefined}
+        className={cx(
+          'group relative flex items-center rounded-xl px-3 py-2.5 text-sm font-medium',
+          collapsed ? 'justify-center' : 'gap-3',
+          active
+            ? 'bg-[var(--portal-sidebar-active)] text-[var(--portal-sidebar-fg-strong)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
+            : 'text-[var(--portal-sidebar-fg)] hover:bg-white/5 hover:text-[var(--portal-sidebar-fg-strong)]',
+        )}
+      >
+        {active ? <span className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-[var(--portal-accent)]" /> : null}
+        <Icon className="h-5 w-5 shrink-0" />
+        {!collapsed ? <span className="truncate">{item.name}</span> : null}
+      </Link>
+    );
+  };
+
+  const renderSection = (
+    label: string,
+    items: NavigationItem[],
+    options?: {
+      collapsible?: boolean;
+      open?: boolean;
+      onToggle?: () => void;
+    },
+  ) => {
+    const content = (
+      <div className="space-y-1">
+        {items.map((item) => renderNavItem(item))}
+      </div>
+    );
+
+    if (collapsed) {
+      return <div className="space-y-1">{content}</div>;
+    }
+
+    if (!options?.collapsible) {
+      return (
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+          {content}
+        </div>
+      );
+    }
+
+    return (
+      <div>
+        <button
+          onClick={options.onToggle}
+          className="mb-2 flex w-full items-center justify-between rounded-lg px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 hover:bg-white/5"
+        >
+          <span>{label}</span>
+          <ChevronDown className={cx('h-4 w-4 transition-transform', options.open ? 'rotate-0' : '-rotate-90')} />
+        </button>
+        {options.open ? content : null}
+      </div>
+    );
+  };
 
   // Normalize tier from either API-loaded agentType or stored user info.
   const rawTier =
@@ -157,87 +303,95 @@ export default function Navigation() {
     normalizedTier === 'premium' ? 'premium' : 'basic';
   
   return (
-    <div className="flex h-screen">
-      {/* Left Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-        {/* Logo */}
-        <div className="h-16 flex items-center px-6 border-b border-gray-200">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-gray-900">Pivota</span>
-          </Link>
-        </div>
-        
-        {/* User Info */}
-        {user && (
-          <div className="px-4 py-3 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-purple-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user.name || user.email?.split('@')[0]}
-                  </p>
-                  {effectiveTier === 'premium' && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                      ⭐ PRO
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 truncate">{user.email}</p>
-              </div>
-            </div>
+    <aside
+      className={cx(
+        'sticky top-0 hidden h-screen shrink-0 border-r border-white/8 bg-[var(--portal-sidebar)] lg:flex lg:flex-col',
+        collapsed ? 'w-20' : 'w-60',
+      )}
+    >
+      <div className="flex items-center justify-between border-b border-white/8 px-4 py-4">
+        <Link href="/dashboard" className={cx('flex min-w-0 items-center', collapsed ? 'justify-center' : 'gap-3')}>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
+            <Command className="h-5 w-5" />
           </div>
-        )}
-        
-        {/* Navigation Items */}
-        <nav className="flex-1 overflow-y-auto py-4">
-          <div className="px-3 space-y-1">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href || 
-                (item.href !== '/' && pathname.startsWith(item.href));
-              
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`
-                    flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-                    ${isActive 
-                      ? 'bg-blue-50 text-blue-700' 
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    }
-                  `}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-        
-        {/* Logout Button */}
-        <div className="p-4 border-t border-gray-200">
+          {!collapsed ? (
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold tracking-[0.02em] text-[var(--portal-sidebar-fg-strong)]">Pivota</p>
+              <p className="truncate text-xs text-slate-400">Developer Portal</p>
+            </div>
+          ) : null}
+        </Link>
+        {!collapsed ? (
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            onClick={() => setCollapsed(true)}
+            className="rounded-lg p-2 text-[var(--portal-sidebar-fg)] hover:bg-white/5 hover:text-[var(--portal-sidebar-fg-strong)]"
+            title="Collapse sidebar"
           >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
+            <PanelLeftClose className="h-4 w-4" />
           </button>
+        ) : (
+          <button
+            onClick={() => setCollapsed(false)}
+            className="rounded-lg p-2 text-[var(--portal-sidebar-fg)] hover:bg-white/5 hover:text-[var(--portal-sidebar-fg-strong)]"
+            title="Expand sidebar"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {user ? (
+        <div className={cx('border-b border-white/8 px-4 py-4', collapsed ? 'flex justify-center' : '')}>
+          <div className={cx('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
+              <User className="h-5 w-5" />
+            </div>
+            {!collapsed ? (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-[var(--portal-sidebar-fg-strong)]">
+                  {user.name || user.email?.split('@')[0]}
+                </p>
+                <p className="truncate text-xs text-slate-400">{user.email}</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <StatusBadge tone="production">Production</StatusBadge>
+                  {effectiveTier === 'premium' ? <StatusBadge tone="info">Premium</StatusBadge> : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
+      ) : null}
+
+      <nav className="portal-scrollbar flex-1 overflow-y-auto px-3 py-4">
+        <div className="space-y-5">
+          {renderSection('Primary', primaryNavigationItems)}
+          {renderSection('Secondary', secondaryNavigationItems)}
+          {renderSection('Operations', operationsNavigationItems, {
+            collapsible: true,
+            open: operationsOpen,
+            onToggle: () => setOperationsOpen((current) => !current),
+          })}
+          {renderSection('Advanced/Admin', adminNavigationItems, {
+            collapsible: true,
+            open: adminOpen,
+            onToggle: () => setAdminOpen((current) => !current),
+          })}
+        </div>
+      </nav>
+
+      <div className="border-t border-white/8 p-3">
+        <button
+          onClick={handleLogout}
+          className={cx(
+            'flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-rose-300 hover:bg-rose-500/10 hover:text-rose-100',
+            collapsed ? 'justify-center' : 'gap-3',
+          )}
+          title={collapsed ? 'Logout' : undefined}
+        >
+          <LogOut className="h-5 w-5 shrink-0" />
+          {!collapsed ? <span>Logout</span> : null}
+        </button>
       </div>
-      
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-hidden">
-        {/* This will be filled by page content */}
-      </div>
-    </div>
+    </aside>
   );
 }

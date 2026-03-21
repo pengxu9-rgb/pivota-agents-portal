@@ -1,24 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import {
-  ShoppingCart,
-  Search,
-  Download,
-  RefreshCw,
-  ArrowLeft,
-  RotateCcw,
-  XCircle,
-  Package,
-} from 'lucide-react';
+import { Download, Package, RefreshCw, RotateCcw, Search, ShoppingCart, XCircle } from 'lucide-react';
+import EmptyState from '@/components/portal/EmptyState';
+import PageHeader from '@/components/portal/PageHeader';
+import SectionHeader from '@/components/portal/SectionHeader';
+import StatusBadge from '@/components/portal/StatusBadge';
+import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
 
-export default function OrdersManagementPage() {
+const STATUS_TONES: Record<string, 'success' | 'warning' | 'critical' | 'info' | 'neutral'> = {
+  completed: 'success',
+  paid: 'success',
+  processing: 'info',
+  pending: 'warning',
+  refunded: 'neutral',
+  cancelled: 'critical',
+};
+
+export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -28,235 +33,207 @@ export default function OrdersManagementPage() {
       router.push('/login');
       return;
     }
-    loadOrders();
+
+    void loadOrders();
   }, [router]);
 
   const loadOrders = async () => {
     try {
       setLoading(true);
       const data = await agentApi.getOrders(100);
-      // Map backend fields to frontend expected fields
       const mappedOrders = (data || []).map((order: any) => ({
         id: order.order_id,
         order_id: order.order_id,
-        order_number: order.order_id, // Use order_id as order_number
+        order_number: order.order_id,
         customer_email: order.customer_email,
         total_amount: order.total || order.amount || 0,
-        status: order.payment_status || order.status, // Use payment_status first
+        status: order.payment_status || order.status,
         created_at: order.created_at,
         merchant_id: order.merchant_id,
-        items: order.items,
       }));
       setOrders(mappedOrders);
     } catch (error) {
       console.error('Failed to load orders:', error);
+      setOrders([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
   const handleRefund = async (orderId: string) => {
-    if (!confirm('Issue a full refund for this order?')) return;
+    if (!confirm('Issue a full refund for this order?')) {
+      return;
+    }
+
     try {
-      const response = await agentApi.refundOrder(orderId);
-      alert('✅ Refund initiated successfully!');
-      loadOrders(); // Refresh orders
+      await agentApi.refundOrder(orderId);
+      alert('Refund initiated successfully.');
+      await loadOrders();
     } catch (error: any) {
-      alert(`❌ Refund failed: ${error.response?.data?.detail || error.message}`);
-      console.error('Refund error:', error);
+      alert(`Refund failed: ${error.response?.data?.detail || error.message}`);
     }
   };
 
   const handleCancel = async (orderId: string) => {
-    if (!confirm('Cancel this order?')) return;
+    if (!confirm('Cancel this order?')) {
+      return;
+    }
+
     try {
-      const response = await agentApi.cancelOrder(orderId);
-      alert('✅ Order cancelled successfully!');
-      loadOrders(); // Refresh orders
+      await agentApi.cancelOrder(orderId);
+      alert('Order cancelled successfully.');
+      await loadOrders();
     } catch (error: any) {
-      alert(`❌ Cancel failed: ${error.response?.data?.detail || error.message}`);
-      console.error('Cancel error:', error);
+      alert(`Cancel failed: ${error.response?.data?.detail || error.message}`);
     }
   };
 
-  const handleTrackShipment = async (orderId: string) => {
-    try {
-      const tracking = await agentApi.trackOrder(orderId);
-      const message = `
-📦 Order Tracking
-
-Status: ${tracking.fulfillment_status || 'Unknown'}
-Tracking #: ${tracking.tracking_number || 'Not available'}
-Carrier: ${tracking.carrier || 'N/A'}
-
-Timeline:
-${tracking.timeline?.map((t: any) => `${t.status}: ${t.completed ? '✓' : '○'}`).join('\n') || 'No tracking info'}
-      `;
-      alert(message);
-    } catch (error: any) {
-      alert(`❌ Tracking failed: ${error.response?.data?.detail || error.message}`);
-      console.error('Tracking error:', error);
-    }
-  };
-
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch = searchTerm === '' ||
-      order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer_email?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter((order) => {
+        const matchesSearch =
+          !searchTerm ||
+          order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.customer_email?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [orders, searchTerm, statusFilter],
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-transparent">
+      <PageHeader
+        title="Orders"
+        description="Review commerce flow results, refunds, and pending operations without mixing them into the Overview."
+        badge={<StatusBadge tone="production">Production</StatusBadge>}
+        actions={
+          <>
+            <button
+              onClick={() => {
+                setRefreshing(true);
+                void loadOrders();
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+            <button className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]">
+              <Download className="h-4 w-4" />
+              <span>Export</span>
+            </button>
+          </>
+        }
+      />
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <div className="space-y-6">
-          {/* Filters */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search orders..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                />
+      <div className="space-y-6 px-6 py-6">
+        <SurfaceCard className="p-5">
+          <SectionHeader title="Filters" description="Search orders and narrow by current payment state." />
+          <div className="mt-5 flex flex-col gap-3 lg:flex-row">
+            <label className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--portal-fg-subtle)]" />
+              <input
+                type="text"
+                placeholder="Search order ID or customer email"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] py-2.5 pl-10 pr-3 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
+              />
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)]"
+            >
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+        </SurfaceCard>
+
+        <SurfaceCard className="overflow-hidden">
+          <div className="border-b border-[var(--portal-border)] px-5 py-4">
+            <SectionHeader title="Order list" description={`${filteredOrders.length} matching orders`} />
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <div className="space-y-3">
+                {[0, 1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border rounded-lg"
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="refunded">Refunded</option>
-              </select>
-              <button
-                onClick={loadOrders}
-                className="flex items-center space-x-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
-              >
-                <RefreshCw className="w-4 h-4" />
-              </button>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                <Download className="w-4 h-4" />
-                <span>Export</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Orders Table */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredOrders.length > 0 ? (
-                    filteredOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                          {order.order_number || order.id}
+            ) : filteredOrders.length === 0 ? (
+              <EmptyState
+                icon={<ShoppingCart className="h-5 w-5" />}
+                title="No orders found"
+                description="Orders will appear here after your integration starts creating or syncing checkout flow activity."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--portal-border)] text-left text-xs uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">
+                      <th className="px-3 py-3 font-semibold">Order</th>
+                      <th className="px-3 py-3 font-semibold">Customer</th>
+                      <th className="px-3 py-3 font-semibold">Amount</th>
+                      <th className="px-3 py-3 font-semibold">Status</th>
+                      <th className="px-3 py-3 font-semibold">Created</th>
+                      <th className="px-3 py-3 font-semibold">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.map((order) => (
+                      <tr key={order.id} className="border-b border-[var(--portal-border)] last:border-b-0">
+                        <td className="px-3 py-4 font-mono text-[var(--portal-fg)]">{order.order_number || order.id}</td>
+                        <td className="px-3 py-4 text-[var(--portal-fg-muted)]">{order.customer_email || 'Guest'}</td>
+                        <td className="px-3 py-4 tabular-nums text-[var(--portal-fg)]">${(order.total_amount || 0).toFixed(2)}</td>
+                        <td className="px-3 py-4">
+                          <StatusBadge tone={STATUS_TONES[(order.status || '').toLowerCase()] || 'neutral'}>
+                            {order.status || 'unknown'}
+                          </StatusBadge>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {order.customer_email || 'Guest'}
+                        <td className="px-3 py-4 text-[var(--portal-fg-muted)]">
+                          {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'Unknown'}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          ${(order.total_amount || 0).toFixed(2)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                            order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                            order.status === 'refunded' ? 'bg-orange-100 text-orange-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {new Date(order.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2">
+                        <td className="px-3 py-4">
+                          <div className="flex items-center gap-2">
                             {(order.status === 'completed' || order.status === 'paid') && (
-                              <>
-                                <button
-                                  onClick={() => handleRefund(order.order_id)}
-                                  className="p-1 text-orange-600 hover:bg-orange-50 rounded"
-                                  title="Refund"
-                                >
-                                  <RotateCcw className="w-4 h-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleTrackShipment(order.order_id)}
-                                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                  title="Track Shipment"
-                                >
-                                  <Package className="w-4 h-4" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => void handleRefund(order.order_id)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+                              >
+                                <RotateCcw className="h-3.5 w-3.5" />
+                                <span>Refund</span>
+                              </button>
                             )}
                             {order.status === 'pending' && (
                               <button
-                                onClick={() => handleCancel(order.order_id)}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                title="Cancel"
+                                onClick={() => void handleCancel(order.order_id)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-100"
                               >
-                                <XCircle className="w-4 h-4" />
+                                <XCircle className="h-3.5 w-3.5" />
+                                <span>Cancel</span>
                               </button>
                             )}
+                            <span className="inline-flex items-center gap-1 rounded-lg border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-2.5 py-1.5 text-xs text-[var(--portal-fg-subtle)]">
+                              <Package className="h-3.5 w-3.5" />
+                              <span>{order.merchant_id || 'Merchant not specified'}</span>
+                            </span>
                           </div>
                         </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                        <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                        <p>No orders found</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        </div>
-      </main>
+        </SurfaceCard>
+      </div>
     </div>
   );
 }
-

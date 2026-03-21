@@ -1,127 +1,59 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
-  ShoppingCart,
-  DollarSign,
-  Zap,
-  Store,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Eye,
-  RefreshCw,
-  Key,
-  Search,
-  Package,
+  AlertTriangle,
   ArrowRight,
+  CheckCircle2,
   ChevronRight,
-  BookOpen,
-  Terminal,
+  Clock3,
+  KeyRound,
+  RefreshCw,
+  ScrollText,
+  Server,
+  Webhook,
 } from 'lucide-react';
-import { agentApi } from '@/lib/api-client';
 import ApiKeyModal from '@/components/ApiKeyModal';
+import MetricCard from '@/components/portal/MetricCard';
+import PageHeader from '@/components/portal/PageHeader';
+import SectionHeader from '@/components/portal/SectionHeader';
+import StatusBadge from '@/components/portal/StatusBadge';
+import SurfaceCard from '@/components/portal/SurfaceCard';
+import { agentApi } from '@/lib/api-client';
 
-// Types
 interface AgentInfo {
-  agent_id: string;
-  name: string;
-  email: string;
-  api_key?: string;
-  agent_type?: 'basic' | 'premium';
-  status: 'active' | 'inactive';
+  name?: string;
+  email?: string;
   last_activity?: string;
 }
 
-interface ActivityItem {
-  id: string;
-  type: 'order' | 'search' | 'inventory' | 'price' | 'api';
-  action: string;
-  description: string;
-  amount?: number;
-  response_time?: number;
-  timestamp: string;
-  status: 'success' | 'error' | 'pending';
-  merchant?: string;
+function formatShortDate(value: string | undefined) {
+  if (!value) {
+    return 'No recent traffic';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString();
 }
 
-interface KPIMetrics {
-  success_rate: number;
-  avg_response_time: number;
-  calls_today: number;
-  total_integrations: number;
-  active_connections: number;
-  total_gmv: number;
-}
-
-interface ConversionFunnel {
-  orders_initiated: number;
-  payment_attempted: number;
-  orders_completed: number;
-}
-
-interface QueryAnalytics {
-  product_searches: number;
-  product_searches_trend: 'up' | 'down' | 'stable';
-  product_searches_change: number;
-  inventory_checks: number;
-  inventory_checks_trend: 'up' | 'down' | 'stable';
-  price_queries: number;
-  price_queries_trend: 'up' | 'down' | 'stable';
-}
-
-export default function AgentDashboard() {
+export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  
-  // Agent Info State
+  const [windowDays, setWindowDays] = useState(1);
+  const [summary, setSummary] = useState<any>(null);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [funnel, setFunnel] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  
-  // Metrics State
-  const [metrics, setMetrics] = useState<KPIMetrics>({
-    success_rate: 0,
-    avg_response_time: 0,
-    calls_today: 0,
-    total_integrations: 0,
-    active_connections: 0,
-    total_gmv: 0,
-  });
-  const [metricsLoaded, setMetricsLoaded] = useState(false);
-  const [metricsError, setMetricsError] = useState<string | null>(null);
-  
-  // Order Stats (for accurate calculations)
-  const [orderStats, setOrderStats] = useState({
-    total_orders: 0,
-    paid_orders: 0,
-    total_revenue: 0,
-  });
-  
-  // Activity State
-  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  
-  // Analytics State
-  const [conversionFunnel, setConversionFunnel] = useState<ConversionFunnel>({
-    orders_initiated: 0,
-    payment_attempted: 0,
-    orders_completed: 0,
-  });
-  
-  const [queryAnalytics, setQueryAnalytics] = useState<QueryAnalytics>({
-    product_searches: 0,
-    product_searches_trend: 'stable',
-    product_searches_change: 0,
-    inventory_checks: 0,
-    inventory_checks_trend: 'stable',
-    price_queries: 0,
-    price_queries_trend: 'stable',
-  });
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -129,654 +61,459 @@ export default function AgentDashboard() {
       router.push('/login');
       return;
     }
-    
-    void loadDashboard();
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(refreshMetrics, 30000);
-    return () => clearInterval(interval);
-  }, [router]);
 
-  const loadDashboard = async () => {
+    const storedUser = localStorage.getItem('agent_user');
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        setAgentInfo({
+          name: parsed.name,
+          email: parsed.email,
+          last_activity: parsed.last_activity,
+        });
+      } catch {
+        setAgentInfo(null);
+      }
+    }
+
+    void loadDashboard(windowDays);
+  }, [router, windowDays]);
+
+  const loadDashboard = async (days: number) => {
     try {
       setLoading(true);
-      
-      // Load agent info from localStorage
-      const userData = localStorage.getItem('agent_user');
       const agentId = localStorage.getItem('agent_id');
-
-      // Fast path: render immediately using localStorage (so the page never blocks on API speed).
-      if (userData) {
-        const user = JSON.parse(userData);
-        setAgentInfo({
-          agent_id: agentId || user.agent_id,
-          name: user.name || 'Agent',
-          email: user.email,
-          status: 'active',
-          last_activity: 'Recently',
-        });
-      }
-
-      // Load agent details (agent_type etc.) in background; failure should not block rendering.
-      if (agentId) {
-        void agentApi
-          .getAgentDetails(agentId)
-          .then((agentDetails) => {
-            setAgentInfo((prev) => ({
-              agent_id: agentId,
-              name: agentDetails.agent?.agent_name || agentDetails.agent?.name || prev?.name || 'Agent',
-              email: agentDetails.agent?.owner_email || agentDetails.agent?.email || prev?.email || '',
-              agent_type: agentDetails.agent?.agent_type || 'basic',
-              status: agentDetails.agent?.status || prev?.status || 'active',
-              last_activity: agentDetails.agent?.last_active || prev?.last_activity || 'Recently',
-            }));
-          })
-          .catch((err) => {
-            console.warn('Failed to load agent details:', err);
-          });
-      }
-
-      // Kick off the slow data fetches in background (do not block initial paint).
-      void loadMetrics();
-      void loadRecentActivity();
-      void loadAnalytics();
-    } catch (error) {
-      console.error('Failed to load dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadMetrics = async () => {
-    try {
-      setMetricsError(null);
-      setMetricsLoaded(false);
-      // Add timeout to prevent indefinite loading
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Metrics request timeout')), 10000)
-      );
-      
-      const data = await Promise.race([
+      const [summaryResponse, activityResponse, funnelResponse, profileResponse, agentDetails] = await Promise.all([
         agentApi.getMetricsSummary(),
-        timeoutPromise
-      ]) as any;
-      
-      // Also get merchant authorizations for "Total Integrations"
-      let merchantCount = 0;
-      try {
-        const merchantsData = await agentApi.getMerchantAuthorizations();
-        merchantCount = merchantsData?.merchants?.length ?? 0;
-      } catch (e) {
-        console.warn('Could not fetch merchant count:', e);
-      }
-      
-      // Map backend fields to UI
-      setMetrics({
-        success_rate: data?.performance?.success_rate_24h ?? 0,
-        avg_response_time: data?.performance?.avg_response_time_ms ?? 0,
-        calls_today: data?.overview?.requests_last_24h ?? 0,
-        total_integrations: data?.merchants?.total_count ?? merchantCount,  // Use backend merchant count
-        active_connections: data?.agents?.active_last_24h ?? 0,  // Active agents (for multi-agent setups)
-        total_gmv: data?.orders?.total_revenue ?? 0,  // Use all-time revenue for accurate calculations
-      });
-      
-      // Store order stats for dashboard calculations
-      setOrderStats({
-        total_orders: data?.orders?.total_orders ?? 0,
-        paid_orders: data?.orders?.total_paid_orders ?? 0,
-        total_revenue: data?.orders?.total_revenue ?? 0,
-      });
-      setMetricsLoaded(true);
-    } catch (error) {
-      console.error('Failed to load metrics:', error);
-      setMetricsError('Metrics service is temporarily unavailable.');
-      // Keep zeros but mark as error; UI will show placeholders
-      setMetrics({
-        success_rate: 0,
-        avg_response_time: 0,
-        calls_today: 0,
-        total_integrations: 0,
-        active_connections: 0,
-        total_gmv: 0,
-      });
-      setMetricsLoaded(true);
-    }
-  };
-
-  const loadRecentActivity = async (offset = 0) => {
-    if (offset > 0) setLoadingMore(true);
-    try {
-      const data = await agentApi.getRecentActivity(5);
-      const activities = (data.activities || []).map((a: any) => ({
-        id: a.id,
-        type: 'api',
-        action: `${a.method} ${a.endpoint}`,
-        description: `${a.status_code}`,
-        response_time: a.response_time_ms,
-        timestamp: new Date(a.timestamp).toLocaleTimeString(),
-        status: a.status_code < 400 ? 'success' : 'error',
-      })) as ActivityItem[];
-      
-      if (offset === 0) {
-        setRecentActivity(activities);
-      } else {
-        setRecentActivity(prev => [...prev, ...activities]);
-      }
-      
-      setHasMore(activities.length === 5);
-    } catch (error: any) {
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        console.warn('Recent activity request timed out, keeping previous data');
-      } else {
-        console.error('Failed to load recent activity:', error);
-      }
-      if (offset === 0) {
-        setRecentActivity([]);
-      }
-    } finally {
-      if (offset > 0) setLoadingMore(false);
-    }
-  };
-
-  const loadAnalytics = async () => {
-    try {
-      const [funnelData, queryData] = await Promise.all([
-        agentApi.getConversionFunnel(7),
-        agentApi.getQueryAnalytics(),
+        agentApi.getRecentActivity(8),
+        agentApi.getConversionFunnel(days),
+        agentApi.getProfile(),
+        agentId ? agentApi.getAgentDetails(agentId).catch(() => null) : Promise.resolve(null),
       ]);
 
-      setConversionFunnel({
-        orders_initiated: funnelData?.orders_initiated ?? 0,
-        payment_attempted: funnelData?.payment_attempted ?? 0,
-        orders_completed: funnelData?.orders_completed ?? 0,
-      });
+      setSummary(summaryResponse);
+      setRecentActivity(activityResponse?.activities || []);
+      setFunnel(funnelResponse);
+      setProfile(profileResponse?.agent || null);
 
-      setQueryAnalytics({
-        product_searches: queryData?.product_searches ?? 0,
-        product_searches_trend: (queryData?.product_searches_trend || 'stable') as 'stable' | 'up' | 'down',
-        product_searches_change: queryData?.product_searches_change ?? 0,
-        inventory_checks: queryData?.inventory_checks ?? 0,
-        inventory_checks_trend: (queryData?.inventory_checks_trend || 'stable') as 'stable' | 'up' | 'down',
-        price_queries: queryData?.price_queries ?? 0,
-        price_queries_trend: (queryData?.price_queries_trend || 'stable') as 'stable' | 'up' | 'down',
-      });
+      if (agentDetails?.agent) {
+        setAgentInfo((current) => ({
+          name: agentDetails.agent.agent_name || agentDetails.agent.name || current?.name,
+          email: agentDetails.agent.owner_email || agentDetails.agent.email || current?.email,
+          last_activity: agentDetails.agent.last_active || current?.last_activity,
+        }));
+      }
     } catch (error) {
-      console.error('Failed to load analytics:', error);
-      // No mock fallback – show zeros to reflect absence of real data
-      setConversionFunnel({
-        orders_initiated: 0,
-        payment_attempted: 0,
-        orders_completed: 0,
-      });
-
-      setQueryAnalytics({
-        product_searches: 0,
-        product_searches_trend: 'stable',
-        product_searches_change: 0,
-        inventory_checks: 0,
-        inventory_checks_trend: 'stable',
-        price_queries: 0,
-        price_queries_trend: 'stable',
-      });
+      console.error('Failed to load overview:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const refreshMetrics = async () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    await loadMetrics();
-    await loadRecentActivity();
-    setRefreshing(false);
+    await loadDashboard(windowDays);
   };
 
+  const requestCount = summary?.overview?.requests_last_24h ?? 0;
+  const successRate = summary?.performance?.success_rate_24h ?? 0;
+  const avgLatency = summary?.performance?.avg_response_time_ms ?? 0;
+  const ordersCompleted = funnel?.orders_completed ?? 0;
+  const topEndpoints = summary?.top_endpoints ?? [];
+  const webhookConfigured = Boolean(profile?.webhook_url);
+  const latestEvent = recentActivity[0];
+  const errorEvents = recentActivity.filter((event) => (event.status_code ?? 0) >= 400);
 
-  const formatAmount = (amount: number) => {
-    if (amount >= 1000) {
-      return `$${(amount / 1000).toFixed(1)}K`;
+  const attentionItems = useMemo(() => {
+    const items: Array<{ title: string; body: string; tone: 'critical' | 'warning' | 'info'; href: string }> = [];
+
+    if (errorEvents.length > 0) {
+      const first = errorEvents[0];
+      items.push({
+        title: `${errorEvents.length} recent request failure${errorEvents.length > 1 ? 's' : ''}`,
+        body: `${first.method} ${first.endpoint} returned ${first.status_code}.`,
+        tone: 'critical',
+        href: '/logs',
+      });
     }
-    return `$${amount.toFixed(2)}`;
-  };
 
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'order':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
-      case 'search':
-        return <Search className="w-5 h-5 text-blue-500" />;
-      case 'inventory':
-        return <Package className="w-5 h-5 text-purple-500" />;
-      case 'price':
-        return <DollarSign className="w-5 h-5 text-yellow-500" />;
-      default:
-        return <Activity className="w-5 h-5 text-gray-500" />;
+    if (!webhookConfigured) {
+      items.push({
+        title: 'Webhook setup incomplete',
+        body: 'No production webhook URL is configured yet.',
+        tone: 'warning',
+        href: '/webhooks',
+      });
     }
-  };
 
-  const getTrendIcon = (trend: string, change?: number) => {
-    if (trend === 'up') {
-      return (
-        <span className="text-green-600 text-sm">
-          +{change}% vs yesterday
-        </span>
-      );
-    } else if (trend === 'down') {
-      return (
-        <span className="text-red-600 text-sm">
-          -{change}% vs yesterday
-        </span>
-      );
+    if (avgLatency > 800) {
+      items.push({
+        title: 'Latency warning',
+        body: `Average latency increased to ${avgLatency}ms over the last 24 hours.`,
+        tone: 'warning',
+        href: '/api-usage',
+      });
     }
-    return <span className="text-gray-500 text-sm">Stable</span>;
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">加载中...</p>
-        </div>
-      </div>
-    );
-  }
+    if (requestCount === 0) {
+      items.push({
+        title: 'Traffic has been idle',
+        body: 'No API requests were observed in the last 24 hours.',
+        tone: 'info',
+        href: '/docs?tab=quickstart',
+      });
+    } else if (successRate < 99) {
+      items.push({
+        title: 'Elevated error rate',
+        body: `${Math.max(0, 100 - successRate).toFixed(2)}% of requests did not complete successfully in the last 24 hours.`,
+        tone: 'warning',
+        href: '/api-usage',
+      });
+    }
+
+    return items.slice(0, 4);
+  }, [avgLatency, errorEvents, requestCount, successRate, webhookConfigured]);
+
+  const healthTone = attentionItems.some((item) => item.tone === 'critical')
+    ? 'critical'
+    : attentionItems.length > 0
+      ? 'warning'
+      : 'success';
+
+  const healthTitle =
+    healthTone === 'success'
+      ? 'All systems operational'
+      : healthTone === 'critical'
+        ? 'Attention required'
+        : 'Monitor production health';
+
+  const initiated = funnel?.orders_initiated ?? 0;
+  const attempted = funnel?.payment_attempted ?? 0;
+  const completed = funnel?.orders_completed ?? 0;
+
+  const flowRows = [
+    { label: 'Orders initiated', value: initiated, width: 100 },
+    {
+      label: 'Payment attempted',
+      value: attempted,
+      width: initiated > 0 ? Math.max(8, Math.round((attempted / initiated) * 100)) : 0,
+    },
+    {
+      label: 'Orders completed',
+      value: completed,
+      width: initiated > 0 ? Math.max(8, Math.round((completed / initiated) * 100)) : 0,
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Status Bar */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-gray-700">Connected</span>
+    <div className="min-h-screen bg-transparent">
+      <PageHeader
+        title="Overview"
+        description="Production health, key actions, and the operational surfaces external developers need first."
+        badge={<StatusBadge tone="production">Production</StatusBadge>}
+        meta={
+          <>
+            <StatusBadge tone={healthTone}>{healthTitle}</StatusBadge>
+            <StatusBadge tone="neutral">Last activity {latestEvent ? formatShortDate(latestEvent.timestamp) : agentInfo?.last_activity || 'Unknown'}</StatusBadge>
+          </>
+        }
+        actions={
+          <>
+            <select
+              value={windowDays}
+              onChange={(event) => setWindowDays(Number(event.target.value))}
+              className="rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm text-[var(--portal-fg)]"
+            >
+              <option value={1}>Flow window: 24h</option>
+              <option value={7}>Flow window: 7d</option>
+            </select>
+            <button
+              onClick={() => void handleRefresh()}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+          </>
+        }
+      />
+
+      <div className="space-y-6 px-6 py-6">
+        <SurfaceCard className="p-6">
+          <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusBadge tone={healthTone}>
+                  {healthTone === 'success' ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
+                  {healthTitle}
+                </StatusBadge>
+                <StatusBadge tone="neutral">{agentInfo?.email || 'Developer workspace'}</StatusBadge>
               </div>
-              <div className="text-sm text-gray-600">
-                Last activity: <span className="font-medium text-gray-900">{agentInfo?.last_activity}</span>
+              <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-[var(--portal-fg)]">Production status</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--portal-fg-muted)]">
+                {latestEvent
+                  ? `Latest request ${latestEvent.method} ${latestEvent.endpoint} was observed at ${formatShortDate(latestEvent.timestamp)}.`
+                  : 'No recent production events are available yet. Use the docs and test request entry points to validate your setup.'}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2 text-sm text-[var(--portal-fg-subtle)]">
+                <span>Environment: Production</span>
+                <span>•</span>
+                <span>Webhook: {webhookConfigured ? 'Configured' : 'Missing'}</span>
+                <span>•</span>
+                <span>{requestCount.toLocaleString()} requests in the last 24h</span>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+
+            <div className="flex flex-wrap items-center gap-2 xl:justify-end">
               <button
                 onClick={() => setShowApiKeyModal(true)}
-                className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
               >
-                <Key className="w-4 h-4" />
-                <span>Manage API Keys</span>
+                <KeyRound className="h-4 w-4" />
+                <span>Manage API keys</span>
               </button>
-              <button
-                onClick={refreshMetrics}
-                className={`p-2 hover:bg-gray-100 rounded-lg transition-colors ${refreshing ? 'animate-spin' : ''}`}
+              <Link
+                href="/docs?tab=quickstart"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-4 py-2.5 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
               >
-                <RefreshCw className="w-4 h-4 text-gray-600" />
-              </button>
+                <span>View docs</span>
+              </Link>
+              <Link
+                href="/logs"
+                className="inline-flex items-center gap-2 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-[var(--portal-accent)] hover:bg-[var(--portal-surface-muted)] hover:text-[var(--portal-accent-strong)]"
+              >
+                <ScrollText className="h-4 w-4" />
+                <span>Open logs</span>
+              </Link>
+              <Link
+                href="/docs?tab=api"
+                className="inline-flex items-center gap-2 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-[var(--portal-accent)] hover:bg-[var(--portal-surface-muted)] hover:text-[var(--portal-accent-strong)]"
+              >
+                <span>Run test request</span>
+              </Link>
             </div>
           </div>
-        </div>
-      </div>
+        </SurfaceCard>
 
-      <div className="px-6 py-8">
-        {/* Commission Info Banner */}
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-          <div className="flex items-center space-x-2">
-            <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm text-blue-700">
-              <strong>Platform Commission Guarantee:</strong> Earn at least 1% on all orders when no merchant offer exists. 
-              <Link href="/revenue" className="underline hover:text-blue-800">Learn more →</Link>
-            </p>
-          </div>
-        </div>
-
-        {/* Metrics Error Banner (non-blocking) */}
-        {metricsError && (
-          <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-yellow-700 flex-shrink-0" />
-              <p className="text-sm text-yellow-800">
-                Analytics metrics are temporarily unavailable. Some values are shown as “--”.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Store className="w-5 h-5 text-blue-600" />
-              </div>
-              <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded">
-                Healthy
-              </span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">
-              {!metricsLoaded || metricsError ? '--' : metrics.total_integrations}
-            </h3>
-            <p className="text-sm text-gray-600">Total Integrations</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-green-50 rounded-lg">
-                <Activity className="w-5 h-5 text-green-600" />
-              </div>
-              <span className="text-xs text-green-600 font-medium">LIVE</span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">
-              {!metricsLoaded || metricsError ? '--' : metrics.active_connections}
-            </h3>
-            <p className="text-sm text-gray-600">Active Connections (24h)</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-purple-50 rounded-lg">
-                <Zap className="w-5 h-5 text-purple-600" />
-              </div>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">
-              {!metricsLoaded || metricsError ? '--' : metrics.calls_today.toLocaleString()}
-            </h3>
-            <p className="text-sm text-gray-600">API Calls (Last 24h)</p>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-orange-50 rounded-lg">
-                <Clock className="w-5 h-5 text-orange-600" />
-              </div>
-              <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded">
-                Fast
-              </span>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900">{metrics.avg_response_time}ms</h3>
-            <p className="text-sm text-gray-600">Avg Response</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          {/* MCP Query Analytics */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">MCP Query Analytics</h2>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <ShoppingCart className="w-5 h-5 text-blue-500" />
-                  <div>
-                    <p className="font-medium text-gray-900">Orders Created</p>
-                    <p className="text-sm text-gray-600">orders.create API calls</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-gray-900">{queryAnalytics.product_searches}</p>
-                  {getTrendIcon(queryAnalytics.product_searches_trend, queryAnalytics.product_searches_change)}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <Eye className="w-5 h-5 text-purple-500" />
-                  <div>
-                    <p className="font-medium text-gray-900">Order Queries</p>
-                    <p className="text-sm text-gray-600">orders.get API calls</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-gray-900">{queryAnalytics.inventory_checks}</p>
-                  {getTrendIcon(queryAnalytics.inventory_checks_trend)}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <div>
-                    <p className="font-medium text-gray-900">Payment Confirmations</p>
-                    <p className="text-sm text-gray-600">payment.confirm API calls</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-gray-900">{queryAnalytics.price_queries}</p>
-                  {getTrendIcon(queryAnalytics.price_queries_trend)}
-                </div>
-              </div>
-
-              {/* Alert - only show if there's an actual issue */}
-              {queryAnalytics.inventory_checks > queryAnalytics.product_searches * 2 && (
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-start space-x-2">
-                    <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-yellow-800">Query Pattern Alert</p>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        High number of inventory checks ({queryAnalytics.inventory_checks}) without corresponding searches.
-                        Consider caching strategy.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Order Conversion Funnel */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Conversion Funnel</h2>
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Orders Initiated</span>
-                  <span className="text-sm font-bold text-gray-900">{conversionFunnel.orders_initiated}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div className="bg-purple-600 h-3 rounded-full" style={{ width: '100%' }}></div>
-                </div>
-                <span className="text-xs text-gray-500">100%</span>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Payment Attempted</span>
-                  <span className="text-sm font-bold text-gray-900">{conversionFunnel.payment_attempted}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-blue-600 h-3 rounded-full" 
-                    style={{ 
-                      width: `${conversionFunnel.orders_initiated > 0 ? (conversionFunnel.payment_attempted / conversionFunnel.orders_initiated * 100) : 0}%` 
-                    }}
-                  ></div>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {conversionFunnel.orders_initiated > 0 
-                    ? `${Math.round(conversionFunnel.payment_attempted / conversionFunnel.orders_initiated * 100)}%` 
-                    : '0%'}
-                </span>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">Orders Completed</span>
-                  <span className="text-sm font-bold text-gray-900">{conversionFunnel.orders_completed}</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-green-600 h-3 rounded-full" 
-                    style={{ 
-                      width: `${conversionFunnel.orders_initiated > 0 ? (conversionFunnel.orders_completed / conversionFunnel.orders_initiated * 100) : 0}%` 
-                    }}
-                  ></div>
-                </div>
-                <span className="text-xs text-gray-500">
-                  {conversionFunnel.orders_initiated > 0 
-                    ? `${Math.round(conversionFunnel.orders_completed / conversionFunnel.orders_initiated * 100)}%` 
-                    : '0%'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t">
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">{formatAmount(metrics.total_gmv)}</p>
-                  <p className="text-sm text-gray-600">Total GMV (All Time)</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {orderStats.paid_orders > 0 
-                      ? `$${(orderStats.total_revenue / orderStats.paid_orders).toFixed(2)}`
-                      : '$0.00'}
+        <SurfaceCard className="p-5">
+          <SectionHeader
+            title="Attention needed today"
+            description="Issues are derived from recent request failures, latency, traffic, and webhook configuration."
+          />
+          <div className="mt-5 space-y-3">
+            {loading ? (
+              [0, 1].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)
+            ) : attentionItems.length === 0 ? (
+              <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800">All systems operational</p>
+                  <p className="mt-1 text-sm text-emerald-700">
+                    No critical issues were detected across requests, webhook setup, or checkout flow.
                   </p>
-                  <p className="text-sm text-gray-600">Avg Order Value</p>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent API Activity */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Recent API Activity</h2>
-            <Link
-              href="/analytics"
-              className="text-sm text-purple-600 hover:text-purple-700 flex items-center space-x-1"
-            >
-              <span>View Detailed Analytics</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="p-6">
-            {recentActivity.length > 0 ? (
-              <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="mt-0.5">{getActivityIcon(activity.type)}</div>
-                      <div>
-                        <p className="font-medium text-gray-900">{activity.action}</p>
-                        <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      {activity.amount ? (
-                        <p className="text-lg font-semibold text-gray-900">
-                          {formatAmount(activity.amount)}
-                        </p>
-                      ) : activity.response_time ? (
-                        <p className="text-lg font-semibold text-gray-900">
-                          {activity.response_time}ms
-                        </p>
-                      ) : null}
-                      <p className="text-sm text-gray-500">{activity.timestamp}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Activity className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-500">No recent activity</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  API calls will appear here as they happen
+              attentionItems.map((item) => (
+                <Link
+                  key={`${item.title}-${item.href}`}
+                  href={item.href}
+                  className="flex items-start justify-between gap-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 hover:border-[var(--portal-border-strong)] hover:bg-white"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusBadge tone={item.tone}>{item.tone === 'critical' ? 'Critical' : item.tone === 'warning' ? 'Warning' : 'Info'}</StatusBadge>
+                      <p className="text-sm font-semibold text-[var(--portal-fg)]">{item.title}</p>
+                    </div>
+                    <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">{item.body}</p>
+                  </div>
+                  <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-[var(--portal-fg-subtle)]" />
+                </Link>
+              ))
+            )}
+          </div>
+        </SurfaceCard>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="API requests"
+            value={requestCount.toLocaleString()}
+            hint="Last 24 hours"
+            tone="info"
+            icon={<Activity className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Success rate"
+            value={`${successRate}%`}
+            hint="Current production success rate"
+            tone={successRate >= 99 ? 'success' : 'warning'}
+            icon={<Server className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Average latency"
+            value={`${avgLatency}ms`}
+            hint="P95 will replace this when backend percentiles are available"
+            tone={avgLatency > 800 ? 'warning' : 'neutral'}
+            icon={<Clock3 className="h-5 w-5" />}
+          />
+          <MetricCard
+            label="Orders completed"
+            value={ordersCompleted.toLocaleString()}
+            hint={windowDays === 1 ? 'Last 24 hours' : 'Last 7 days'}
+            tone="success"
+            icon={<CheckCircle2 className="h-5 w-5" />}
+          />
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <SurfaceCard className="p-5">
+            <SectionHeader
+              title="API activity"
+              description="Top active endpoints and their recent request volume."
+              action={
+                <Link
+                  href="/api-usage"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
+                >
+                  <span>Inspect API usage</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              }
+            />
+            <div className="mt-5 space-y-3">
+              {loading ? (
+                [0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)
+              ) : topEndpoints.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] px-4 py-8 text-center text-sm text-[var(--portal-fg-muted)]">
+                  No endpoint traffic has been recorded yet.
+                </div>
+              ) : (
+                topEndpoints.slice(0, 5).map((endpoint: any) => (
+                  <div
+                    key={endpoint.endpoint}
+                    className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-sm text-[var(--portal-fg)]">{endpoint.endpoint}</p>
+                      <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">Live request volume from current summary metrics</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="tabular-nums text-lg font-semibold text-[var(--portal-fg)]">{endpoint.count ?? 0}</p>
+                      <p className="text-xs text-[var(--portal-fg-subtle)]">requests</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </SurfaceCard>
+
+          <SurfaceCard className="p-5">
+            <SectionHeader
+              title="Webhook status"
+              description="Setup-first webhook surface until delivery telemetry is promoted to a dedicated feed."
+            />
+            <div className="mt-5 space-y-3">
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <div className="flex items-center gap-2">
+                  <Webhook className="h-4 w-4 text-[var(--portal-accent)]" />
+                  <p className="text-sm font-semibold text-[var(--portal-fg)]">
+                    {webhookConfigured ? 'Webhook configured' : 'Webhook setup incomplete'}
+                  </p>
+                </div>
+                <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                  {webhookConfigured
+                    ? profile?.webhook_url
+                    : 'No production webhook URL is configured yet. Add one before relying on asynchronous delivery.'}
                 </p>
               </div>
-            )}
-
-            {hasMore && (
-              <button
-                onClick={() => loadRecentActivity(recentActivity.length)}
-                disabled={loadingMore}
-                className="w-full mt-4 py-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
+                Detailed retry and failure telemetry is still pending backend support. Use recent logs as the temporary operational surface.
+              </div>
+              <Link
+                href="/webhooks"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
               >
-                {loadingMore ? 'Loading...' : 'More'}
-              </button>
-            )}
-          </div>
+                <span>Review webhook setup</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </SurfaceCard>
         </div>
 
-        {/* Bottom Stats */}
-        <div className="grid grid-cols-3 gap-6 mt-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-            <p className="text-3xl font-bold text-gray-900">
-              {!metricsLoaded || metricsError ? '--' : `${metrics.success_rate}%`}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">Success Rate</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-            <p className="text-3xl font-bold text-gray-900">
-              {!metricsLoaded || metricsError ? '--' : `${metrics.avg_response_time}ms`}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">Avg Response</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 text-center">
-            <p className="text-3xl font-bold text-gray-900">
-              {!metricsLoaded || metricsError
-                ? '--'
-                : `${(metrics.calls_today / 1000).toFixed(1)}K`}
-            </p>
-            <p className="text-sm text-gray-600 mt-1">Calls (Last 24h)</p>
-          </div>
-        </div>
-
-        {/* Quick Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-          <Link
-            href="/integration?tab=mcp"
-            className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 hover:shadow-lg transition-all group"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-3 bg-purple-600 rounded-lg">
-                <Terminal className="w-6 h-6 text-white" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-purple-600 group-hover:translate-x-1 transition-transform" />
+        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <SurfaceCard className="p-5">
+            <SectionHeader
+              title="Checkout flow"
+              description="Current order-flow health using the selected flow window."
+            />
+            <div className="mt-5 space-y-4">
+              {flowRows.map((row, index) => (
+                <div key={row.label}>
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="font-medium text-[var(--portal-fg)]">{row.label}</span>
+                    <span className="tabular-nums text-[var(--portal-fg-muted)]">{row.value}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-200">
+                    <div
+                      className={`h-2 rounded-full ${index === 0 ? 'bg-[var(--portal-accent)]' : index === 1 ? 'bg-sky-500' : 'bg-emerald-500'}`}
+                      style={{ width: `${row.width}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">MCP Integration</h3>
-            <p className="text-sm text-gray-600">
-              Connect your agent to our MCP server
-            </p>
-          </Link>
+          </SurfaceCard>
 
-          <Link
-            href="/integration?tab=api"
-            className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all group"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-3 bg-green-600 rounded-lg">
-                <BookOpen className="w-6 h-6 text-white" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-green-600 group-hover:translate-x-1 transition-transform" />
+          <SurfaceCard className="p-5">
+            <SectionHeader
+              title="Recent events"
+              description="Latest request activity with status code and response time."
+              action={
+                <Link
+                  href="/logs"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
+                >
+                  <span>Open logs</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              }
+            />
+            <div className="mt-5 space-y-3">
+              {loading ? (
+                [0, 1, 2].map((item) => <div key={item} className="h-14 animate-pulse rounded-2xl bg-slate-100" />)
+              ) : recentActivity.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] px-4 py-8 text-center text-sm text-[var(--portal-fg-muted)]">
+                  Recent events will appear here as soon as production traffic starts flowing.
+                </div>
+              ) : (
+                recentActivity.map((event) => (
+                  <div
+                    key={event.id}
+                    className="grid gap-3 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 lg:grid-cols-[1fr_auto]"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge tone={(event.status_code ?? 0) < 400 ? 'success' : 'critical'}>{event.status_code}</StatusBadge>
+                        <p className="truncate font-mono text-sm text-[var(--portal-fg)]">
+                          {event.method} {event.endpoint}
+                        </p>
+                      </div>
+                      <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">{formatShortDate(event.timestamp)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="tabular-nums text-lg font-semibold text-[var(--portal-fg)]">{event.response_time_ms}ms</p>
+                      <p className="text-xs text-[var(--portal-fg-subtle)]">response time</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">API Documentation</h3>
-            <p className="text-sm text-gray-600">
-              Complete API reference and examples
-            </p>
-          </Link>
-
-          <Link
-            href="/integration?tab=sdk"
-            className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200 hover:shadow-lg transition-all group"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="p-3 bg-orange-600 rounded-lg">
-                <Package className="w-6 h-6 text-white" />
-              </div>
-              <ChevronRight className="w-5 h-5 text-orange-600 group-hover:translate-x-1 transition-transform" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">SDK Integration</h3>
-            <p className="text-sm text-gray-600">
-              Python & TypeScript SDK installation
-            </p>
-          </Link>
+          </SurfaceCard>
         </div>
       </div>
 
-      {/* API Key Management Modal */}
-      <ApiKeyModal 
-        isOpen={showApiKeyModal} 
-        onClose={() => setShowApiKeyModal(false)} 
-      />
+      <ApiKeyModal isOpen={showApiKeyModal} onClose={() => setShowApiKeyModal(false)} />
     </div>
   );
 }

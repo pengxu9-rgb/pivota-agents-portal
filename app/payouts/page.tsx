@@ -117,14 +117,12 @@ export default function PayoutsPage() {
     
     loadPayouts();
     loadBankDetails();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (activeTab === 'payouts') {
       loadPayouts();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStatus, activeTab]);
 
   const loadPayouts = async () => {

@@ -1,9 +1,13 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, User, Key, Save, Copy, RefreshCw, Loader2, CreditCard, ExternalLink, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, Lock, RefreshCw, Save, User, Webhook } from 'lucide-react';
+import PageHeader from '@/components/portal/PageHeader';
+import SectionHeader from '@/components/portal/SectionHeader';
+import StatusBadge from '@/components/portal/StatusBadge';
+import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
 
 function validatePassword(password: string): string | null {
@@ -32,6 +36,7 @@ export default function SettingsPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [saveMessage, setSaveMessage] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -39,12 +44,12 @@ export default function SettingsPage() {
       router.push('/login');
       return;
     }
-    
-    const mockKey = localStorage.getItem('agent_api_key') || 'pk_live_' + Math.random().toString(36).substring(2, 15);
+
+    const mockKey = localStorage.getItem('agent_api_key') || `pk_live_${Math.random().toString(36).slice(2, 15)}`;
     setApiKey(mockKey);
     localStorage.setItem('agent_api_key', mockKey);
-    
-    loadProfile();
+
+    void loadProfile();
   }, [router]);
 
   const loadProfile = async () => {
@@ -65,26 +70,29 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveMessage('');
     try {
       await agentApi.updateProfile(profile);
-      alert('✅ Settings saved!');
+      setSaveMessage('Settings saved.');
     } catch (error: any) {
-      alert('❌ Failed: ' + (error.response?.data?.detail || error.message));
+      setSaveMessage(`Failed to save settings: ${error.response?.data?.detail || error.message}`);
     } finally {
       setSaving(false);
     }
   };
 
   const handleResetKey = async () => {
-    if (!confirm('Reset API key? This will invalidate your current key.')) return;
-    
+    if (!confirm('Reset the primary API key? This will invalidate the current key.')) {
+      return;
+    }
+
     try {
       const result = await agentApi.resetApiKey();
       setApiKey(result.new_api_key);
       localStorage.setItem('agent_api_key', result.new_api_key);
-      alert('✅ New API key generated!');
+      setSaveMessage('Primary key rotated.');
     } catch (error: any) {
-      alert('❌ Failed: ' + (error.response?.data?.detail || error.message));
+      setSaveMessage(`Failed to rotate key: ${error.response?.data?.detail || error.message}`);
     }
   };
 
@@ -111,7 +119,7 @@ export default function SettingsPage() {
         new_password: passwordForm.newPassword,
       });
 
-      setPasswordSuccess(result.message || 'Password changed successfully. Redirecting to login...');
+      setPasswordSuccess(result.message || 'Password changed successfully. Redirecting to login…');
       setPasswordForm({
         currentPassword: '',
         newPassword: '',
@@ -126,7 +134,7 @@ export default function SettingsPage() {
         error?.response?.data?.detail ||
           error?.response?.data?.message ||
           error?.message ||
-          'Failed to change password.'
+          'Failed to change password.',
       );
     } finally {
       setSavingPassword(false);
@@ -134,240 +142,187 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center space-x-4">
-            <Link href="/dashboard" className="text-gray-600 hover:text-gray-900">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-transparent">
+      <PageHeader
+        title="Settings"
+        description="Account, webhook, and security settings that support your production integration."
+        badge={<StatusBadge tone="production">Production</StatusBadge>}
+        actions={
+          <button
+            onClick={() => void handleSave()}
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
+          >
+            <Save className="h-4 w-4" />
+            <span>{saving ? 'Saving…' : 'Save changes'}</span>
+          </button>
+        }
+      />
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        <div className="space-y-6">
-          {/* Profile */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <User className="w-6 h-6 text-purple-600" />
-              <h2 className="text-lg font-semibold">Profile</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Agent Name</label>
+      <div className="space-y-6 px-6 py-6">
+        {saveMessage ? (
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${saveMessage.startsWith('Failed') ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+            {saveMessage}
+          </div>
+        ) : null}
+
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+          <SurfaceCard className="p-5">
+            <SectionHeader title="Profile" description="Visible account details used across the developer portal." />
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Agent name</span>
                 <input
                   type="text"
                   value={profile.name}
-                  onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  onChange={(event) => setProfile({ ...profile, name: event.target.value })}
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
                   placeholder="My AI Agent"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Email</span>
                 <input
                   type="email"
                   value={profile.email}
-                  onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  onChange={(event) => setProfile({ ...profile, email: event.target.value })}
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Company</label>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Company</span>
                 <input
                   type="text"
                   value={profile.company}
-                  onChange={(e) => setProfile({ ...profile, company: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  onChange={(event) => setProfile({ ...profile, company: event.target.value })}
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Webhook URL</label>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Webhook URL</span>
                 <input
                   type="url"
                   value={profile.webhook_url}
-                  onChange={(e) => setProfile({ ...profile, webhook_url: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  onChange={(event) => setProfile({ ...profile, webhook_url: event.target.value })}
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
                   placeholder="https://your-domain.com/webhook"
                 />
+              </label>
+            </div>
+          </SurfaceCard>
+
+          <SurfaceCard className="p-5">
+            <SectionHeader title="Credential management" description="API keys are now first-class and live outside Settings." />
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--portal-fg)]">Primary key preview</p>
+                    <p className="mt-2 break-all font-mono text-sm text-[var(--portal-fg-muted)]">
+                      {apiKey ? `${apiKey.slice(0, 16)}••••••••••••` : 'No key loaded'}
+                    </p>
+                  </div>
+                  <StatusBadge tone="info">Managed</StatusBadge>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/api-keys"
+                  className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+                >
+                  <span>Open API keys</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <button
+                  onClick={() => void handleResetKey()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Rotate primary key</span>
+                </button>
               </div>
             </div>
-          </div>
+          </SurfaceCard>
+        </div>
 
-          {/* API Key */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <Key className="w-6 h-6 text-purple-600" />
-              <h2 className="text-lg font-semibold">API Credentials</h2>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Your API Key</label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="text"
-                  value={apiKey}
-                  readOnly
-                  className="flex-1 px-3 py-2 bg-gray-50 border rounded-lg font-mono text-sm"
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(apiKey);
-                    alert('Copied!');
-                  }}
-                  className="px-3 py-2 border rounded-lg hover:bg-gray-50"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleResetKey}
-                  className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <SurfaceCard className="p-5">
+            <SectionHeader title="Webhook configuration" description="Configuration-first controls until delivery telemetry is promoted to a dedicated feed." />
+            <div className="mt-5 space-y-3">
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <div className="flex items-center gap-2">
+                  <Webhook className="h-4 w-4 text-[var(--portal-accent)]" />
+                  <p className="text-sm font-semibold text-[var(--portal-fg)]">
+                    {profile.webhook_url ? 'Webhook ready for production' : 'Webhook URL not configured'}
+                  </p>
+                </div>
+                <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                  {profile.webhook_url
+                    ? profile.webhook_url
+                    : 'Add a webhook URL if your integration depends on asynchronous event delivery.'}
+                </p>
               </div>
-              <p className="text-xs text-gray-500 mt-2">Use this key to authenticate your API requests</p>
             </div>
-          </div>
+          </SurfaceCard>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <Lock className="w-6 h-6 text-purple-600" />
-              <h2 className="text-lg font-semibold">Security</h2>
-            </div>
+          <SurfaceCard className="p-5">
+            <SectionHeader title="Security" description="Password rotation is still handled here until account flows are fully consolidated." />
 
             {passwordError ? (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                 {passwordError}
               </div>
             ) : null}
 
             {passwordSuccess ? (
-              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 {passwordSuccess}
               </div>
             ) : null}
 
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+            <form onSubmit={handlePasswordSubmit} className="mt-5 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Current password</span>
                 <input
                   type="password"
                   value={passwordForm.currentPassword}
-                  onChange={(event) =>
-                    setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))
-                  }
+                  onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
                   required
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Enter your current password"
                 />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-                  <input
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(event) =>
-                      setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))
-                    }
-                    required
-                    className="w-full px-3 py-2 border rounded-lg"
-                    placeholder="Enter a new password"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
-                  <input
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(event) =>
-                      setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))
-                    }
-                    required
-                    className="w-full px-3 py-2 border rounded-lg"
-                    placeholder="Confirm the new password"
-                  />
-                </div>
-              </div>
-
-              <p className="text-xs text-gray-500">
-                Use at least 8 characters with uppercase, lowercase, and a number.
-              </p>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">New password</span>
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
+                  required
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Confirm new password</span>
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
+                  required
+                />
+              </label>
 
               <button
                 type="submit"
                 disabled={savingPassword}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {savingPassword ? 'Updating Password...' : 'Update Password'}
+                <Lock className="h-4 w-4" />
+                <span>{savingPassword ? 'Updating password…' : 'Change password'}</span>
               </button>
             </form>
-          </div>
-
-          {/* Bank Account Section */}
-          <div className="border-t pt-8">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <CreditCard className="w-6 h-6 text-purple-600" />
-                  Bank Account for Payouts
-                </h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Set up your bank account to receive commission payments
-                </p>
-              </div>
-              <Link
-                href="/payouts?tab=bank"
-                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <CreditCard className="w-5 h-5" />
-                <span>Manage Bank Details</span>
-                <ExternalLink className="w-4 h-4" />
-              </Link>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-900 font-medium mb-2">
-                💰 Get Paid for Your Commissions
-              </p>
-              <p className="text-sm text-blue-700 mb-3">
-                Add your bank account details to receive commission payments from merchants. 
-                You can choose from Wire Transfer, ACH (US), or SEPA (EU).
-              </p>
-              <Link
-                href="/payouts?tab=bank"
-                className="text-sm text-blue-700 font-medium underline hover:text-blue-900"
-              >
-                Set up bank account now →
-              </Link>
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="flex justify-end mt-8">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center space-x-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="w-5 h-5" />
-                  <span>Save Changes</span>
-                </>
-              )}
-            </button>
-          </div>
+          </SurfaceCard>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

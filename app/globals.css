@@ -1,8 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #eef2f8;
+  --foreground: #0f172a;
+  --portal-canvas: #eef2f8;
+  --portal-surface: rgba(255, 255, 255, 0.96);
+  --portal-surface-muted: #f7f9fc;
+  --portal-surface-strong: #ffffff;
+  --portal-fg: #0f172a;
+  --portal-fg-muted: #475569;
+  --portal-fg-subtle: #64748b;
+  --portal-border: rgba(148, 163, 184, 0.22);
+  --portal-border-strong: rgba(71, 85, 105, 0.22);
+  --portal-accent: #6d4aff;
+  --portal-accent-strong: #5835f7;
+  --portal-sidebar: #0f172a;
+  --portal-sidebar-muted: #1e293b;
+  --portal-sidebar-fg: #cbd5e1;
+  --portal-sidebar-fg-strong: #f8fafc;
+  --portal-sidebar-active: rgba(255, 255, 255, 0.09);
+  --portal-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.06);
+  --portal-shadow-overlay: 0 18px 48px rgba(15, 23, 42, 0.24);
 }
 
 @theme inline {
@@ -14,13 +32,66 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b1220;
+    --foreground: #e2e8f0;
   }
 }
 
+* {
+  border-color: var(--portal-border);
+}
+
+html {
+  background: var(--portal-canvas);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top left, rgba(99, 102, 241, 0.06), transparent 24%),
+    linear-gradient(180deg, #f4f7fb 0%, var(--portal-canvas) 220px);
+  color: var(--portal-fg);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+::selection {
+  background: rgba(109, 74, 255, 0.18);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.portal-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.portal-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.42);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.portal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
 }
