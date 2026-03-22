@@ -9,7 +9,16 @@
 const DEFAULT_PUBLIC_API_BASE_URL = 'https://api.pivota.cc';
 
 function normalizeBaseUrl(value: string | undefined): string {
-  return String(value || DEFAULT_PUBLIC_API_BASE_URL).trim().replace(/\/$/, '');
+  const raw = String(value || DEFAULT_PUBLIC_API_BASE_URL).trim().replace(/\/$/, '');
+  if (!raw) {
+    return DEFAULT_PUBLIC_API_BASE_URL;
+  }
+
+  if (/https?:\/\/[^/]+\.up\.railway\.app$/i.test(raw)) {
+    return DEFAULT_PUBLIC_API_BASE_URL;
+  }
+
+  return raw.replace(/^http:\/\//i, 'https://');
 }
 
 export function getPublicApiBaseUrl(): string {
