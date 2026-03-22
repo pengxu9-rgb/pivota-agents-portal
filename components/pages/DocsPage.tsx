@@ -350,6 +350,9 @@ export default function DocsPage() {
                 <div className="mt-5">
                   <CodePanel code={REST_EXAMPLES.webhookVerification} language="typescript" />
                 </div>
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+                  Pivota returns the full webhook signing secret only once, at the moment you rotate it in the developer portal. After that, the portal shows only masked last-4 values. If the full secret was not saved, rotate again to generate a new one.
+                </div>
                 <div className="mt-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
                   Automatic retries occur for timeouts, network errors, <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">408</code>, <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">429</code>, and <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">5xx</code> responses. Non-retryable <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">4xx</code> responses are marked failed immediately.
                 </div>
@@ -374,6 +377,7 @@ export default function DocsPage() {
                   'Use MCP for search, discovery, and product-routing workflows.',
                   'Keep webhook management, key rotation, and order operations in the developer portal or trusted backend services.',
                   'Treat API keys and signing secrets as server-only credentials.',
+                  'Store new webhook signing secrets in your own secret manager immediately; the portal cannot reveal them again later.',
                 ].map((item) => (
                   <div key={item} className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
                     {item}

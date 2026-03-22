@@ -426,6 +426,9 @@ export default function WebhooksPage() {
             <p className="mt-2 text-sm">
               It becomes active {newSecret.activatesAt ? new Date(newSecret.activatesAt).toLocaleString() : 'after the overlap window'}.
             </p>
+            <p className="mt-2 text-sm">
+              If you lose this value, the portal cannot reveal it again. Generate a new one by rotating the signing secret again.
+            </p>
           </InlineNotice>
         ) : null}
 
@@ -606,7 +609,7 @@ export default function WebhooksPage() {
                     </p>
                   ) : (
                     <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
-                      Only the last 4 characters are shown here. The full value is only returned once when you rotate it.
+                      Only the last 4 characters are shown here. The full value is only returned once when you rotate it. If it was not saved, rotate again to generate a new secret.
                     </p>
                   )}
                 </div>
@@ -621,6 +624,9 @@ export default function WebhooksPage() {
               </button>
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
                 Rotating creates a new pending secret immediately, keeps the current active secret valid during the overlap window, and then promotes the new secret automatically.
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
+                The portal never stores a re-openable copy of the full signing secret. After this page is dismissed or refreshed, only masked last-4 values remain visible.
               </div>
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
                 Signatures are computed as HMAC-SHA256 of <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">{'${timestamp}.${raw_body}'}</code>.
