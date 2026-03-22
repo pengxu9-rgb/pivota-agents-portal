@@ -97,6 +97,80 @@ Observed missing legacy package names:
 - `pivota-agent-sdk` is not the active published Python package
 - `@pivota/agent-sdk` is not the active published npm package
 
+### Executed Runtime Smoke
+
+Beyond registry and docs validation, real runtime smoke checks were executed against production.
+
+#### Python SDK
+
+Execution path:
+
+- created a temporary Python virtualenv
+- installed the published PyPI package `pivota-agent`
+- authenticated against `https://api.pivota.cc/agent/account/login`
+- instantiated `PivotaAgentClient(api_key=..., base_url='https://api.pivota.cc/agent/v1')`
+- executed:
+  - `health_check()`
+  - `list_merchants(limit=1)`
+
+Observed result:
+
+- `health.status = ok`
+- merchant listing returned successfully
+
+Decision:
+
+- the published Python SDK is not just documented; it was successfully executed against the live production API.
+
+#### TypeScript / npm SDK
+
+Execution path:
+
+- created a temporary Node project
+- installed the published npm package `pivota-agent`
+- authenticated against `https://api.pivota.cc/agent/account/login`
+- instantiated `new PivotaAgentClient({ apiKey, baseUrl: 'https://api.pivota.cc/agent/v1' })`
+- executed:
+  - `healthCheck()`
+  - `listMerchants({ limit: 1 })`
+
+Observed result:
+
+- `health.status = ok`
+- merchant listing returned successfully
+
+Decision:
+
+- the published TypeScript / JavaScript SDK is also live and callable against production.
+
+#### MCP Runtime
+
+Execution path:
+
+- authenticated against `https://api.pivota.cc/agent/account/login`
+- started the MCP server implementation with:
+  - `PIVOTA_API_KEY=<live key>`
+  - `PIVOTA_BASE_URL=https://api.pivota.cc/agent/v1`
+- connected using the official MCP client over stdio
+- executed a real MCP session:
+  - `initialize`
+  - `tools/list`
+  - `tools/call(name='list_merchants', arguments={ limit: 1, status: 'active' })`
+
+Observed result:
+
+- server started successfully on stdio
+- `tools/list` returned `5` tools
+- `list_merchants` was present
+- `tools/call` returned a real merchant result:
+  - `Chydan`
+  - `merch_efbc46b4619cfbdf`
+  - `active`
+
+Decision:
+
+- MCP is not just nominally packaged; the protocol server was started and a real tool call completed successfully against production data.
+
 ### Developer Portal Browser Validation
 
 Live browser validation was run against `https://developer.pivota.cc/docs`.
