@@ -281,6 +281,11 @@ class AgentApiClient {
     return response.data;
   }
 
+  async getSystemHealth() {
+    const response = await this.client.get('/agent/metrics/health');
+    return response.data;
+  }
+
   async getAgentTimeline(hours: number = 24) {
     const response = await this.client.get('/agent/metrics/timeline', { params: { hours } });
     return response.data;
@@ -292,12 +297,147 @@ class AgentApiClient {
   }
 
   async getConversionFunnel(days: number = 7) {
-    const response = await this.client.get('/agent/v1/analytics/funnel', { params: { days } });
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+    const response = await this.client.get(`/agents/${agentId}/funnel`, { params: { days } });
+    return response.data;
+  }
+
+  async getUsageLogs(limit: number = 100) {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.get(`/agents/${agentId}/usage`, {
+      params: { limit },
+    });
+    return response.data;
+  }
+
+  async getAgentAnalytics(days: number = 30) {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.get(`/agents/${agentId}/analytics`, {
+      params: { days },
+    });
     return response.data;
   }
 
   async getQueryAnalytics() {
-    const response = await this.client.get('/agent/v1/analytics/queries');
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.get(`/agents/${agentId}/query-analytics`);
+    return response.data;
+  }
+
+  async getOrderEvents(limit: number = 50, orderId?: string) {
+    const apiKey = localStorage.getItem('agent_api_key');
+    if (!apiKey) {
+      throw new Error('API key not found');
+    }
+
+    const response = await this.client.get('/agent/v1/orders/events', {
+      params: {
+        limit,
+        ...(orderId ? { order_id: orderId } : {}),
+      },
+      headers: {
+        'X-API-Key': apiKey,
+      },
+    });
+    return response.data;
+  }
+
+  async getDeveloperEndpoints() {
+    const response = await this.client.get('/agent/docs/endpoints');
+    return response.data;
+  }
+
+  async getWebhookConfig() {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.get(`/agents/${agentId}/webhooks/config`);
+    return response.data;
+  }
+
+  async updateWebhookConfig(payload: {
+    enabled: boolean;
+    destination_url: string;
+    subscribed_events: string[];
+  }) {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.put(`/agents/${agentId}/webhooks/config`, payload);
+    return response.data;
+  }
+
+  async getWebhookEventsCatalog() {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.get(`/agents/${agentId}/webhooks/events/catalog`);
+    return response.data;
+  }
+
+  async sendWebhookTest() {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.post(`/agents/${agentId}/webhooks/test`);
+    return response.data;
+  }
+
+  async getWebhookDeliveries(limit: number = 25, status?: string) {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.get(`/agents/${agentId}/webhooks/deliveries`, {
+      params: {
+        limit,
+        ...(status ? { status } : {}),
+      },
+    });
+    return response.data;
+  }
+
+  async retryWebhookDelivery(deliveryId: string) {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.post(`/agents/${agentId}/webhooks/deliveries/${deliveryId}/retry`);
+    return response.data;
+  }
+
+  async rotateWebhookSigningSecret() {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+
+    const response = await this.client.post(`/agents/${agentId}/webhooks/signing-secret/rotate`);
     return response.data;
   }
 
@@ -444,6 +584,7 @@ class AgentApiClient {
         return {
           status: 'success',
           keys: fallbackKey ? [fallbackKey] : [],
+          degraded: Boolean(fallbackKey),
         };
       }
 
@@ -465,12 +606,13 @@ class AgentApiClient {
         .filter((record: any) => Boolean(record.key));
 
       if (normalized.length > 0) {
-        return { status: 'success', keys: normalized };
+        return { status: 'success', keys: normalized, degraded: false };
       }
 
       return {
         status: 'success',
         keys: fallbackKey ? [fallbackKey] : [],
+        degraded: Boolean(fallbackKey),
       };
     } catch (error: any) {
       console.error('[AgentApiClient] Failed to get API keys:', error?.response?.status, error?.message);
@@ -544,7 +686,7 @@ class AgentApiClient {
     }
   }
 
-  async updateProfile(profile: { name: string; email: string; company: string; webhook_url: string }) {
+  async updateProfile(profile: { name: string; email: string; company: string }) {
     const agentId = this.getStoredAgentId();
     if (!agentId) {
       throw new Error('Agent ID not found');
@@ -565,7 +707,6 @@ class AgentApiClient {
 
     const payload = {
       agent_name: profile.name.trim() || null,
-      webhook_url: profile.webhook_url.trim() || null,
       metadata,
     };
 

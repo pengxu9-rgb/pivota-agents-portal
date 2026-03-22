@@ -1,9 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Settings, Webhook } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Send,
+  Shield,
+  Webhook,
+} from 'lucide-react';
 import EmptyState from '@/components/portal/EmptyState';
 import InlineNotice from '@/components/portal/InlineNotice';
 import MetricCard from '@/components/portal/MetricCard';
@@ -13,11 +22,110 @@ import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
 
+type DeliverySummary = {
+  total: number;
+  succeeded: number;
+  failed: number;
+  retrying: number;
+  success_rate: number;
+  last_delivery_at: string | null;
+};
+
+type WebhookConfig = {
+  enabled: boolean;
+  destination_url: string | null;
+  subscribed_events: string[];
+  signing_secret_last4: string | null;
+  last_test_at: string | null;
+  last_test_status: string | null;
+  delivery_summary_24h: DeliverySummary;
+  migration_source: string | null;
+};
+
+type Delivery = {
+  delivery_id: string;
+  event_id: string;
+  event_type: string;
+  status: string;
+  http_status: number | null;
+  attempt_count: number;
+  latency_ms: number | null;
+  created_at: string | null;
+  delivered_at: string | null;
+  next_retry_at: string | null;
+  request_id: string | null;
+  last_error: string | null;
+};
+
+type CatalogEvent = {
+  event_type: string;
+  category?: string;
+  description?: string;
+};
+
+function deriveWebhookState(configUnavailable: boolean, config: WebhookConfig | null) {
+  if (configUnavailable) {
+    return {
+      label: 'Unavailable',
+      tone: 'warning' as const,
+    };
+  }
+
+  if (!config?.enabled || !config.destination_url) {
+    return {
+      label: 'Missing',
+      tone: 'warning' as const,
+    };
+  }
+
+  const summary = config.delivery_summary_24h;
+  if ((summary?.total ?? 0) === 0) {
+    return {
+      label: 'Ready',
+      tone: 'info' as const,
+    };
+  }
+
+  if ((summary?.failed ?? 0) > 0 || (summary?.retrying ?? 0) > 0 || config.last_test_status === 'failed') {
+    return {
+      label: 'Degraded',
+      tone: 'warning' as const,
+    };
+  }
+
+  if ((summary?.success_rate ?? 0) >= 95) {
+    return {
+      label: 'Healthy',
+      tone: 'success' as const,
+    };
+  }
+
+  return {
+    label: 'Degraded',
+    tone: 'warning' as const,
+  };
+}
+
 export default function WebhooksPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
-  const [profileUnavailable, setProfileUnavailable] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
+  const [rotatingSecret, setRotatingSecret] = useState(false);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [config, setConfig] = useState<WebhookConfig | null>(null);
+  const [catalog, setCatalog] = useState<CatalogEvent[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
+  const [configUnavailable, setConfigUnavailable] = useState(false);
+  const [deliveriesUnavailable, setDeliveriesUnavailable] = useState(false);
+  const [message, setMessage] = useState<{ tone: 'success' | 'warning' | 'critical'; title?: string; body: string } | null>(null);
+  const [newSecret, setNewSecret] = useState<{ value: string; activatesAt: string | null } | null>(null);
+  const [form, setForm] = useState({
+    enabled: false,
+    destinationUrl: '',
+    subscribedEvents: [] as string[],
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -32,133 +140,480 @@ export default function WebhooksPage() {
   const loadWebhookState = async () => {
     try {
       setLoading(true);
-      const response = await agentApi.getProfile();
-      setProfile(response?.agent ?? null);
-      setProfileUnavailable(false);
-    } catch (error) {
-      console.error('Failed to load webhook setup:', error);
-      setProfile(null);
-      setProfileUnavailable(true);
+      const [configResult, catalogResult, deliveriesResult] = await Promise.allSettled([
+        agentApi.getWebhookConfig(),
+        agentApi.getWebhookEventsCatalog(),
+        agentApi.getWebhookDeliveries(25),
+      ]);
+
+      if (configResult.status === 'fulfilled') {
+        const nextConfig = configResult.value?.config ?? null;
+        setConfig(nextConfig);
+        setForm({
+          enabled: Boolean(nextConfig?.enabled),
+          destinationUrl: nextConfig?.destination_url || '',
+          subscribedEvents: Array.isArray(nextConfig?.subscribed_events) ? nextConfig.subscribed_events : [],
+        });
+        setConfigUnavailable(false);
+      } else {
+        console.error('Failed to load webhook config:', configResult.reason);
+        setConfig(null);
+        setConfigUnavailable(true);
+      }
+
+      if (catalogResult.status === 'fulfilled') {
+        setCatalog(Array.isArray(catalogResult.value?.events) ? catalogResult.value.events : []);
+      } else {
+        console.error('Failed to load webhook catalog:', catalogResult.reason);
+        setCatalog([]);
+      }
+
+      if (deliveriesResult.status === 'fulfilled') {
+        setDeliveries(Array.isArray(deliveriesResult.value?.deliveries) ? deliveriesResult.value.deliveries : []);
+        setDeliveriesUnavailable(false);
+      } else {
+        console.error('Failed to load webhook deliveries:', deliveriesResult.reason);
+        setDeliveries([]);
+        setDeliveriesUnavailable(true);
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const webhookUrl = profile?.webhook_url || '';
-  const configured = profileUnavailable ? false : Boolean(webhookUrl);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setMessage(null);
+    await loadWebhookState();
+  };
+
+  const handleToggleEvent = (eventType: string) => {
+    setForm((current) => ({
+      ...current,
+      subscribedEvents: current.subscribedEvents.includes(eventType)
+        ? current.subscribedEvents.filter((item) => item !== eventType)
+        : [...current.subscribedEvents, eventType],
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const response = await agentApi.updateWebhookConfig({
+        enabled: form.enabled,
+        destination_url: form.destinationUrl.trim(),
+        subscribed_events: form.subscribedEvents,
+      });
+      const nextConfig = response?.config ?? null;
+      setConfig(nextConfig);
+      setForm({
+        enabled: Boolean(nextConfig?.enabled),
+        destinationUrl: nextConfig?.destination_url || '',
+        subscribedEvents: Array.isArray(nextConfig?.subscribed_events) ? nextConfig.subscribed_events : [],
+      });
+      setMessage({
+        tone: 'success',
+        title: 'Webhook configuration saved',
+        body: 'Destination, enabled state, and event subscriptions were updated.',
+      });
+      await loadWebhookState();
+    } catch (error: any) {
+      setMessage({
+        tone: 'critical',
+        title: 'Failed to save webhook configuration',
+        body: error?.response?.data?.detail || error?.message || 'The webhook configuration could not be updated.',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendTest = async () => {
+    setSendingTest(true);
+    setMessage(null);
+    try {
+      await agentApi.sendWebhookTest();
+      setMessage({
+        tone: 'success',
+        title: 'Test event sent',
+        body: 'A webhook.test delivery was queued and recorded in recent deliveries.',
+      });
+      await loadWebhookState();
+    } catch (error: any) {
+      setMessage({
+        tone: 'critical',
+        title: 'Failed to send test event',
+        body: error?.response?.data?.detail || error?.message || 'The test delivery could not be sent.',
+      });
+    } finally {
+      setSendingTest(false);
+    }
+  };
+
+  const handleRotateSecret = async () => {
+    setRotatingSecret(true);
+    setMessage(null);
+    try {
+      const response = await agentApi.rotateWebhookSigningSecret();
+      setNewSecret({
+        value: response?.new_signing_secret || '',
+        activatesAt: response?.activates_at || null,
+      });
+      setMessage({
+        tone: 'success',
+        title: 'Signing secret rotated',
+        body: 'The new secret is visible once below. Update your verifier before the activation window closes.',
+      });
+      await loadWebhookState();
+    } catch (error: any) {
+      setMessage({
+        tone: 'critical',
+        title: 'Failed to rotate signing secret',
+        body: error?.response?.data?.detail || error?.message || 'The signing secret could not be rotated.',
+      });
+    } finally {
+      setRotatingSecret(false);
+    }
+  };
+
+  const handleRetry = async (deliveryId: string) => {
+    setRetryingId(deliveryId);
+    setMessage(null);
+    try {
+      await agentApi.retryWebhookDelivery(deliveryId);
+      setMessage({
+        tone: 'success',
+        title: 'Delivery retried',
+        body: `Webhook delivery ${deliveryId} was re-sent.`,
+      });
+      await loadWebhookState();
+    } catch (error: any) {
+      setMessage({
+        tone: 'critical',
+        title: 'Retry failed',
+        body: error?.response?.data?.detail || error?.message || 'The webhook delivery could not be retried.',
+      });
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  const summary = config?.delivery_summary_24h ?? {
+    total: 0,
+    succeeded: 0,
+    failed: 0,
+    retrying: 0,
+    success_rate: 0,
+    last_delivery_at: null,
+  };
+  const webhookState = deriveWebhookState(configUnavailable, config);
+  const subscribedCount = form.subscribedEvents.length;
+
+  const availableEvents = useMemo(
+    () => catalog.filter((item) => item.event_type !== 'webhook.test'),
+    [catalog],
+  );
 
   return (
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Webhook deliveries"
-        description="Configuration-first webhook surface until delivery telemetry is promoted to a dedicated backend feed."
-        badge={
-          <StatusBadge tone={profileUnavailable ? 'warning' : configured ? 'success' : 'warning'}>
-            {profileUnavailable ? 'Status unavailable' : configured ? 'Configured' : 'Setup incomplete'}
-          </StatusBadge>
+        description="Configure destination, manage event subscriptions, send test events, and inspect delivery health."
+        badge={<StatusBadge tone={webhookState.tone}>{webhookState.label}</StatusBadge>}
+        meta={
+          config?.last_test_at ? (
+            <StatusBadge tone={config.last_test_status === 'delivered' ? 'success' : config.last_test_status ? 'warning' : 'neutral'}>
+              Last test {new Date(config.last_test_at).toLocaleString()}
+            </StatusBadge>
+          ) : (
+            <StatusBadge tone="neutral">No test sent yet</StatusBadge>
+          )
         }
-        meta={<StatusBadge tone="neutral">Phase 1 telemetry</StatusBadge>}
         actions={
-          <Link
-            href="/settings"
-            className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
-          >
-            <Settings className="h-4 w-4" />
-            <span>Review webhook setup</span>
-          </Link>
+          <>
+            <button
+              onClick={() => void handleRefresh()}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </button>
+            <button
+              onClick={() => void handleSendTest()}
+              disabled={sendingTest || configUnavailable}
+              className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Send className="h-4 w-4" />
+              <span>{sendingTest ? 'Sending…' : 'Send test'}</span>
+            </button>
+            <button
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Save className="h-4 w-4" />
+              <span>{saving ? 'Saving…' : 'Save configuration'}</span>
+            </button>
+          </>
         }
       />
 
       <div className="space-y-6 px-6 py-6">
-        {profileUnavailable ? (
-          <InlineNotice tone="warning" title="Webhook configuration is temporarily unavailable">
-            The portal could not load your current webhook setup. Refresh and retry once the profile feed is available.
+        {message ? (
+          <InlineNotice tone={message.tone} title={message.title}>
+            {message.body}
           </InlineNotice>
         ) : null}
 
-        <div className="grid gap-4 md:grid-cols-3">
+        {newSecret?.value ? (
+          <InlineNotice tone="success" title="New signing secret">
+            <p>Copy this secret now. It will not be shown in full again.</p>
+            <code className="mt-3 block overflow-x-auto rounded-xl border border-emerald-200 bg-white px-3 py-3 font-mono text-sm text-slate-800">
+              {newSecret.value}
+            </code>
+            <p className="mt-2 text-sm">
+              It becomes active {newSecret.activatesAt ? new Date(newSecret.activatesAt).toLocaleString() : 'after the overlap window'}.
+            </p>
+          </InlineNotice>
+        ) : null}
+
+        {configUnavailable ? (
+          <InlineNotice tone="warning" title="Webhook data is temporarily unavailable">
+            The portal could not load the webhook configuration feed. Deliveries and controls below reflect only the data that responded successfully.
+          </InlineNotice>
+        ) : null}
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
             label="Configuration"
-            value={profileUnavailable ? 'Unavailable' : configured ? 'Ready' : 'Missing'}
-            hint={profileUnavailable ? 'Webhook setup unavailable' : configured ? 'Production endpoint configured' : 'Production endpoint not configured'}
+            value={webhookState.label}
+            hint={configUnavailable ? 'Webhook API unavailable' : form.destinationUrl ? 'Destination configured' : 'Destination missing'}
             icon={<Webhook className="h-5 w-5" />}
-            tone={profileUnavailable ? 'neutral' : configured ? 'success' : 'warning'}
+            tone={webhookState.tone === 'success' ? 'success' : webhookState.tone === 'warning' ? 'warning' : 'info'}
           />
           <MetricCard
-            label="Delivery telemetry"
-            value="Pending"
-            hint="Detailed failures and retries will appear here when backend support lands"
-            tone="neutral"
+            label="Subscribed events"
+            value={configUnavailable ? 'Unavailable' : subscribedCount.toString()}
+            hint={configUnavailable ? 'Webhook API unavailable' : 'Current production subscriptions'}
+            icon={<CheckCircle2 className="h-5 w-5" />}
+            tone={configUnavailable ? 'neutral' : subscribedCount > 0 ? 'info' : 'warning'}
           />
           <MetricCard
-            label="Logs entry point"
-            value="Available"
-            hint="Use recent events as the temporary failure surface"
-            tone="info"
+            label="24h success rate"
+            value={configUnavailable ? 'Unavailable' : `${summary.success_rate}%`}
+            hint={configUnavailable ? 'Webhook API unavailable' : `${summary.total} deliveries in the last 24 hours`}
+            icon={<Shield className="h-5 w-5" />}
+            tone={configUnavailable ? 'neutral' : summary.total === 0 ? 'neutral' : summary.success_rate >= 95 ? 'success' : 'warning'}
+          />
+          <MetricCard
+            label="Retrying deliveries"
+            value={configUnavailable ? 'Unavailable' : summary.retrying.toString()}
+            hint={configUnavailable ? 'Webhook API unavailable' : summary.last_delivery_at ? `Last delivery ${new Date(summary.last_delivery_at).toLocaleString()}` : 'No delivery history yet'}
+            icon={<RotateCcw className="h-5 w-5" />}
+            tone={configUnavailable ? 'neutral' : summary.retrying > 0 ? 'warning' : 'neutral'}
           />
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <SurfaceCard className="p-5">
             <SectionHeader
               title="Endpoint configuration"
-              description="Current webhook target used for production event delivery."
+              description="Define the HTTPS destination and the event types this agent should receive."
             />
-            <div className="mt-5 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
-              {loading ? (
-                <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
-              ) : profileUnavailable ? (
-                <EmptyState
-                  icon={<Webhook className="h-5 w-5" />}
-                  title="Webhook configuration unavailable"
-                  description="The portal could not load your current destination URL or setup state."
+            <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Destination URL</span>
+                <input
+                  type="url"
+                  value={form.destinationUrl}
+                  onChange={(event) => setForm((current) => ({ ...current, destinationUrl: event.target.value }))}
+                  placeholder="https://your-domain.com/webhooks/pivota"
+                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
                 />
-              ) : configured ? (
-                <>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Destination URL</p>
-                  <p className="mt-3 break-all rounded-xl border border-[var(--portal-border)] bg-white px-3 py-3 font-mono text-sm text-[var(--portal-fg)]">
-                    {webhookUrl}
+              </label>
+              <label className="flex items-start gap-3 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <input
+                  type="checkbox"
+                  checked={form.enabled}
+                  onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+                />
+                <div>
+                  <p className="text-sm font-semibold text-[var(--portal-fg)]">Enable production deliveries</p>
+                  <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">
+                    Deliveries are sent only when a destination URL is present and production delivery is enabled.
                   </p>
-                  <p className="mt-3 text-sm text-[var(--portal-fg-muted)]">
-                    Delivery health is currently represented by setup state plus recent event logs.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-medium text-[var(--portal-fg)]">Webhook URL not configured</p>
-                  <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
-                    Configure a production endpoint before you rely on asynchronous event notifications.
-                  </p>
-                </>
-              )}
+                </div>
+              </label>
             </div>
           </SurfaceCard>
 
           <SurfaceCard className="p-5">
             <SectionHeader
-              title="Recommended next steps"
-              description="Keep the language operational and honest until richer telemetry exists."
+              title="Signing secret"
+              description="Verify incoming webhook signatures using X-Pivota-Timestamp and X-Pivota-Signature."
             />
             <div className="mt-5 space-y-3">
-              {[
-                'Verify the destination URL can receive production traffic over HTTPS.',
-                'Store webhook events idempotently so retries do not duplicate downstream actions.',
-                'Use recent logs to spot request failures until delivery dashboards are available.',
-              ].map((item) => (
-                <div key={item} className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-3 text-sm text-[var(--portal-fg-muted)]">
-                  {item}
-                </div>
-              ))}
-              <Link
-                href="/logs"
-                className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Active secret</p>
+                <p className="mt-3 font-mono text-sm text-[var(--portal-fg)]">
+                  {config?.signing_secret_last4 ? `••••${config.signing_secret_last4}` : 'No signing secret provisioned yet'}
+                </p>
+              </div>
+              <button
+                onClick={() => void handleRotateSecret()}
+                disabled={rotatingSecret}
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <span>Open recent events</span>
-                <ArrowRight className="h-4 w-4" />
-              </Link>
+                <RotateCcw className="h-4 w-4" />
+                <span>{rotatingSecret ? 'Rotating…' : 'Rotate signing secret'}</span>
+              </button>
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
+                Signatures are computed as HMAC-SHA256 of <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">{'${timestamp}.${raw_body}'}</code>.
+              </div>
             </div>
           </SurfaceCard>
         </div>
+
+        <SurfaceCard className="p-5">
+          <SectionHeader
+            title="Event subscriptions"
+            description="Webhook event categories prioritized for order flow and API failure visibility."
+            action={
+              <Link
+                href="/docs?tab=api"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
+              >
+                <span>View webhook docs</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            }
+          />
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {availableEvents.length === 0 ? (
+              <EmptyState
+                icon={<Webhook className="h-5 w-5" />}
+                title="Event catalog unavailable"
+                description="The event catalog could not be loaded from the webhook API."
+              />
+            ) : (
+              availableEvents.map((event) => (
+                <label
+                  key={event.event_type}
+                  className="flex items-start gap-3 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4"
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.subscribedEvents.includes(event.event_type)}
+                    onChange={() => handleToggleEvent(event.event_type)}
+                    className="mt-1 h-4 w-4 rounded border-slate-300 text-[var(--portal-accent)] focus:ring-[var(--portal-accent)]"
+                  />
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-mono text-sm text-[var(--portal-fg)]">{event.event_type}</p>
+                      {event.category ? <StatusBadge tone="neutral">{event.category}</StatusBadge> : null}
+                    </div>
+                    <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">{event.description || 'No description available.'}</p>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+        </SurfaceCard>
+
+        <SurfaceCard className="overflow-hidden">
+          <div className="border-b border-[var(--portal-border)] px-5 py-4">
+            <SectionHeader
+              title="Recent deliveries"
+              description="Latest delivery attempts with retry status, latency, and destination response."
+            />
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <div className="space-y-3">
+                {[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
+              </div>
+            ) : deliveriesUnavailable ? (
+              <EmptyState
+                icon={<Webhook className="h-5 w-5" />}
+                title="Webhook deliveries unavailable"
+                description="The delivery feed could not be loaded from the webhook API."
+              />
+            ) : deliveries.length === 0 ? (
+              <EmptyState
+                icon={<Webhook className="h-5 w-5" />}
+                title="No webhook deliveries yet"
+                description="Configure a destination and send a test event to create the first delivery record."
+              />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[var(--portal-border)] text-left text-xs uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">
+                      <th className="px-3 py-3 font-semibold">Event</th>
+                      <th className="px-3 py-3 font-semibold">Status</th>
+                      <th className="px-3 py-3 font-semibold">Attempts</th>
+                      <th className="px-3 py-3 font-semibold">Latency</th>
+                      <th className="px-3 py-3 font-semibold">Created</th>
+                      <th className="px-3 py-3 font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deliveries.map((delivery) => (
+                      <tr key={delivery.delivery_id} className="border-b border-[var(--portal-border)] last:border-b-0">
+                        <td className="px-3 py-4">
+                          <div>
+                            <p className="font-mono text-sm text-[var(--portal-fg)]">{delivery.event_type}</p>
+                            <p className="mt-1 text-xs text-[var(--portal-fg-subtle)]">{delivery.delivery_id}</p>
+                            {delivery.last_error ? (
+                              <p className="mt-2 text-xs text-rose-600">{delivery.last_error}</p>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-3 py-4">
+                          <StatusBadge
+                            tone={
+                              delivery.status === 'delivered'
+                                ? 'success'
+                                : delivery.status === 'retrying'
+                                  ? 'warning'
+                                  : 'critical'
+                            }
+                          >
+                            {delivery.status}
+                          </StatusBadge>
+                        </td>
+                        <td className="px-3 py-4 tabular-nums text-[var(--portal-fg)]">{delivery.attempt_count}</td>
+                        <td className="px-3 py-4 tabular-nums text-[var(--portal-fg)]">
+                          {delivery.latency_ms !== null ? `${delivery.latency_ms}ms` : 'Unavailable'}
+                        </td>
+                        <td className="px-3 py-4 text-[var(--portal-fg-muted)]">
+                          {delivery.created_at ? new Date(delivery.created_at).toLocaleString() : 'Unknown'}
+                        </td>
+                        <td className="px-3 py-4">
+                          {delivery.status !== 'delivered' ? (
+                            <button
+                              onClick={() => void handleRetry(delivery.delivery_id)}
+                              disabled={retryingId === delivery.delivery_id}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              <span>{retryingId === delivery.delivery_id ? 'Retrying…' : 'Retry'}</span>
+                            </button>
+                          ) : (
+                            <span className="text-xs text-[var(--portal-fg-subtle)]">Delivered</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </SurfaceCard>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download, Package, RefreshCw, RotateCcw, Search, ShoppingCart, XCircle } from 'lucide-react';
+import { Download, Package, RefreshCw, RotateCcw, Search, ShoppingCart, Truck, XCircle } from 'lucide-react';
 import ConfirmDialog from '@/components/portal/ConfirmDialog';
 import EmptyState from '@/components/portal/EmptyState';
 import InlineNotice from '@/components/portal/InlineNotice';
@@ -32,6 +32,10 @@ export default function OrdersPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<{ type: 'refund' | 'cancel'; orderId: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailEvents, setDetailEvents] = useState<any[]>([]);
+  const [tracking, setTracking] = useState<any | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -102,6 +106,33 @@ export default function OrdersPage() {
       });
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const loadOrderDetail = async (order: any) => {
+    setSelectedOrder(order);
+    setDetailLoading(true);
+    try {
+      const [eventsResult, trackingResult] = await Promise.allSettled([
+        agentApi.getOrderEvents(50, order.order_id),
+        agentApi.trackOrder(order.order_id),
+      ]);
+
+      if (eventsResult.status === 'fulfilled') {
+        setDetailEvents(eventsResult.value?.events || []);
+      } else {
+        console.error('Failed to load order timeline:', eventsResult.reason);
+        setDetailEvents([]);
+      }
+
+      if (trackingResult.status === 'fulfilled') {
+        setTracking(trackingResult.value || null);
+      } else {
+        console.error('Failed to load order tracking:', trackingResult.reason);
+        setTracking(null);
+      }
+    } finally {
+      setDetailLoading(false);
     }
   };
 
@@ -257,6 +288,13 @@ export default function OrdersPage() {
                               <Package className="h-3.5 w-3.5" />
                               <span>{order.merchant_id || 'Merchant not specified'}</span>
                             </span>
+                            <button
+                              onClick={() => void loadOrderDetail(order)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+                            >
+                              <Truck className="h-3.5 w-3.5" />
+                              <span>Details</span>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -267,6 +305,66 @@ export default function OrdersPage() {
             )}
           </div>
         </SurfaceCard>
+
+        {selectedOrder ? (
+          <SurfaceCard className="p-5">
+            <SectionHeader
+              title={`Order ${selectedOrder.order_number || selectedOrder.order_id}`}
+              description="Tracking and timeline sourced from the live order APIs."
+            />
+            {detailLoading ? (
+              <div className="mt-5 space-y-3">
+                {[0, 1].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
+              </div>
+            ) : (
+              <div className="mt-5 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                <div className="space-y-3">
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Fulfillment</p>
+                    <p className="mt-3 text-sm font-semibold text-[var(--portal-fg)]">{tracking?.fulfillment_status || 'Unknown'}</p>
+                    <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">
+                      {tracking?.carrier || 'Carrier unavailable'}
+                      {tracking?.tracking_number ? ` · ${tracking.tracking_number}` : ''}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Customer</p>
+                    <p className="mt-3 text-sm text-[var(--portal-fg)]">{selectedOrder.customer_email || 'Guest checkout'}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {detailEvents.length === 0 ? (
+                    <EmptyState
+                      icon={<ShoppingCart className="h-5 w-5" />}
+                      title="No order timeline available"
+                      description="The order event feed did not return timeline entries for this order."
+                    />
+                  ) : (
+                    detailEvents.map((event) => (
+                      <div
+                        key={`${event.id}-${event.event_type}`}
+                        className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge tone={event.status === 'failed' ? 'critical' : event.status === 'succeeded' ? 'success' : 'info'}>
+                            {event.status || 'event'}
+                          </StatusBadge>
+                          <p className="font-mono text-sm text-[var(--portal-fg)]">{event.event_type}</p>
+                        </div>
+                        <div className="mt-2 flex flex-wrap gap-4 text-sm text-[var(--portal-fg-muted)]">
+                          <span>{event.currency ? `${event.total_amount ?? 0} ${event.currency}` : 'Amount unavailable'}</span>
+                          <span>{event.created_at ? new Date(event.created_at).toLocaleString() : 'Unknown timestamp'}</span>
+                        </div>
+                        {event.error_message ? <p className="mt-2 text-sm text-rose-600">{event.error_message}</p> : null}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </SurfaceCard>
+        ) : null}
       </div>
 
       <ConfirmDialog

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, RadioTower, RefreshCw, Shield, XCircle } from 'lucide-react';
+import { RadioTower, RefreshCw, Shield } from 'lucide-react';
 import ConsoleTabs from '@/components/portal/ConsoleTabs';
 import EmptyState from '@/components/portal/EmptyState';
 import InlineNotice from '@/components/portal/InlineNotice';
@@ -21,13 +22,6 @@ interface Protocol {
   endpoints?: Record<string, unknown>;
 }
 
-const CORE_ENDPOINTS = [
-  { method: 'GET', path: '/agent/v1/merchants', description: 'List active merchant connections' },
-  { method: 'GET', path: '/agent/v1/orders', description: 'Read orders created through the API' },
-  { method: 'POST', path: '/agent/v1/checkout/intents', description: 'Create hosted checkout sessions' },
-  { method: 'POST', path: '/agent/v1/orders/{order_id}/refund', description: 'Issue a refund for a completed order' },
-];
-
 export default function EndpointsPage({
   mode = 'endpoints',
 }: {
@@ -37,6 +31,7 @@ export default function EndpointsPage({
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<any>(null);
   const [protocols, setProtocols] = useState<Protocol[]>([]);
+  const [developerEndpoints, setDeveloperEndpoints] = useState<any[]>([]);
   const [unavailableSources, setUnavailableSources] = useState<string[]>([]);
   const [selectedTab, setSelectedTab] = useState<'active' | 'adapters'>(mode === 'protocols' ? 'adapters' : 'active');
 
@@ -55,19 +50,20 @@ export default function EndpointsPage({
 
     try {
       const agentId = localStorage.getItem('agent_id');
-      const [summaryResult, protocolsResult] = await Promise.allSettled([
+      const [summaryResult, protocolsResult, endpointsResult] = await Promise.allSettled([
         agentApi.getMetricsSummary(),
         agentId ? agentApi.getProtocols(agentId) : Promise.resolve({ protocols: [] }),
+        agentApi.getDeveloperEndpoints(),
       ]);
 
-      const nextUnavailableSources: string[] = [];
+      const nextUnavailable: string[] = [];
 
       if (summaryResult.status === 'fulfilled') {
         setSummary(summaryResult.value);
       } else {
         console.error('Failed to load endpoint summary:', summaryResult.reason);
         setSummary(null);
-        nextUnavailableSources.push('endpoint activity');
+        nextUnavailable.push('endpoint activity');
       }
 
       if (protocolsResult.status === 'fulfilled') {
@@ -75,17 +71,23 @@ export default function EndpointsPage({
       } else {
         console.error('Failed to load protocol adapters:', protocolsResult.reason);
         setProtocols([]);
-        nextUnavailableSources.push('protocol adapters');
+        nextUnavailable.push('protocol adapters');
       }
 
-      setUnavailableSources(nextUnavailableSources);
+      if (endpointsResult.status === 'fulfilled') {
+        setDeveloperEndpoints(endpointsResult.value?.endpoints || []);
+      } else {
+        console.error('Failed to load runtime endpoint registry:', endpointsResult.reason);
+        setDeveloperEndpoints([]);
+        nextUnavailable.push('runtime endpoint registry');
+      }
+
+      setUnavailableSources(nextUnavailable);
     } finally {
       setLoading(false);
     }
   };
 
-  const summaryUnavailable = unavailableSources.includes('endpoint activity');
-  const protocolsUnavailable = unavailableSources.includes('protocol adapters');
   const liveCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const endpoint of summary?.top_endpoints ?? []) {
@@ -98,7 +100,7 @@ export default function EndpointsPage({
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title={mode === 'protocols' ? 'Protocol adapters' : 'Endpoints'}
-        description="Inspect active request paths and protocol adapters without mixing them into the Overview."
+        description="Inspect the live developer endpoint registry and protocol adapters without mixing them into the Overview."
         badge={<StatusBadge tone="production">Production</StatusBadge>}
         meta={<StatusBadge tone="neutral">{protocols.length} adapters</StatusBadge>}
         actions={
@@ -132,30 +134,39 @@ export default function EndpointsPage({
           <SurfaceCard className="p-5">
             <SectionHeader
               title="Active endpoints"
-              description="Core request paths with current usage pulled from live summary metrics."
+              description="Runtime-derived developer endpoints with auth mode, purpose, and current request counts."
+              action={
+                <Link
+                  href="/docs?tab=reference"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
+                >
+                  <span>Open API reference</span>
+                </Link>
+              }
             />
             <div className="mt-5 grid gap-3">
-              {summaryUnavailable ? (
+              {developerEndpoints.length === 0 ? (
                 <EmptyState
                   icon={<RadioTower className="h-5 w-5" />}
-                  title="Endpoint activity unavailable"
-                  description="Recent endpoint counts could not be loaded from summary metrics."
+                  title="Endpoint registry unavailable"
+                  description="The runtime-derived developer endpoint registry could not be loaded."
                 />
               ) : (
-                CORE_ENDPOINTS.map((endpoint) => {
-                  const count = liveCounts.get(endpoint.path) ?? 0;
+                developerEndpoints.map((endpoint: any) => {
+                  const count = liveCounts.get(endpoint.path) ?? liveCounts.get(endpoint.path.replace('/v2/', '/v1/')) ?? 0;
+                  const authMode = endpoint.path.startsWith('/agent/v1') || endpoint.path.startsWith('/agent/v2') ? 'X-API-Key' : 'JWT / internal';
                   return (
                     <div
-                      key={endpoint.path}
-                      className="grid gap-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 lg:grid-cols-[0.9fr_1.8fr_0.8fr]"
+                      key={`${endpoint.method}-${endpoint.path}`}
+                      className="grid gap-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 lg:grid-cols-[0.8fr_2fr_0.8fr]"
                     >
                       <div className="flex items-center gap-2">
                         <StatusBadge tone={endpoint.method === 'GET' ? 'success' : 'info'}>{endpoint.method}</StatusBadge>
-                        <span className="text-xs text-[var(--portal-fg-subtle)]">Request method</span>
+                        <span className="text-xs text-[var(--portal-fg-subtle)]">{authMode}</span>
                       </div>
                       <div className="min-w-0">
                         <p className="truncate font-mono text-sm text-[var(--portal-fg)]">{endpoint.path}</p>
-                        <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">{endpoint.description}</p>
+                        <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">{endpoint.desc || 'Developer endpoint'}</p>
                       </div>
                       <div className="text-right">
                         <p className="tabular-nums text-lg font-semibold text-[var(--portal-fg)]">{count}</p>
@@ -178,12 +189,6 @@ export default function EndpointsPage({
                 <div className="space-y-3">
                   {[0, 1].map((item) => <div key={item} className="h-24 animate-pulse rounded-2xl bg-slate-100" />)}
                 </div>
-              ) : protocolsUnavailable ? (
-                <EmptyState
-                  icon={<Shield className="h-5 w-5" />}
-                  title="Protocol adapters unavailable"
-                  description="Adapter metadata could not be loaded for this agent."
-                />
               ) : protocols.length === 0 ? (
                 <EmptyState
                   icon={<Shield className="h-5 w-5" />}

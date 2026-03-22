@@ -3,6 +3,21 @@
 :root {
   --background: #eef2f8;
   --foreground: #0f172a;
+  --font-geist-sans:
+    "Inter",
+    "Segoe UI",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  --font-geist-mono:
+    "SFMono-Regular",
+    "SF Mono",
+    Consolas,
+    "Liberation Mono",
+    Menlo,
+    monospace;
   --portal-canvas: #eef2f8;
   --portal-surface: rgba(255, 255, 255, 0.96);
   --portal-surface-muted: #f7f9fc;

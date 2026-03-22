@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Lock, RefreshCw, Save, User, Webhook } from 'lucide-react';
+import { ArrowRight, Lock, RefreshCw, Save, Webhook } from 'lucide-react';
 import ConfirmDialog from '@/components/portal/ConfirmDialog';
 import InlineNotice from '@/components/portal/InlineNotice';
 import PageHeader from '@/components/portal/PageHeader';
@@ -28,8 +28,8 @@ export default function SettingsPage() {
     name: '',
     email: '',
     company: '',
-    webhook_url: '',
   });
+  const [webhookConfig, setWebhookConfig] = useState<any>(null);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -59,9 +59,10 @@ export default function SettingsPage() {
 
   const loadProfile = async () => {
     setLoadMessage('');
-    const [profileResult, apiKeyResult] = await Promise.allSettled([
+    const [profileResult, apiKeyResult, webhookResult] = await Promise.allSettled([
       agentApi.getProfile(),
       agentApi.getApiKeys(),
+      agentApi.getWebhookConfig(),
     ]);
 
     if (profileResult.status === 'fulfilled' && profileResult.value?.agent) {
@@ -69,7 +70,6 @@ export default function SettingsPage() {
         name: profileResult.value.agent.agent_name || '',
         email: profileResult.value.agent.owner_email || '',
         company: profileResult.value.agent.company || '',
-        webhook_url: profileResult.value.agent.webhook_url || '',
       });
     } else if (profileResult.status === 'rejected') {
       console.error('Failed to load profile:', profileResult.reason);
@@ -90,6 +90,18 @@ export default function SettingsPage() {
           : 'API key metadata is temporarily unavailable. The portal is showing the current session key preview if one exists.',
       );
     }
+
+    if (webhookResult.status === 'fulfilled') {
+      setWebhookConfig(webhookResult.value?.config ?? null);
+    } else {
+      console.error('Failed to load webhook status:', webhookResult.reason);
+      setWebhookConfig(null);
+      setLoadMessage((current) =>
+        current
+          ? `${current} Webhook status is also unavailable right now.`
+          : 'Webhook status is temporarily unavailable.',
+      );
+    }
   };
 
   const handleSave = async () => {
@@ -97,7 +109,7 @@ export default function SettingsPage() {
     setSaveMessage('');
     try {
       await agentApi.updateProfile(profile);
-      setSaveMessage('Profile and webhook settings saved.');
+      setSaveMessage('Profile settings saved.');
     } catch (error: any) {
       setSaveMessage(`Failed to save settings: ${error.response?.data?.detail || error.message}`);
     } finally {
@@ -236,16 +248,6 @@ export default function SettingsPage() {
                   className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
                 />
               </label>
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Webhook URL</span>
-                <input
-                  type="url"
-                  value={profile.webhook_url}
-                  onChange={(event) => setProfile({ ...profile, webhook_url: event.target.value })}
-                  className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
-                  placeholder="https://your-domain.com/webhook"
-                />
-              </label>
             </div>
           </SurfaceCard>
 
@@ -287,21 +289,44 @@ export default function SettingsPage() {
 
         <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <SurfaceCard className="p-5">
-            <SectionHeader title="Webhook configuration" description="Configuration-first controls until delivery telemetry is promoted to a dedicated feed." />
+            <SectionHeader title="Webhook status" description="Webhook destinations are now managed in the dedicated delivery console." />
             <div className="mt-5 space-y-3">
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
                 <div className="flex items-center gap-2">
                   <Webhook className="h-4 w-4 text-[var(--portal-accent)]" />
                   <p className="text-sm font-semibold text-[var(--portal-fg)]">
-                    {profile.webhook_url ? 'Webhook ready for production' : 'Webhook URL not configured'}
+                    {webhookConfig?.enabled && webhookConfig?.destination_url
+                      ? webhookConfig?.delivery_summary_24h?.total > 0
+                        ? webhookConfig?.delivery_summary_24h?.failed > 0 || webhookConfig?.delivery_summary_24h?.retrying > 0
+                          ? 'Webhook delivery needs attention'
+                          : 'Webhook delivery healthy'
+                        : 'Webhook configured'
+                      : 'Webhook configuration missing'}
                   </p>
                 </div>
                 <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
-                  {profile.webhook_url
-                    ? profile.webhook_url
-                    : 'Add a webhook URL if your integration depends on asynchronous event delivery.'}
+                  {webhookConfig?.destination_url
+                    ? webhookConfig.destination_url
+                    : 'Configure a destination endpoint before you rely on asynchronous event delivery.'}
                 </p>
+                {webhookConfig?.enabled && webhookConfig?.destination_url ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <StatusBadge tone="info">
+                      {Array.isArray(webhookConfig?.subscribed_events) ? webhookConfig.subscribed_events.length : 0} subscribed events
+                    </StatusBadge>
+                    <StatusBadge tone={webhookConfig?.delivery_summary_24h?.failed > 0 || webhookConfig?.delivery_summary_24h?.retrying > 0 ? 'warning' : 'success'}>
+                      {webhookConfig?.delivery_summary_24h?.success_rate ?? 0}% success rate
+                    </StatusBadge>
+                  </div>
+                ) : null}
               </div>
+              <Link
+                href="/webhooks"
+                className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+              >
+                <span>Manage webhooks</span>
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
           </SurfaceCard>
 

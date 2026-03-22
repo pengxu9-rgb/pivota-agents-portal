@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 
-const AUTHLESS_ROUTES = new Set(['/', '/login', '/signup', '/forgot-password']);
+const AUTHLESS_ROUTES = new Set(['/', '/login', '/signup', '/forgot-password', '/onboarding']);
 
 export default function PortalShell({
   children,

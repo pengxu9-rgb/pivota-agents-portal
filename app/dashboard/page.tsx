@@ -26,13 +26,24 @@ import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
 
-interface AgentInfo {
-  name?: string;
-  email?: string;
-  last_activity?: string;
-}
+type WebhookConfig = {
+  enabled: boolean;
+  destination_url: string | null;
+  subscribed_events: string[];
+  signing_secret_last4: string | null;
+  last_test_at: string | null;
+  last_test_status: string | null;
+  delivery_summary_24h: {
+    total: number;
+    succeeded: number;
+    failed: number;
+    retrying: number;
+    success_rate: number;
+    last_delivery_at: string | null;
+  };
+};
 
-function formatShortDate(value: string | undefined) {
+function formatShortDate(value: string | undefined | null) {
   if (!value) {
     return 'No recent traffic';
   }
@@ -45,16 +56,37 @@ function formatShortDate(value: string | undefined) {
   return date.toLocaleString();
 }
 
+function deriveWebhookStatus(configUnavailable: boolean, config: WebhookConfig | null) {
+  if (configUnavailable) {
+    return { label: 'Unavailable', tone: 'warning' as const };
+  }
+  if (!config?.enabled || !config.destination_url) {
+    return { label: 'Missing', tone: 'warning' as const };
+  }
+  const summary = config.delivery_summary_24h;
+  if ((summary?.total ?? 0) === 0) {
+    return { label: 'Ready', tone: 'info' as const };
+  }
+  if ((summary?.failed ?? 0) > 0 || (summary?.retrying ?? 0) > 0 || config.last_test_status === 'failed') {
+    return { label: 'Degraded', tone: 'warning' as const };
+  }
+  if ((summary?.success_rate ?? 0) >= 95) {
+    return { label: 'Healthy', tone: 'success' as const };
+  }
+  return { label: 'Degraded', tone: 'warning' as const };
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [windowDays, setWindowDays] = useState(1);
   const [summary, setSummary] = useState<any>(null);
+  const [systemHealth, setSystemHealth] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [funnel, setFunnel] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
+  const [webhookConfig, setWebhookConfig] = useState<WebhookConfig | null>(null);
+  const [agentInfo, setAgentInfo] = useState<{ name?: string; email?: string; last_activity?: string } | null>(null);
   const [unavailableSources, setUnavailableSources] = useState<string[]>([]);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
@@ -87,22 +119,31 @@ export default function DashboardPage() {
 
     try {
       const agentId = localStorage.getItem('agent_id');
-      const [summaryResult, activityResult, funnelResult, profileResult, agentDetailsResult] = await Promise.allSettled([
+      const [summaryResult, systemHealthResult, activityResult, funnelResult, webhookResult, agentDetailsResult] = await Promise.allSettled([
         agentApi.getMetricsSummary(),
+        agentApi.getSystemHealth(),
         agentApi.getRecentActivity(8),
         agentApi.getConversionFunnel(days),
-        agentApi.getProfile(),
+        agentApi.getWebhookConfig(),
         agentId ? agentApi.getAgentDetails(agentId) : Promise.resolve(null),
       ]);
 
-      const nextUnavailableSources: string[] = [];
+      const nextUnavailable: string[] = [];
 
       if (summaryResult.status === 'fulfilled') {
         setSummary(summaryResult.value);
       } else {
         console.error('Failed to load summary metrics:', summaryResult.reason);
         setSummary(null);
-        nextUnavailableSources.push('summary metrics');
+        nextUnavailable.push('summary metrics');
+      }
+
+      if (systemHealthResult.status === 'fulfilled') {
+        setSystemHealth(systemHealthResult.value);
+      } else {
+        console.error('Failed to load system health:', systemHealthResult.reason);
+        setSystemHealth(null);
+        nextUnavailable.push('system health');
       }
 
       if (activityResult.status === 'fulfilled') {
@@ -110,23 +151,23 @@ export default function DashboardPage() {
       } else {
         console.error('Failed to load recent activity:', activityResult.reason);
         setRecentActivity([]);
-        nextUnavailableSources.push('recent events');
+        nextUnavailable.push('recent events');
       }
 
       if (funnelResult.status === 'fulfilled') {
         setFunnel(funnelResult.value);
       } else {
-        console.error('Failed to load checkout flow telemetry:', funnelResult.reason);
+        console.error('Failed to load checkout flow:', funnelResult.reason);
         setFunnel(null);
-        nextUnavailableSources.push('checkout flow');
+        nextUnavailable.push('checkout flow');
       }
 
-      if (profileResult.status === 'fulfilled') {
-        setProfile(profileResult.value?.agent || null);
+      if (webhookResult.status === 'fulfilled') {
+        setWebhookConfig(webhookResult.value?.config ?? null);
       } else {
-        console.error('Failed to load profile state:', profileResult.reason);
-        setProfile(null);
-        nextUnavailableSources.push('webhook configuration');
+        console.error('Failed to load webhook config:', webhookResult.reason);
+        setWebhookConfig(null);
+        nextUnavailable.push('webhook status');
       }
 
       if (agentDetailsResult.status === 'fulfilled' && agentDetailsResult.value?.agent) {
@@ -139,7 +180,7 @@ export default function DashboardPage() {
         console.error('Failed to load agent details:', agentDetailsResult.reason);
       }
 
-      setUnavailableSources(nextUnavailableSources);
+      setUnavailableSources(nextUnavailable);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -151,18 +192,14 @@ export default function DashboardPage() {
     await loadDashboard(windowDays);
   };
 
-  const summaryUnavailable = unavailableSources.includes('summary metrics');
-  const activityUnavailable = unavailableSources.includes('recent events');
-  const funnelUnavailable = unavailableSources.includes('checkout flow');
-  const profileUnavailable = unavailableSources.includes('webhook configuration');
   const requestCount = summary?.overview?.requests_last_24h ?? null;
   const successRate = summary?.performance?.success_rate_24h ?? null;
   const avgLatency = summary?.performance?.avg_response_time_ms ?? null;
   const ordersCompleted = funnel?.orders_completed ?? null;
   const topEndpoints = summary?.top_endpoints ?? [];
-  const webhookConfigured = profileUnavailable ? null : Boolean(profile?.webhook_url);
-  const latestEvent = activityUnavailable ? null : recentActivity[0];
-  const errorEvents = activityUnavailable ? [] : recentActivity.filter((event) => (event.status_code ?? 0) >= 400);
+  const latestEvent = recentActivity[0] ?? null;
+  const errorEvents = recentActivity.filter((event) => (event.status_code ?? 0) >= 400);
+  const webhookState = deriveWebhookStatus(unavailableSources.includes('webhook status'), webhookConfig);
 
   const attentionItems = useMemo(() => {
     const items: Array<{ title: string; body: string; tone: 'critical' | 'warning' | 'info'; href: string }> = [];
@@ -176,7 +213,7 @@ export default function DashboardPage() {
       });
     }
 
-    if (!activityUnavailable && errorEvents.length > 0) {
+    if (errorEvents.length > 0) {
       const first = errorEvents[0];
       items.push({
         title: `${errorEvents.length} recent request failure${errorEvents.length > 1 ? 's' : ''}`,
@@ -186,16 +223,23 @@ export default function DashboardPage() {
       });
     }
 
-    if (!profileUnavailable && !webhookConfigured) {
+    if (webhookState.label === 'Missing') {
       items.push({
         title: 'Webhook setup incomplete',
-        body: 'No production webhook URL is configured yet.',
+        body: 'No enabled production destination is configured yet.',
+        tone: 'warning',
+        href: '/webhooks',
+      });
+    } else if (webhookState.label === 'Degraded') {
+      items.push({
+        title: 'Webhook delivery needs attention',
+        body: 'Recent deliveries contain failures or retries.',
         tone: 'warning',
         href: '/webhooks',
       });
     }
 
-    if (!summaryUnavailable && avgLatency !== null && avgLatency > 800) {
+    if (avgLatency !== null && avgLatency > 800) {
       items.push({
         title: 'Latency warning',
         body: `Average latency increased to ${avgLatency}ms over the last 24 hours.`,
@@ -204,14 +248,14 @@ export default function DashboardPage() {
       });
     }
 
-    if (!summaryUnavailable && requestCount === 0) {
+    if (requestCount === 0) {
       items.push({
         title: 'Traffic has been idle',
         body: 'No API requests were observed in the last 24 hours.',
         tone: 'info',
-        href: '/docs?tab=quickstart',
+        href: '/onboarding',
       });
-    } else if (!summaryUnavailable && successRate !== null && successRate < 99) {
+    } else if (successRate !== null && successRate < 99) {
       items.push({
         title: 'Elevated error rate',
         body: `${Math.max(0, 100 - successRate).toFixed(2)}% of requests did not complete successfully in the last 24 hours.`,
@@ -221,38 +265,44 @@ export default function DashboardPage() {
     }
 
     return items.slice(0, 4);
-  }, [activityUnavailable, avgLatency, errorEvents, profileUnavailable, requestCount, successRate, summaryUnavailable, unavailableSources, webhookConfigured]);
+  }, [avgLatency, errorEvents, requestCount, successRate, unavailableSources, webhookState]);
 
   const healthTone = attentionItems.some((item) => item.tone === 'critical')
     ? 'critical'
     : attentionItems.length > 0
       ? 'warning'
-      : 'success';
+      : systemHealth?.status === 'healthy'
+        ? 'success'
+        : systemHealth?.status === 'degraded'
+          ? 'warning'
+          : 'neutral';
 
   const healthTitle =
-    unavailableSources.length > 0
-      ? 'Production data partially unavailable'
-      : healthTone === 'success'
+    healthTone === 'success'
       ? 'All systems operational'
       : healthTone === 'critical'
         ? 'Attention required'
-        : 'Monitor production health';
-
-  const initiated = funnel?.orders_initiated ?? null;
-  const attempted = funnel?.payment_attempted ?? null;
-  const completed = funnel?.orders_completed ?? null;
+        : unavailableSources.length > 0
+          ? 'Production data partially unavailable'
+          : 'Monitor production health';
 
   const flowRows = [
-    { label: 'Orders initiated', value: initiated, width: 100 },
+    { label: 'Orders initiated', value: funnel?.orders_initiated ?? null, width: 100 },
     {
       label: 'Payment attempted',
-      value: attempted,
-      width: initiated && attempted !== null && initiated > 0 ? Math.max(8, Math.round((attempted / initiated) * 100)) : 0,
+      value: funnel?.payment_attempted ?? null,
+      width:
+        funnel?.orders_initiated && funnel?.payment_attempted !== null && funnel?.orders_initiated > 0
+          ? Math.max(8, Math.round((funnel.payment_attempted / funnel.orders_initiated) * 100))
+          : 0,
     },
     {
       label: 'Orders completed',
-      value: completed,
-      width: initiated && completed !== null && initiated > 0 ? Math.max(8, Math.round((completed / initiated) * 100)) : 0,
+      value: funnel?.orders_completed ?? null,
+      width:
+        funnel?.orders_initiated && funnel?.orders_completed !== null && funnel?.orders_initiated > 0
+          ? Math.max(8, Math.round((funnel.orders_completed / funnel.orders_initiated) * 100))
+          : 0,
     },
   ];
 
@@ -260,12 +310,13 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Overview"
-        description="Production health, key actions, and the operational surfaces external developers need first."
+        description="Production health, webhook readiness, and the operational surfaces external developers need first."
         badge={<StatusBadge tone="production">Production</StatusBadge>}
         meta={
           <>
             <StatusBadge tone={healthTone}>{healthTitle}</StatusBadge>
-            <StatusBadge tone="neutral">Last activity {activityUnavailable ? 'Unavailable' : latestEvent ? formatShortDate(latestEvent.timestamp) : agentInfo?.last_activity || 'Unknown'}</StatusBadge>
+            <StatusBadge tone={webhookState.tone}>Webhook {webhookState.label}</StatusBadge>
+            <StatusBadge tone="neutral">Last activity {latestEvent ? formatShortDate(latestEvent.timestamp) : agentInfo?.last_activity || 'Unknown'}</StatusBadge>
           </>
         }
         actions={
@@ -292,7 +343,7 @@ export default function DashboardPage() {
       <div className="space-y-6 px-6 py-6">
         {unavailableSources.length > 0 ? (
           <InlineNotice tone="warning" title="Some production data is temporarily unavailable">
-            The portal could not load {unavailableSources.join(', ')}. The visible data below reflects only the feeds that responded successfully.
+            The portal could not load {unavailableSources.join(', ')}. Visible data below reflects only the feeds that responded successfully.
           </InlineNotice>
         ) : null}
 
@@ -308,18 +359,24 @@ export default function DashboardPage() {
               </div>
               <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-[var(--portal-fg)]">Production status</h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--portal-fg-muted)]">
-                {activityUnavailable
-                  ? 'Recent request activity is temporarily unavailable. Use the docs and retry loading telemetry after your connection stabilizes.'
-                  : latestEvent
+                {latestEvent
                   ? `Latest request ${latestEvent.method} ${latestEvent.endpoint} was observed at ${formatShortDate(latestEvent.timestamp)}.`
-                  : 'No recent production events are available yet. Use the docs and test request entry points to validate your setup.'}
+                  : 'No recent production events are available yet. Create a key, send a request, and validate webhook delivery from the setup surfaces below.'}
               </p>
               <div className="mt-4 flex flex-wrap gap-2 text-sm text-[var(--portal-fg-subtle)]">
                 <span>Environment: Production</span>
                 <span>•</span>
-                <span>Webhook: {profileUnavailable ? 'Unavailable' : webhookConfigured ? 'Configured' : 'Missing'}</span>
+                <span>Webhook: {webhookState.label}</span>
                 <span>•</span>
-                <span>{requestCount === null ? 'Request volume unavailable' : `${requestCount.toLocaleString()} requests in the last 24h`}</span>
+                <span>
+                  {requestCount === null ? 'Request volume unavailable' : `${requestCount.toLocaleString()} requests in the last 24 hours`}
+                </span>
+                <span>•</span>
+                <span>
+                  {systemHealth?.metrics?.error_rate_last_hour !== undefined
+                    ? `${systemHealth.metrics.error_rate_last_hour}% error rate in the last hour`
+                    : 'System health feed unavailable'}
+                </span>
               </div>
             </div>
 
@@ -357,7 +414,7 @@ export default function DashboardPage() {
         <SurfaceCard className="p-5">
           <SectionHeader
             title="Attention needed today"
-            description="Issues are derived from recent request failures, latency, traffic, and webhook configuration."
+            description="Issues are derived from request failures, latency, webhook delivery health, and traffic volume."
           />
           <div className="mt-5 space-y-3">
             {loading ? (
@@ -368,7 +425,7 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-sm font-semibold text-emerald-800">All systems operational</p>
                   <p className="mt-1 text-sm text-emerald-700">
-                    No critical issues were detected across requests, webhook setup, or checkout flow.
+                    No critical issues were detected across requests, webhook deliveries, or checkout flow.
                   </p>
                 </div>
               </div>
@@ -397,29 +454,29 @@ export default function DashboardPage() {
           <MetricCard
             label="API requests"
             value={requestCount === null ? 'Unavailable' : requestCount.toLocaleString()}
-            hint={summaryUnavailable ? 'Summary metrics unavailable' : 'Last 24 hours'}
-            tone={summaryUnavailable ? 'neutral' : 'info'}
+            hint={summary ? 'Last 24 hours' : 'Summary metrics unavailable'}
+            tone={summary ? 'info' : 'neutral'}
             icon={<Activity className="h-5 w-5" />}
           />
           <MetricCard
             label="Success rate"
             value={successRate === null ? 'Unavailable' : `${successRate}%`}
-            hint={summaryUnavailable ? 'Summary metrics unavailable' : 'Current production success rate'}
-            tone={summaryUnavailable ? 'neutral' : successRate >= 99 ? 'success' : 'warning'}
+            hint={summary ? 'Current production success rate' : 'Summary metrics unavailable'}
+            tone={summary ? (successRate >= 99 ? 'success' : 'warning') : 'neutral'}
             icon={<Server className="h-5 w-5" />}
           />
           <MetricCard
             label="Average latency"
             value={avgLatency === null ? 'Unavailable' : `${avgLatency}ms`}
-            hint={summaryUnavailable ? 'Summary metrics unavailable' : 'P95 will replace this when backend percentiles are available'}
-            tone={summaryUnavailable ? 'neutral' : avgLatency > 800 ? 'warning' : 'neutral'}
+            hint={summary ? 'Current average latency' : 'Summary metrics unavailable'}
+            tone={summary ? (avgLatency > 800 ? 'warning' : 'neutral') : 'neutral'}
             icon={<Clock3 className="h-5 w-5" />}
           />
           <MetricCard
             label="Orders completed"
             value={ordersCompleted === null ? 'Unavailable' : ordersCompleted.toLocaleString()}
-            hint={funnelUnavailable ? 'Checkout flow unavailable' : windowDays === 1 ? 'Last 24 hours' : 'Last 7 days'}
-            tone={funnelUnavailable ? 'neutral' : 'success'}
+            hint={funnel ? (windowDays === 1 ? 'Last 24 hours' : 'Last 7 days') : 'Checkout flow unavailable'}
+            tone={funnel ? 'success' : 'neutral'}
             icon={<CheckCircle2 className="h-5 w-5" />}
           />
         </div>
@@ -442,7 +499,7 @@ export default function DashboardPage() {
             <div className="mt-5 space-y-3">
               {loading ? (
                 [0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)
-              ) : summaryUnavailable ? (
+              ) : !summary ? (
                 <EmptyState
                   icon={<Activity className="h-5 w-5" />}
                   title="API activity unavailable"
@@ -475,38 +532,50 @@ export default function DashboardPage() {
           <SurfaceCard className="p-5">
             <SectionHeader
               title="Webhook status"
-              description="Setup-first webhook surface until delivery telemetry is promoted to a dedicated feed."
+              description="Delivery health now comes from the dedicated webhook configuration and delivery feed."
             />
             <div className="mt-5 space-y-3">
-              {profileUnavailable ? (
+              {webhookState.label === 'Unavailable' ? (
                 <EmptyState
                   icon={<Webhook className="h-5 w-5" />}
                   title="Webhook status unavailable"
-                  description="The portal could not load your current webhook configuration. Refresh and retry once the profile feed is available."
+                  description="The portal could not load your webhook configuration or delivery summary."
                 />
               ) : (
-                <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
-                  <div className="flex items-center gap-2">
-                    <Webhook className="h-4 w-4 text-[var(--portal-accent)]" />
-                    <p className="text-sm font-semibold text-[var(--portal-fg)]">
-                      {webhookConfigured ? 'Webhook configured' : 'Webhook setup incomplete'}
+                <>
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <Webhook className="h-4 w-4 text-[var(--portal-accent)]" />
+                      <p className="text-sm font-semibold text-[var(--portal-fg)]">Webhook {webhookState.label.toLowerCase()}</p>
+                    </div>
+                    <p className="mt-2 break-all text-sm text-[var(--portal-fg-muted)]">
+                      {webhookConfig?.destination_url || 'No destination URL configured yet.'}
                     </p>
+                    {webhookConfig?.enabled && webhookConfig?.destination_url ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <StatusBadge tone="info">{webhookConfig.delivery_summary_24h.total} deliveries / 24h</StatusBadge>
+                        <StatusBadge tone={webhookState.tone}>
+                          {webhookConfig.delivery_summary_24h.success_rate}% success rate
+                        </StatusBadge>
+                      </div>
+                    ) : null}
                   </div>
-                  <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
-                    {webhookConfigured
-                      ? profile?.webhook_url
-                      : 'No production webhook URL is configured yet. Add one before relying on asynchronous delivery.'}
-                  </p>
-                </div>
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
+                    {webhookState.label === 'Missing'
+                      ? 'Configure a destination endpoint and event subscriptions before you rely on asynchronous delivery.'
+                      : webhookState.label === 'Ready'
+                        ? 'The destination is configured. Send a test event or wait for live order traffic to generate the first delivery.'
+                        : webhookState.label === 'Healthy'
+                          ? 'Recent delivery performance is stable with no retries currently pending.'
+                          : 'Recent webhook deliveries contain failures or retries and need inspection.'}
+                  </div>
+                </>
               )}
-              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
-                Detailed retry and failure telemetry is still pending backend support. Use recent logs as the temporary operational surface.
-              </div>
               <Link
                 href="/webhooks"
                 className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
               >
-                <span>Review webhook setup</span>
+                <span>Manage webhooks</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -520,7 +589,7 @@ export default function DashboardPage() {
               description="Current order-flow health using the selected flow window."
             />
             <div className="mt-5 space-y-4">
-              {funnelUnavailable ? (
+              {!funnel ? (
                 <EmptyState
                   icon={<CheckCircle2 className="h-5 w-5" />}
                   title="Checkout flow unavailable"
@@ -562,16 +631,12 @@ export default function DashboardPage() {
             <div className="mt-5 space-y-3">
               {loading ? (
                 [0, 1, 2].map((item) => <div key={item} className="h-14 animate-pulse rounded-2xl bg-slate-100" />)
-              ) : activityUnavailable ? (
+              ) : recentActivity.length === 0 ? (
                 <EmptyState
                   icon={<ScrollText className="h-5 w-5" />}
-                  title="Recent events unavailable"
-                  description="The recent activity feed could not be loaded, so the temporary log surface is unavailable right now."
+                  title="No recent events"
+                  description="Recent events will appear here as soon as production traffic starts flowing."
                 />
-              ) : recentActivity.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] px-4 py-8 text-center text-sm text-[var(--portal-fg-muted)]">
-                  Recent events will appear here as soon as production traffic starts flowing.
-                </div>
               ) : (
                 recentActivity.map((event) => (
                   <div
