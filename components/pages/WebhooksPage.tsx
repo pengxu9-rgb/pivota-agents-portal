@@ -64,7 +64,14 @@ type CatalogEvent = {
   description?: string;
 };
 
-function deriveWebhookState(configUnavailable: boolean, config: WebhookConfig | null) {
+function deriveWebhookState(isLoading: boolean, configUnavailable: boolean, config: WebhookConfig | null) {
+  if (isLoading && !configUnavailable && !config) {
+    return {
+      label: 'Checking',
+      tone: 'neutral' as const,
+    };
+  }
+
   if (configUnavailable) {
     return {
       label: 'Unavailable',
@@ -309,7 +316,7 @@ export default function WebhooksPage() {
     success_rate: 0,
     last_delivery_at: null,
   };
-  const webhookState = deriveWebhookState(configUnavailable, config);
+  const webhookState = deriveWebhookState(loading, configUnavailable, config);
   const subscribedCount = form.subscribedEvents.length;
   const managedReceiverUrl = config?.managed_receiver_url || null;
 
@@ -325,7 +332,9 @@ export default function WebhooksPage() {
         description="Configure destination, manage event subscriptions, send test events, and inspect delivery health."
         badge={<StatusBadge tone={webhookState.tone}>{webhookState.label}</StatusBadge>}
         meta={
-          config?.last_test_at ? (
+          loading && !config && !configUnavailable ? (
+            <StatusBadge tone="neutral">Loading webhook configuration</StatusBadge>
+          ) : config?.last_test_at ? (
             <StatusBadge tone={config.last_test_status === 'delivered' ? 'success' : config.last_test_status ? 'warning' : 'neutral'}>
               Last test {new Date(config.last_test_at).toLocaleString()}
             </StatusBadge>
@@ -344,7 +353,7 @@ export default function WebhooksPage() {
             </button>
             <button
               onClick={() => void handleSendTest()}
-              disabled={sendingTest || configUnavailable}
+              disabled={sendingTest || configUnavailable || loading}
               className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Send className="h-4 w-4" />
@@ -352,7 +361,7 @@ export default function WebhooksPage() {
             </button>
             <button
               onClick={() => void handleSave()}
-              disabled={saving}
+              disabled={saving || loading}
               className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Save className="h-4 w-4" />
@@ -391,30 +400,76 @@ export default function WebhooksPage() {
           <MetricCard
             label="Configuration"
             value={webhookState.label}
-            hint={configUnavailable ? 'Webhook API unavailable' : form.destinationUrl ? 'Destination configured' : 'Destination missing'}
+            hint={
+              loading && !config && !configUnavailable
+                ? 'Loading webhook configuration'
+                : configUnavailable
+                  ? 'Webhook API unavailable'
+                  : form.destinationUrl
+                    ? 'Destination configured'
+                    : 'Destination missing'
+            }
             icon={<Webhook className="h-5 w-5" />}
-            tone={webhookState.tone === 'success' ? 'success' : webhookState.tone === 'warning' ? 'warning' : 'info'}
+            tone={
+              webhookState.tone === 'success'
+                ? 'success'
+                : webhookState.tone === 'warning'
+                  ? 'warning'
+                  : webhookState.tone === 'neutral'
+                    ? 'neutral'
+                    : 'info'
+            }
           />
           <MetricCard
             label="Subscribed events"
-            value={configUnavailable ? 'Unavailable' : subscribedCount.toString()}
-            hint={configUnavailable ? 'Webhook API unavailable' : 'Current production subscriptions'}
+            value={loading && !config && !configUnavailable ? 'Checking' : configUnavailable ? 'Unavailable' : subscribedCount.toString()}
+            hint={
+              loading && !config && !configUnavailable
+                ? 'Loading webhook configuration'
+                : configUnavailable
+                  ? 'Webhook API unavailable'
+                  : 'Current production subscriptions'
+            }
             icon={<CheckCircle2 className="h-5 w-5" />}
-            tone={configUnavailable ? 'neutral' : subscribedCount > 0 ? 'info' : 'warning'}
+            tone={loading && !config && !configUnavailable ? 'neutral' : configUnavailable ? 'neutral' : subscribedCount > 0 ? 'info' : 'warning'}
           />
           <MetricCard
             label="24h success rate"
-            value={configUnavailable ? 'Unavailable' : `${summary.success_rate}%`}
-            hint={configUnavailable ? 'Webhook API unavailable' : `${summary.total} deliveries in the last 24 hours`}
+            value={loading && !config && !configUnavailable ? 'Checking' : configUnavailable ? 'Unavailable' : `${summary.success_rate}%`}
+            hint={
+              loading && !config && !configUnavailable
+                ? 'Loading delivery summary'
+                : configUnavailable
+                  ? 'Webhook API unavailable'
+                  : `${summary.total} deliveries in the last 24 hours`
+            }
             icon={<Shield className="h-5 w-5" />}
-            tone={configUnavailable ? 'neutral' : summary.total === 0 ? 'neutral' : summary.success_rate >= 95 ? 'success' : 'warning'}
+            tone={
+              loading && !config && !configUnavailable
+                ? 'neutral'
+                : configUnavailable
+                  ? 'neutral'
+                  : summary.total === 0
+                    ? 'neutral'
+                    : summary.success_rate >= 95
+                      ? 'success'
+                      : 'warning'
+            }
           />
           <MetricCard
             label="Retrying deliveries"
-            value={configUnavailable ? 'Unavailable' : summary.retrying.toString()}
-            hint={configUnavailable ? 'Webhook API unavailable' : summary.last_delivery_at ? `Last delivery ${new Date(summary.last_delivery_at).toLocaleString()}` : 'No delivery history yet'}
+            value={loading && !config && !configUnavailable ? 'Checking' : configUnavailable ? 'Unavailable' : summary.retrying.toString()}
+            hint={
+              loading && !config && !configUnavailable
+                ? 'Loading delivery summary'
+                : configUnavailable
+                  ? 'Webhook API unavailable'
+                  : summary.last_delivery_at
+                    ? `Last delivery ${new Date(summary.last_delivery_at).toLocaleString()}`
+                    : 'No delivery history yet'
+            }
             icon={<RotateCcw className="h-5 w-5" />}
-            tone={configUnavailable ? 'neutral' : summary.retrying > 0 ? 'warning' : 'neutral'}
+            tone={loading && !config && !configUnavailable ? 'neutral' : configUnavailable ? 'neutral' : summary.retrying > 0 ? 'warning' : 'neutral'}
           />
         </div>
 

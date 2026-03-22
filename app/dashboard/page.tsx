@@ -56,7 +56,10 @@ function formatShortDate(value: string | undefined | null) {
   return date.toLocaleString();
 }
 
-function deriveWebhookStatus(configUnavailable: boolean, config: WebhookConfig | null) {
+function deriveWebhookStatus(isLoading: boolean, configUnavailable: boolean, config: WebhookConfig | null) {
+  if (isLoading && !configUnavailable && !config) {
+    return { label: 'Checking', tone: 'neutral' as const };
+  }
   if (configUnavailable) {
     return { label: 'Unavailable', tone: 'warning' as const };
   }
@@ -199,7 +202,7 @@ export default function DashboardPage() {
   const topEndpoints = summary?.top_endpoints ?? [];
   const latestEvent = recentActivity[0] ?? null;
   const errorEvents = recentActivity.filter((event) => (event.status_code ?? 0) >= 400);
-  const webhookState = deriveWebhookStatus(unavailableSources.includes('webhook status'), webhookConfig);
+  const webhookState = deriveWebhookStatus(loading, unavailableSources.includes('webhook status'), webhookConfig);
 
   const attentionItems = useMemo(() => {
     const items: Array<{ title: string; body: string; tone: 'critical' | 'warning' | 'info'; href: string }> = [];
@@ -535,7 +538,12 @@ export default function DashboardPage() {
               description="Delivery health now comes from the dedicated webhook configuration and delivery feed."
             />
             <div className="mt-5 space-y-3">
-              {webhookState.label === 'Unavailable' ? (
+              {loading && !webhookConfig && !unavailableSources.includes('webhook status') ? (
+                <div className="space-y-3">
+                  <div className="h-24 animate-pulse rounded-2xl bg-slate-100" />
+                  <div className="h-20 animate-pulse rounded-2xl bg-slate-100" />
+                </div>
+              ) : webhookState.label === 'Unavailable' ? (
                 <EmptyState
                   icon={<Webhook className="h-5 w-5" />}
                   title="Webhook status unavailable"
@@ -561,7 +569,9 @@ export default function DashboardPage() {
                     ) : null}
                   </div>
                   <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
-                    {webhookState.label === 'Missing'
+                    {webhookState.label === 'Checking'
+                      ? 'Loading the dedicated webhook configuration and delivery summary.'
+                      : webhookState.label === 'Missing'
                       ? 'Configure a destination endpoint and event subscriptions before you rely on asynchronous delivery.'
                       : webhookState.label === 'Ready'
                         ? 'The destination is configured. Send a test event or wait for live order traffic to generate the first delivery.'
