@@ -76,7 +76,7 @@ export default function OrdersPage() {
         order_id: order.order_id,
         order_number: order.order_id,
         customer_email: order.customer_email,
-        total_amount: order.total || order.amount || 0,
+        total_amount: Number(order.total ?? order.amount ?? 0) || 0,
         status: order.payment_status || order.status,
         created_at: order.created_at,
         merchant_id: order.merchant_id,
