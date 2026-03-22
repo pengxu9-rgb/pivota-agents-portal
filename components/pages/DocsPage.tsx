@@ -295,6 +295,22 @@ export default function DocsPage() {
               ))}
             </div>
 
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Published package</p>
+                <p className="mt-2 font-mono text-sm text-[var(--portal-fg)]">pivota-agent</p>
+                <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                  Use the published package name above. Older references to <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">pivota-agent-sdk</code> or <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">@pivota/agent-sdk</code> should be treated as outdated.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">SDK scope</p>
+                <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                  The SDK is a convenience wrapper around the same production REST API and API key flow. It is real and usable, but it does not replace the REST contract or add separate control-plane capabilities.
+                </p>
+              </div>
+            </div>
+
             <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
               <SurfaceCard className="p-5">
                 <SectionHeader title="Install" description="Use the supported SDK package for your runtime." />
@@ -367,6 +383,13 @@ export default function DocsPage() {
               <SectionHeader title="MCP configuration" description="Use the API key as an environment variable for the local MCP server." />
               <div className="mt-5">
                 <CodePanel code={REST_EXAMPLES.mcp} language="json" />
+              </div>
+              <div className="mt-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Published package</p>
+                <p className="mt-2 font-mono text-sm text-[var(--portal-fg)]">pivota-mcp-server</p>
+                <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                  MCP is a local client-side tool surface for search and orchestration workflows. It is not a hosted replacement for the production REST API.
+                </p>
               </div>
             </SurfaceCard>
 
