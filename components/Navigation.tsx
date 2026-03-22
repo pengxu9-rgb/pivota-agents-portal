@@ -14,7 +14,6 @@ import {
   LogOut,
   Webhook,
   RadioTower,
-  Globe2,
   PanelLeftClose,
   PanelLeftOpen,
   Command,
@@ -94,13 +93,7 @@ const primaryNavigationItems: NavigationItem[] = [
     name: 'Docs',
     href: '/docs',
     icon: BookOpen,
-    aliases: ['/integration'],
-  },
-  {
-    name: 'Channels',
-    href: '/channels',
-    icon: Globe2,
-    aliases: ['/protocols'],
+    aliases: ['/integration', '/channels', '/protocols'],
   },
 ];
 

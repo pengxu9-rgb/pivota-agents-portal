@@ -1,5 +1,5 @@
-import ChannelsPage from '@/components/pages/ChannelsPage';
+import { redirect } from 'next/navigation';
 
 export default function Page() {
-  return <ChannelsPage />;
+  redirect('/docs?tab=standards');
 }

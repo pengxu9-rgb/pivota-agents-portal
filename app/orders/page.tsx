@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Download, Package, RefreshCw, RotateCcw, Search, ShoppingCart, Truck, XCircle } from 'lucide-react';
 import ConfirmDialog from '@/components/portal/ConfirmDialog';
@@ -21,6 +22,21 @@ const STATUS_TONES: Record<string, 'success' | 'warning' | 'critical' | 'info' |
   cancelled: 'critical',
 };
 
+const getOrderErrorMessage = (error: any) =>
+  error?.response?.data?.detail || error?.message || 'Failed to load orders.';
+
+const isActiveApiKeyError = (error: any) => {
+  const code = String(error?.code || '').toUpperCase();
+  const detail = getOrderErrorMessage(error).toLowerCase();
+
+  return (
+    code === 'ACTIVE_API_KEY_REQUIRED' ||
+    detail.includes('invalid api key') ||
+    detail.includes('api key not found') ||
+    detail.includes('active api key')
+  );
+};
+
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
@@ -30,12 +46,14 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [statusMessage, setStatusMessage] = useState<{ tone: 'success' | 'critical'; text: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorKind, setLoadErrorKind] = useState<'active_key_required' | 'unavailable' | null>(null);
   const [pendingAction, setPendingAction] = useState<{ type: 'refund' | 'cancel'; orderId: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailEvents, setDetailEvents] = useState<any[]>([]);
   const [tracking, setTracking] = useState<any | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('agent_token');
@@ -51,6 +69,7 @@ export default function OrdersPage() {
     try {
       setLoading(true);
       setLoadError(null);
+      setLoadErrorKind(null);
       const data = await agentApi.getOrders(100);
       const mappedOrders = (data || []).map((order: any) => ({
         id: order.order_id,
@@ -66,7 +85,8 @@ export default function OrdersPage() {
     } catch (error: any) {
       console.error('Failed to load orders:', error);
       setOrders([]);
-      setLoadError(error?.response?.data?.detail || error?.message || 'Failed to load orders.');
+      setLoadError(getOrderErrorMessage(error));
+      setLoadErrorKind(isActiveApiKeyError(error) ? 'active_key_required' : 'unavailable');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -112,17 +132,28 @@ export default function OrdersPage() {
   const loadOrderDetail = async (order: any) => {
     setSelectedOrder(order);
     setDetailLoading(true);
+    setDetailError(null);
+    setDetailEvents([]);
+    setTracking(null);
+
     try {
       const [eventsResult, trackingResult] = await Promise.allSettled([
         agentApi.getOrderEvents(50, order.order_id),
         agentApi.trackOrder(order.order_id),
       ]);
 
+      const nextDetailErrors: string[] = [];
+
       if (eventsResult.status === 'fulfilled') {
         setDetailEvents(eventsResult.value?.events || []);
       } else {
         console.error('Failed to load order timeline:', eventsResult.reason);
         setDetailEvents([]);
+        nextDetailErrors.push(
+          isActiveApiKeyError(eventsResult.reason)
+            ? 'Order timeline requires an active API key.'
+            : 'Order timeline is temporarily unavailable.',
+        );
       }
 
       if (trackingResult.status === 'fulfilled') {
@@ -130,6 +161,15 @@ export default function OrdersPage() {
       } else {
         console.error('Failed to load order tracking:', trackingResult.reason);
         setTracking(null);
+        nextDetailErrors.push(
+          isActiveApiKeyError(trackingResult.reason)
+            ? 'Tracking details require an active API key.'
+            : 'Tracking details are temporarily unavailable.',
+        );
+      }
+
+      if (nextDetailErrors.length > 0) {
+        setDetailError(nextDetailErrors.join(' '));
       }
     } finally {
       setDetailLoading(false);
@@ -183,7 +223,20 @@ export default function OrdersPage() {
         ) : null}
 
         {loadError ? (
-          <InlineNotice tone="warning" title="Orders are temporarily unavailable">
+          <InlineNotice
+            tone="warning"
+            title={loadErrorKind === 'active_key_required' ? 'Orders require an active API key' : 'Orders are temporarily unavailable'}
+            action={
+              loadErrorKind === 'active_key_required' ? (
+                <Link
+                  href="/api-keys"
+                  className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-50"
+                >
+                  Open API keys
+                </Link>
+              ) : undefined
+            }
+          >
             {loadError}
           </InlineNotice>
         ) : null}
@@ -228,8 +281,22 @@ export default function OrdersPage() {
             ) : loadError ? (
               <EmptyState
                 icon={<ShoppingCart className="h-5 w-5" />}
-                title="Orders unavailable"
-                description="The orders feed could not be loaded, so the commerce operations surface is temporarily unavailable."
+                title={loadErrorKind === 'active_key_required' ? 'Orders require an active API key' : 'Orders unavailable'}
+                description={
+                  loadErrorKind === 'active_key_required'
+                    ? 'Orders use authenticated order APIs. Open API keys to create, rotate, or recover a usable key for this session.'
+                    : 'The orders feed could not be loaded, so the commerce operations surface is temporarily unavailable.'
+                }
+                action={
+                  loadErrorKind === 'active_key_required' ? (
+                    <Link
+                      href="/api-keys"
+                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
+                    >
+                      Open API keys
+                    </Link>
+                  ) : undefined
+                }
               />
             ) : filteredOrders.length === 0 ? (
               <EmptyState
@@ -317,49 +384,59 @@ export default function OrdersPage() {
                 {[0, 1].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
               </div>
             ) : (
-              <div className="mt-5 grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Fulfillment</p>
-                    <p className="mt-3 text-sm font-semibold text-[var(--portal-fg)]">{tracking?.fulfillment_status || 'Unknown'}</p>
-                    <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">
-                      {tracking?.carrier || 'Carrier unavailable'}
-                      {tracking?.tracking_number ? ` · ${tracking.tracking_number}` : ''}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Customer</p>
-                    <p className="mt-3 text-sm text-[var(--portal-fg)]">{selectedOrder.customer_email || 'Guest checkout'}</p>
-                  </div>
-                </div>
+              <div className="mt-5 space-y-4">
+                {detailError ? (
+                  <InlineNotice tone={detailError.toLowerCase().includes('active api key') ? 'warning' : 'info'}>
+                    {detailError}
+                  </InlineNotice>
+                ) : null}
 
-                <div className="space-y-3">
-                  {detailEvents.length === 0 ? (
-                    <EmptyState
-                      icon={<ShoppingCart className="h-5 w-5" />}
-                      title="No order timeline available"
-                      description="The order event feed did not return timeline entries for this order."
-                    />
-                  ) : (
-                    detailEvents.map((event) => (
-                      <div
-                        key={`${event.id}-${event.event_type}`}
-                        className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <StatusBadge tone={event.status === 'failed' ? 'critical' : event.status === 'succeeded' ? 'success' : 'info'}>
-                            {event.status || 'event'}
-                          </StatusBadge>
-                          <p className="font-mono text-sm text-[var(--portal-fg)]">{event.event_type}</p>
+                <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+                  <div className="space-y-3">
+                    <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Fulfillment</p>
+                      <p className="mt-3 text-sm font-semibold text-[var(--portal-fg)]">
+                        {tracking?.fulfillment_status || 'Detail unavailable'}
+                      </p>
+                      <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">
+                        {tracking?.carrier || 'Tracking unavailable'}
+                        {tracking?.tracking_number ? ` · ${tracking.tracking_number}` : ''}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Customer</p>
+                      <p className="mt-3 text-sm text-[var(--portal-fg)]">{selectedOrder.customer_email || 'Guest checkout'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {detailEvents.length === 0 ? (
+                      <EmptyState
+                        icon={<ShoppingCart className="h-5 w-5" />}
+                        title="No order timeline available"
+                        description="The order event feed did not return timeline entries for this order."
+                      />
+                    ) : (
+                      detailEvents.map((event) => (
+                        <div
+                          key={`${event.id}-${event.event_type}`}
+                          className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StatusBadge tone={event.status === 'failed' ? 'critical' : event.status === 'succeeded' ? 'success' : 'info'}>
+                              {event.status || 'event'}
+                            </StatusBadge>
+                            <p className="font-mono text-sm text-[var(--portal-fg)]">{event.event_type}</p>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-4 text-sm text-[var(--portal-fg-muted)]">
+                            <span>{event.currency ? `${event.total_amount ?? 0} ${event.currency}` : 'Amount unavailable'}</span>
+                            <span>{event.created_at ? new Date(event.created_at).toLocaleString() : 'Unknown timestamp'}</span>
+                          </div>
+                          {event.error_message ? <p className="mt-2 text-sm text-rose-600">{event.error_message}</p> : null}
                         </div>
-                        <div className="mt-2 flex flex-wrap gap-4 text-sm text-[var(--portal-fg-muted)]">
-                          <span>{event.currency ? `${event.total_amount ?? 0} ${event.currency}` : 'Amount unavailable'}</span>
-                          <span>{event.created_at ? new Date(event.created_at).toLocaleString() : 'Unknown timestamp'}</span>
-                        </div>
-                        {event.error_message ? <p className="mt-2 text-sm text-rose-600">{event.error_message}</p> : null}
-                      </div>
-                    ))
-                  )}
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}

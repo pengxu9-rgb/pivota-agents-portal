@@ -85,6 +85,65 @@ class AgentApiClient {
     return localStorage.getItem('agent_api_key');
   }
 
+  private createClientError(message: string, code: string) {
+    const error = new Error(message) as Error & { code?: string };
+    error.code = code;
+    return error;
+  }
+
+  private isActiveApiKeyRecord(record: any) {
+    return record?.status !== 'revoked';
+  }
+
+  private async resolveOperationalApiKey() {
+    const storedKey = this.getStoredPrimaryApiKey();
+
+    try {
+      const keyState = await this.getApiKeys();
+      const records = Array.isArray(keyState?.keys) ? keyState.keys : [];
+      const hasPersistedActiveKey = records.some(
+        (record: any) => this.isActiveApiKeyRecord(record) && record?.source === 'api',
+      );
+
+      if (hasPersistedActiveKey) {
+        if (!storedKey) {
+          throw this.createClientError(
+            'Orders require an active API key in the current session.',
+            'ACTIVE_API_KEY_REQUIRED',
+          );
+        }
+
+        return {
+          apiKey: storedKey,
+          source: 'inventory',
+          degraded: false,
+        } as const;
+      }
+
+      if (storedKey) {
+        return {
+          apiKey: storedKey,
+          source: 'session',
+          degraded: true,
+        } as const;
+      }
+    } catch (error: any) {
+      if (storedKey) {
+        return {
+          apiKey: storedKey,
+          source: 'session',
+          degraded: true,
+        } as const;
+      }
+
+      if (error?.code === 'ACTIVE_API_KEY_REQUIRED') {
+        throw error;
+      }
+    }
+
+    throw this.createClientError('Orders require an active API key', 'ACTIVE_API_KEY_REQUIRED');
+  }
+
   private normalizeProfile(agent: any) {
     const storedUser = this.getStoredUser();
     const metadata = agent?.metadata && typeof agent.metadata === 'object' ? agent.metadata : {};
@@ -340,10 +399,7 @@ class AgentApiClient {
   }
 
   async getOrderEvents(limit: number = 50, orderId?: string) {
-    const apiKey = localStorage.getItem('agent_api_key');
-    if (!apiKey) {
-      throw new Error('API key not found');
-    }
+    const { apiKey } = await this.resolveOperationalApiKey();
 
     const response = await this.client.get('/agent/v1/orders/events', {
       params: {
@@ -513,10 +569,7 @@ class AgentApiClient {
   }
 
   async getOrders(limit: number = 50) {
-    const apiKey = localStorage.getItem('agent_api_key');
-    if (!apiKey) {
-      throw new Error('API key not found');
-    }
+    const { apiKey } = await this.resolveOperationalApiKey();
 
     const response = await this.client.get('/agent/v1/orders', {
       params: { limit },
@@ -530,7 +583,7 @@ class AgentApiClient {
   async refundOrder(orderId: string) {
     // Call real backend API - requires X-API-Key
     try {
-      const apiKey = localStorage.getItem('agent_api_key');
+      const { apiKey } = await this.resolveOperationalApiKey();
       const response = await this.client.post(`/agent/v1/orders/${orderId}/refund`, {}, {
         headers: { 'X-API-Key': apiKey }
     });
@@ -544,7 +597,7 @@ class AgentApiClient {
   async cancelOrder(orderId: string) {
     // Call real backend API - requires X-API-Key
     try {
-      const apiKey = localStorage.getItem('agent_api_key');
+      const { apiKey } = await this.resolveOperationalApiKey();
       const response = await this.client.post(`/agent/v1/orders/${orderId}/cancel`, {}, {
         headers: { 'X-API-Key': apiKey }
     });
@@ -558,20 +611,14 @@ class AgentApiClient {
   async trackOrder(orderId: string) {
     // Call real backend API - requires X-API-Key
     try {
-      const apiKey = localStorage.getItem('agent_api_key');
+      const { apiKey } = await this.resolveOperationalApiKey();
       const response = await this.client.get(`/agent/v1/orders/${orderId}/track`, {
         headers: { 'X-API-Key': apiKey }
     });
     return response.data;
     } catch (error) {
       console.error('Failed to track order:', error);
-      return {
-        order_id: orderId,
-        fulfillment_status: 'unknown',
-        tracking_number: null,
-        carrier: 'Not available',
-        timeline: [],
-      };
+      throw error;
     }
   }
 
