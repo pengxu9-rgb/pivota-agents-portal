@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { BookOpen, Braces, Cable, ExternalLink, FileCode2, KeyRound, Package, RefreshCw, Webhook } from 'lucide-react';
+import { BookOpen, Braces, Cable, ExternalLink, FileCode2, Globe2, KeyRound, Package, RefreshCw, Webhook } from 'lucide-react';
 import CodePanel from '@/components/portal/CodePanel';
 import ConsoleTabs from '@/components/portal/ConsoleTabs';
 import EmptyState from '@/components/portal/EmptyState';
@@ -14,6 +14,7 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { developerChannels } from '@/lib/developer-channels';
 
 const API_BASE = 'https://web-production-fedb.up.railway.app/agent/v1';
 
@@ -35,10 +36,11 @@ const REST_EXAMPLES = {
   mcp: `{\n  "mcpServers": {\n    "pivota": {\n      "command": "npx",\n      "args": ["-y", "pivota-mcp-server"],\n      "env": {\n        "PIVOTA_API_KEY": "YOUR_API_KEY"\n      }\n    }\n  }\n}`,
 };
 
-const VALID_TABS = new Set(['quickstart', 'sdk', 'api', 'mcp', 'reference']);
+const VALID_TABS = new Set(['quickstart', 'sdk', 'api', 'mcp', 'reference', 'channels']);
 
 export default function DocsPage() {
   const router = useRouter();
+  const googleChannel = developerChannels.find((channel) => channel.id === 'google_ucp') ?? null;
   const [selectedTab, setSelectedTab] = useState('quickstart');
   const [selectedLanguage, setSelectedLanguage] = useState<'python' | 'typescript'>('python');
   const [integrationStatus, setIntegrationStatus] = useState<any>(null);
@@ -123,7 +125,7 @@ export default function DocsPage() {
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Docs"
-        description="Quickstart, SDK usage, REST patterns, webhook verification, and runtime-derived endpoint reference."
+        description="Quickstart, SDK usage, REST patterns, webhook verification, channel standards, and runtime-derived endpoint reference."
         badge={<StatusBadge tone="production">Production</StatusBadge>}
         meta={
           loading ? (
@@ -182,6 +184,7 @@ export default function DocsPage() {
             { id: 'sdk', label: 'SDK', icon: <Package className="h-4 w-4" /> },
             { id: 'api', label: 'REST API', icon: <Braces className="h-4 w-4" /> },
             { id: 'mcp', label: 'MCP', icon: <Cable className="h-4 w-4" /> },
+            { id: 'channels', label: 'Channels', icon: <Globe2 className="h-4 w-4" /> },
             { id: 'reference', label: 'API Reference', icon: <FileCode2 className="h-4 w-4" /> },
           ]}
           activeId={selectedTab}
@@ -323,6 +326,74 @@ export default function DocsPage() {
                 ))}
               </div>
             </SurfaceCard>
+          </div>
+        ) : null}
+
+        {selectedTab === 'channels' ? (
+          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <SurfaceCard className="p-5">
+              <SectionHeader
+                title="Channel standards"
+                description="External-facing distribution standards that sit above the core API surface."
+              />
+              <div className="mt-5 space-y-4">
+                {developerChannels.map((channel) => (
+                  <div key={channel.id} className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-[var(--portal-fg)]">{channel.label}</p>
+                      <StatusBadge tone={channel.status === 'partner_access' ? 'warning' : channel.status === 'beta' ? 'warning' : 'neutral'}>
+                        {channel.status === 'partner_access' ? 'Partner access' : channel.status === 'beta' ? 'Beta' : 'Planned'}
+                      </StatusBadge>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">{channel.summary}</p>
+                    <p className="mt-3 text-sm text-[var(--portal-fg)]">{channel.availability}</p>
+                  </div>
+                ))}
+              </div>
+            </SurfaceCard>
+
+            <div className="space-y-6">
+              <SurfaceCard className="p-5">
+                <SectionHeader
+                  title="Google UCP"
+                  description="Partner-gated channel positioning for Google-facing commerce and catalog interoperability."
+                  action={
+                    <Link
+                      href="/channels"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-[var(--portal-accent)] hover:text-[var(--portal-accent-strong)]"
+                    >
+                      <span>Open channel page</span>
+                    </Link>
+                  }
+                />
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">What it is for</p>
+                    <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                      {googleChannel?.purpose}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">How it relates to the API</p>
+                    <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                      {googleChannel?.relationToApi}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Availability</p>
+                    <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                      {googleChannel?.availability}. Google UCP is not a public self-serve API surface today and requires partner onboarding or allowlisting.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Integration expectation</p>
+                    <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                      Keep API keys, order flow, and webhook operations in the core developer console. Treat Google UCP as a channel standard layered on top of those operational surfaces, not as a replacement for direct API integration.
+                    </p>
+                  </div>
+                </div>
+              </SurfaceCard>
+            </div>
           </div>
         ) : null}
 

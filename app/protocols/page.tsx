@@ -1,5 +1,5 @@
-import EndpointsPage from '@/components/pages/EndpointsPage';
+import { redirect } from 'next/navigation';
 
 export default function ProtocolsPage() {
-  return <EndpointsPage mode="protocols" />;
+  redirect('/channels');
 }
