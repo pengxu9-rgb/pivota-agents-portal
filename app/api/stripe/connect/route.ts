@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { API_CONFIG } from '@/lib/config';
 
-const BACKEND_URL = 'https://web-production-fedb.up.railway.app';
+const BACKEND_URL = API_CONFIG.BASE_URL;
 
 export async function POST(request: NextRequest) {
   try {

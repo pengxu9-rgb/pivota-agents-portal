@@ -1,5 +1,7 @@
+import { API_CONFIG } from '@/lib/config';
+
 export default async function DevelopersDocsPage() {
-  const res = await fetch('https://web-production-fedb.up.railway.app/agent/docs/overview', { cache: 'no-store' });
+  const res = await fetch(`${API_CONFIG.BASE_URL}/agent/docs/overview`, { cache: 'no-store' });
   if (!res.ok) {
     return <div className="p-6">Failed to load docs overview</div>;
   }
@@ -20,7 +22,6 @@ export default async function DevelopersDocsPage() {
     </div>
   );
 }
-
 
 
 

@@ -1,23 +1,52 @@
 /**
- * API Configuration
- * Ensures HTTPS is always used for production
+ * Developer-facing API configuration.
+ *
+ * The public API contract should use a branded hostname rather than an
+ * infrastructure provider hostname. Production must set NEXT_PUBLIC_API_URL,
+ * but we also keep a safe branded default for builds and local validation.
  */
 
-// Force HTTPS in production, allow HTTP only for localhost development
-export function getApiBaseUrl(): string {
-  // Always use HTTPS for Railway backend
-  const baseUrl = 'https://web-production-fedb.up.railway.app';
-  
-  // Remove any trailing slash
-  return baseUrl.replace(/\/$/, '');
+const DEFAULT_PUBLIC_API_BASE_URL = 'https://api.pivota.cc';
+
+function normalizeBaseUrl(value: string | undefined): string {
+  return String(value || DEFAULT_PUBLIC_API_BASE_URL).trim().replace(/\/$/, '');
 }
 
-// Use getter to ensure URL is computed at runtime, not module load time
+export function getPublicApiBaseUrl(): string {
+  return normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL);
+}
+
+export function getApiBaseUrl(): string {
+  return getPublicApiBaseUrl();
+}
+
+export function getAgentApiV1BaseUrl(): string {
+  return `${getPublicApiBaseUrl()}/agent/v1`;
+}
+
+export function getBackendDocsBaseUrl(): string {
+  return `${getPublicApiBaseUrl()}/docs`;
+}
+
+export function getBackendOpenApiUrl(): string {
+  return `${getPublicApiBaseUrl()}/openapi.json`;
+}
+
 export const API_CONFIG = {
   get BASE_URL() {
-    return getApiBaseUrl();
+    return getPublicApiBaseUrl();
   },
-  TIMEOUT: 30000, // 30 seconds
+  get AGENT_API_V1_BASE_URL() {
+    return getAgentApiV1BaseUrl();
+  },
+  get DOCS_URL() {
+    return getBackendDocsBaseUrl();
+  },
+  get OPENAPI_URL() {
+    return getBackendOpenApiUrl();
+  },
+  DEFAULT_PUBLIC_API_BASE_URL,
+  TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
-  RETRY_DELAY: 1000, // 1 second
+  RETRY_DELAY: 1000,
 };

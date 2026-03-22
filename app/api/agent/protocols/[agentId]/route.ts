@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { API_CONFIG } from '@/lib/config';
 
-const BACKEND_URL = 'https://web-production-fedb.up.railway.app';
+const BACKEND_URL = API_CONFIG.BASE_URL;
 
 export async function GET(
   request: NextRequest,
@@ -72,4 +73,3 @@ export async function GET(
     );
   }
 }
-

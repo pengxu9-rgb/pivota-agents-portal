@@ -1,7 +1,8 @@
+import { API_CONFIG } from '@/lib/config';
 import React from 'react';
 
 export default async function QuickstartPage() {
-  const res = await fetch('https://web-production-fedb.up.railway.app/agent/docs/quickstart.md', { cache: 'no-store' });
+  const res = await fetch(`${API_CONFIG.BASE_URL}/agent/docs/quickstart.md`, { cache: 'no-store' });
   const md = res.ok ? await res.text() : '# Quickstart\n\nFailed to load docs.';
   // Lightweight markdown: render preformatted for now; can replace with react-markdown later
   return (
@@ -11,7 +12,6 @@ export default async function QuickstartPage() {
     </div>
   );
 }
-
 
 
 

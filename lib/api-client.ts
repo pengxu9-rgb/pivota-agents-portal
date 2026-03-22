@@ -10,11 +10,10 @@ class AgentApiClient {
   private client: AxiosInstance;
 
   constructor() {
-    // ALWAYS use HTTPS for Railway backend
-    const baseURL = 'https://web-production-fedb.up.railway.app';
-    
-    console.log('[AgentApiClient] Initializing with HTTPS URL:', baseURL);
-    
+    const baseURL = API_CONFIG.BASE_URL;
+
+    console.log('[AgentApiClient] Initializing with public API URL:', baseURL);
+
     this.client = axios.create({
       baseURL,
       timeout: API_CONFIG.TIMEOUT,
@@ -30,8 +29,7 @@ class AgentApiClient {
         config.headers.Authorization = `Bearer ${token}`;
       }
       
-      // CRITICAL: Force HTTPS for ALL requests - no exceptions
-      // Fix any accidental HTTP URLs
+      // Force HTTPS for all outbound requests.
       if (config.url) {
         config.url = config.url.replace(/^http:\/\//i, 'https://');
       }
@@ -43,7 +41,6 @@ class AgentApiClient {
       const fullUrl = config.baseURL + (config.url || '');
       if (fullUrl.includes('http://')) {
         console.error('[AgentApiClient] ERROR: HTTP detected in URL:', fullUrl);
-        // Force fix it
         config.baseURL = config.baseURL?.replace(/^http:\/\//i, 'https://');
         config.url = config.url?.replace(/^http:\/\//i, 'https://');
       }

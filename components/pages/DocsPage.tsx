@@ -14,9 +14,10 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { API_CONFIG } from '@/lib/config';
 import { developerStandards } from '@/lib/developer-standards';
 
-const API_BASE = 'https://web-production-fedb.up.railway.app/agent/v1';
+const API_BASE = API_CONFIG.AGENT_API_V1_BASE_URL;
 
 const SDK_EXAMPLES = {
   python: {
