@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   CheckCircle2,
+  Copy,
   RefreshCw,
   RotateCcw,
   Save,
@@ -37,6 +38,8 @@ type WebhookConfig = {
   managed_receiver_url?: string | null;
   subscribed_events: string[];
   signing_secret_last4: string | null;
+  pending_signing_secret_last4?: string | null;
+  pending_secret_activates_at?: string | null;
   last_test_at: string | null;
   last_test_status: string | null;
   delivery_summary_24h: DeliverySummary;
@@ -129,6 +132,7 @@ export default function WebhooksPage() {
   const [deliveriesUnavailable, setDeliveriesUnavailable] = useState(false);
   const [message, setMessage] = useState<{ tone: 'success' | 'warning' | 'critical'; title?: string; body: string } | null>(null);
   const [newSecret, setNewSecret] = useState<{ value: string; activatesAt: string | null } | null>(null);
+  const [copiedNewSecret, setCopiedNewSecret] = useState(false);
   const [form, setForm] = useState({
     enabled: false,
     destinationUrl: '',
@@ -263,6 +267,7 @@ export default function WebhooksPage() {
   const handleRotateSecret = async () => {
     setRotatingSecret(true);
     setMessage(null);
+    setCopiedNewSecret(false);
     try {
       const response = await agentApi.rotateWebhookSigningSecret();
       setNewSecret({
@@ -272,7 +277,7 @@ export default function WebhooksPage() {
       setMessage({
         tone: 'success',
         title: 'Signing secret rotated',
-        body: 'The new secret is visible once below. Update your verifier before the activation window closes.',
+        body: 'A new pending signing secret was generated. Copy it now and update your verifier before the overlap window ends.',
       });
       await loadWebhookState();
     } catch (error: any) {
@@ -283,6 +288,23 @@ export default function WebhooksPage() {
       });
     } finally {
       setRotatingSecret(false);
+    }
+  };
+
+  const handleCopyNewSecret = async () => {
+    if (!newSecret?.value) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(newSecret.value);
+      setCopiedNewSecret(true);
+    } catch (error: any) {
+      setMessage({
+        tone: 'warning',
+        title: 'Copy failed',
+        body: error?.message || 'The signing secret could not be copied. Copy it manually from the field below.',
+      });
     }
   };
 
@@ -319,6 +341,11 @@ export default function WebhooksPage() {
   const webhookState = deriveWebhookState(loading, configUnavailable, config);
   const subscribedCount = form.subscribedEvents.length;
   const managedReceiverUrl = config?.managed_receiver_url || null;
+  const currentSecretLast4 = config?.signing_secret_last4 || null;
+  const pendingSecretLast4 =
+    config?.pending_signing_secret_last4 || (newSecret?.value ? newSecret.value.slice(-4) : null);
+  const pendingSecretActivatesAt = config?.pending_secret_activates_at || newSecret?.activatesAt || null;
+  const formattedPendingActivation = pendingSecretActivatesAt ? new Date(pendingSecretActivatesAt).toLocaleString() : null;
 
   const availableEvents = useMemo(
     () => catalog.filter((item) => item.event_type !== 'webhook.test'),
@@ -379,7 +406,19 @@ export default function WebhooksPage() {
         ) : null}
 
         {newSecret?.value ? (
-          <InlineNotice tone="success" title="New signing secret">
+          <InlineNotice
+            tone="success"
+            title="New signing secret"
+            action={
+              <button
+                onClick={() => void handleCopyNewSecret()}
+                className="inline-flex items-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+              >
+                {copiedNewSecret ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                <span>{copiedNewSecret ? 'Copied' : 'Copy'}</span>
+              </button>
+            }
+          >
             <p>Copy this secret now. It will not be shown in full again.</p>
             <code className="mt-3 block overflow-x-auto rounded-xl border border-emerald-200 bg-white px-3 py-3 font-mono text-sm text-slate-800">
               {newSecret.value}
@@ -542,11 +581,36 @@ export default function WebhooksPage() {
             />
             <div className="mt-5 space-y-3">
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Active secret</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Current active secret</p>
                 <p className="mt-3 font-mono text-sm text-[var(--portal-fg)]">
-                  {config?.signing_secret_last4 ? `••••${config.signing_secret_last4}` : 'No signing secret provisioned yet'}
+                  {currentSecretLast4 ? `••••${currentSecretLast4}` : 'No signing secret provisioned yet'}
+                </p>
+                <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                  {formattedPendingActivation
+                    ? `This secret continues verifying deliveries until ${formattedPendingActivation}.`
+                    : 'This is the secret currently used to verify incoming webhook deliveries.'}
                 </p>
               </div>
+              {pendingSecretLast4 ? (
+                <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Pending secret</p>
+                  <p className="mt-3 font-mono text-sm text-[var(--portal-fg)]">••••{pendingSecretLast4}</p>
+                  <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                    {formattedPendingActivation
+                      ? `This secret becomes active at ${formattedPendingActivation}.`
+                      : 'A pending signing secret exists but its activation time is not available.'}
+                  </p>
+                  {newSecret?.value ? (
+                    <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                      The full value is shown once above. Copy it before you leave this page.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                      Only the last 4 characters are shown here. The full value is only returned once when you rotate it.
+                    </p>
+                  )}
+                </div>
+              ) : null}
               <button
                 onClick={() => void handleRotateSecret()}
                 disabled={rotatingSecret}
@@ -555,6 +619,9 @@ export default function WebhooksPage() {
                 <RotateCcw className="h-4 w-4" />
                 <span>{rotatingSecret ? 'Rotating…' : 'Rotate signing secret'}</span>
               </button>
+              <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
+                Rotating creates a new pending secret immediately, keeps the current active secret valid during the overlap window, and then promotes the new secret automatically.
+              </div>
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
                 Signatures are computed as HMAC-SHA256 of <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">{'${timestamp}.${raw_body}'}</code>.
               </div>
