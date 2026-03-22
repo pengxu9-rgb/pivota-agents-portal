@@ -34,6 +34,7 @@ type DeliverySummary = {
 type WebhookConfig = {
   enabled: boolean;
   destination_url: string | null;
+  managed_receiver_url?: string | null;
   subscribed_events: string[];
   signing_secret_last4: string | null;
   last_test_at: string | null;
@@ -310,6 +311,7 @@ export default function WebhooksPage() {
   };
   const webhookState = deriveWebhookState(configUnavailable, config);
   const subscribedCount = form.subscribedEvents.length;
+  const managedReceiverUrl = config?.managed_receiver_url || null;
 
   const availableEvents = useMemo(
     () => catalog.filter((item) => item.event_type !== 'webhook.test'),
@@ -423,6 +425,34 @@ export default function WebhooksPage() {
               description="Define the HTTPS destination and the event types this agent should receive."
             />
             <div className="mt-5 space-y-4">
+              {managedReceiverUrl ? (
+                <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--portal-fg)]">Pivota-managed receiver</p>
+                      <p className="mt-1 text-sm text-[var(--portal-fg-muted)]">
+                        Use this hosted receiver to validate delivery and keep webhook health active before you switch to your own endpoint.
+                      </p>
+                      <code className="mt-3 block overflow-x-auto rounded-xl border border-[var(--portal-border)] bg-white px-3 py-2 font-mono text-xs text-[var(--portal-fg)]">
+                        {managedReceiverUrl}
+                      </code>
+                    </div>
+                    <button
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          enabled: true,
+                          destinationUrl: managedReceiverUrl,
+                        }))
+                      }
+                      className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-white px-3 py-2 text-sm font-medium text-[var(--portal-fg-muted)] hover:bg-[var(--portal-surface-muted)]"
+                    >
+                      <Webhook className="h-4 w-4" />
+                      <span>Use managed receiver</span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Destination URL</span>
                 <input
