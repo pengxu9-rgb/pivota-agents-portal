@@ -17,8 +17,18 @@ interface ApiKey {
   last_used: string | null;
   status: 'active' | 'revoked';
   usage_count: number;
+  environment?: 'live' | 'test' | 'unknown';
+  masked?: boolean;
   partial?: boolean;
   source?: 'api' | 'session';
+}
+
+function getEnvironmentTone(environment?: ApiKey['environment']) {
+  return environment === 'live' ? 'production' : environment === 'test' ? 'neutral' : 'warning';
+}
+
+function getEnvironmentLabel(environment?: ApiKey['environment']) {
+  return environment === 'live' ? 'Live' : environment === 'test' ? 'Test' : 'Unknown';
 }
 
 export default function ApiKeyManager({
@@ -33,7 +43,8 @@ export default function ApiKeyManager({
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newKeyName, setNewKeyName] = useState('');
-  const [newlyCreatedKey, setNewlyCreatedKey] = useState<{ id: string; key: string } | null>(null);
+  const [newKeyEnvironment, setNewKeyEnvironment] = useState<'live' | 'test'>('live');
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<{ id: string; key: string; environment: 'live' | 'test' } | null>(null);
   const [keyPendingRevocation, setKeyPendingRevocation] = useState<ApiKey | null>(null);
   const [revoking, setRevoking] = useState(false);
 
@@ -66,7 +77,7 @@ export default function ApiKeyManager({
     setCreating(true);
     setError(null);
     try {
-      const response = await agentApi.createApiKey(newKeyName.trim());
+      const response = await agentApi.createApiKey(newKeyName.trim(), newKeyEnvironment);
       const fullKey = response.key || response.api_key || response.new_api_key;
       const keyId = response.key_id || response.id || response.api_key_id || `created_${Date.now()}`;
 
@@ -74,8 +85,10 @@ export default function ApiKeyManager({
         setNewlyCreatedKey({
           id: keyId,
           key: fullKey,
+          environment: response.environment === 'test' ? 'test' : newKeyEnvironment,
         });
         setNewKeyName('');
+        setNewKeyEnvironment('live');
         await fetchApiKeys();
       } else {
         setError('API key created, but the full key was not returned by the server.');
@@ -128,7 +141,12 @@ export default function ApiKeyManager({
 
       {newlyCreatedKey ? (
         <InlineNotice tone="success" title="New API key created">
-          <p>Copy this key now. It will not be shown in full again.</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p>Copy this key now. It will not be shown in full again.</p>
+            <StatusBadge tone={getEnvironmentTone(newlyCreatedKey.environment)}>
+              {getEnvironmentLabel(newlyCreatedKey.environment)}
+            </StatusBadge>
+          </div>
           <div className="mt-3 flex items-start gap-2">
             <code className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-emerald-200 bg-white px-3 py-3 font-mono text-sm text-slate-800">
               {newlyCreatedKey.key}
@@ -167,6 +185,17 @@ export default function ApiKeyManager({
               }}
             />
           </div>
+          <label className="block lg:w-40">
+            <span className="mb-2 block text-sm font-medium text-[var(--portal-fg)]">Environment</span>
+            <select
+              value={newKeyEnvironment}
+              onChange={(event) => setNewKeyEnvironment(event.target.value === 'test' ? 'test' : 'live')}
+              className="w-full rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2.5 text-sm text-[var(--portal-fg)] outline-none focus:border-[var(--portal-accent)]"
+            >
+              <option value="live">Live</option>
+              <option value="test">Test</option>
+            </select>
+          </label>
           <button
             onClick={() => void createApiKey()}
             disabled={creating || !newKeyName.trim()}
@@ -225,6 +254,9 @@ export default function ApiKeyManager({
                         <StatusBadge tone={key.status === 'revoked' ? 'inactive' : 'success'}>
                           {key.status === 'revoked' ? 'Revoked' : 'Active'}
                         </StatusBadge>
+                        <StatusBadge tone={getEnvironmentTone(key.environment)}>
+                          {getEnvironmentLabel(key.environment)}
+                        </StatusBadge>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--portal-fg-subtle)]">
                         <span>
@@ -237,13 +269,13 @@ export default function ApiKeyManager({
                       {key.status === 'active' ? (
                         <div className="mt-3 flex items-start gap-2">
                           <code className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-[var(--portal-border)] bg-white px-3 py-2 font-mono text-sm text-slate-800">
-                            {key.partial
+                            {key.masked || key.partial
                               ? key.key
                               : showKey[key.id]
                                 ? key.key
                                 : `${key.key.slice(0, 10)}••••••••••••`}
                           </code>
-                          {!key.partial ? (
+                          {!key.masked && !key.partial ? (
                             <>
                               <button
                                 onClick={() => setShowKey((current) => ({ ...current, [key.id]: !current[key.id] }))}
@@ -263,9 +295,9 @@ export default function ApiKeyManager({
                           ) : null}
                         </div>
                       ) : null}
-                      {key.partial ? (
+                      {key.masked || key.partial ? (
                         <p className="mt-2 text-xs text-[var(--portal-fg-subtle)]">
-                          Full key disclosure is only available when the key is created or returned in the current authenticated session.
+                          This is a masked preview. Full key disclosure is only available when the key is created or rotated.
                         </p>
                       ) : null}
                     </div>

@@ -82,6 +82,41 @@ class AgentApiClient {
     return localStorage.getItem('agent_api_key');
   }
 
+  private inferApiKeyEnvironment(value: string, record?: any): 'live' | 'test' | 'unknown' {
+    const explicitEnvironment = String(
+      record?.environment || record?.env || record?.key_environment || '',
+    )
+      .trim()
+      .toLowerCase();
+
+    if (explicitEnvironment === 'live' || explicitEnvironment === 'production') {
+      return 'live';
+    }
+
+    if (explicitEnvironment === 'test' || explicitEnvironment === 'sandbox') {
+      return 'test';
+    }
+
+    const probe = String(value || record?.key_prefix || record?.masked_key || '').toLowerCase();
+    if (probe.includes('ak_live_')) {
+      return 'live';
+    }
+
+    if (probe.includes('ak_test_')) {
+      return 'test';
+    }
+
+    return 'unknown';
+  }
+
+  private isMaskedApiKeyValue(value: string, record?: any) {
+    if (record?.masked === true || record?.is_masked === true || record?.partial === true) {
+      return true;
+    }
+
+    return /[*•]/.test(value);
+  }
+
   private createClientError(message: string, code: string) {
     const error = new Error(message) as Error & { code?: string };
     error.code = code;
@@ -171,11 +206,13 @@ class AgentApiClient {
         ? 'revoked'
         : 'active';
 
+    const masked = this.isMaskedApiKeyValue(rawValue, record);
     const partial =
-      !record?.key &&
-      !record?.api_key &&
-      !record?.full_key &&
-      Boolean(rawValue);
+      masked ||
+      (!record?.key &&
+        !record?.api_key &&
+        !record?.full_key &&
+        Boolean(rawValue));
 
     return {
       id: record?.id || record?.key_id || record?.api_key_id || `key_${index}`,
@@ -186,6 +223,8 @@ class AgentApiClient {
       status,
       usage_count:
         Number(record?.usage_count ?? record?.request_count ?? record?.usage ?? 0) || 0,
+      environment: this.inferApiKeyEnvironment(rawValue, record),
+      masked,
       partial,
       source: 'api',
     };
@@ -205,6 +244,8 @@ class AgentApiClient {
       last_used: null,
       status: 'active' as const,
       usage_count: 0,
+      environment: this.inferApiKeyEnvironment(storedKey),
+      masked: false,
       partial: false,
       source: 'session' as const,
     };
@@ -664,7 +705,7 @@ class AgentApiClient {
     }
   }
 
-  async createApiKey(name: string = 'API Key') {
+  async createApiKey(name: string = 'API Key', environment: 'live' | 'test' = 'live') {
     try {
       const agentId = localStorage.getItem('agent_id');
       if (!agentId) {
@@ -672,7 +713,8 @@ class AgentApiClient {
       }
 
       const response = await this.client.post(`/agents/${agentId}/api-keys`, {
-        name: name
+        name,
+        environment,
       });
       
       return response.data;

@@ -24,6 +24,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [apiKey, setApiKey] = useState('');
+  const [apiKeyMasked, setApiKeyMasked] = useState(false);
+  const [apiKeyEnvironment, setApiKeyEnvironment] = useState<'live' | 'test' | 'unknown'>('unknown');
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -53,6 +55,8 @@ export default function SettingsPage() {
 
     const storedKey = localStorage.getItem('agent_api_key') || '';
     setApiKey(storedKey);
+    setApiKeyMasked(false);
+    setApiKeyEnvironment(storedKey.startsWith('ak_test_') ? 'test' : storedKey.startsWith('ak_live_') ? 'live' : 'unknown');
 
     void loadProfile();
   }, [router]);
@@ -77,12 +81,22 @@ export default function SettingsPage() {
     }
 
     if (apiKeyResult.status === 'fulfilled') {
-      const primaryKey = apiKeyResult.value?.keys?.find((key: any) => key?.status === 'active')?.key || '';
-      setApiKey(primaryKey || localStorage.getItem('agent_api_key') || '');
+      const primaryKey = apiKeyResult.value?.keys?.find((key: any) => key?.status === 'active');
+      const storedKey = localStorage.getItem('agent_api_key') || '';
+      const preview = primaryKey?.key || storedKey;
+      setApiKey(preview);
+      setApiKeyMasked(Boolean(primaryKey?.masked || primaryKey?.partial));
+      setApiKeyEnvironment(
+        primaryKey?.environment ||
+          (storedKey.startsWith('ak_test_') ? 'test' : storedKey.startsWith('ak_live_') ? 'live' : 'unknown'),
+      );
       setApiKeyUnavailable(false);
     } else {
       console.error('Failed to load API key preview:', apiKeyResult.reason);
-      setApiKey(localStorage.getItem('agent_api_key') || '');
+      const storedKey = localStorage.getItem('agent_api_key') || '';
+      setApiKey(storedKey);
+      setApiKeyMasked(false);
+      setApiKeyEnvironment(storedKey.startsWith('ak_test_') ? 'test' : storedKey.startsWith('ak_live_') ? 'live' : 'unknown');
       setApiKeyUnavailable(true);
       setLoadMessage((current) =>
         current
@@ -124,12 +138,16 @@ export default function SettingsPage() {
 
       if (result.new_api_key) {
         setApiKey(result.new_api_key);
+        setApiKeyMasked(false);
+        setApiKeyEnvironment(result.new_api_key.startsWith('ak_test_') ? 'test' : 'live');
         localStorage.setItem('agent_api_key', result.new_api_key);
         setSaveMessage('Primary key rotated. Copy the new key from the API Keys page if needed.');
       } else {
         const refreshed = await agentApi.getApiKeys().catch(() => ({ keys: [] }));
-        const nextKey = refreshed?.keys?.find((key: any) => key?.status === 'active')?.key || '';
-        setApiKey(nextKey);
+        const nextKey = refreshed?.keys?.find((key: any) => key?.status === 'active');
+        setApiKey(nextKey?.key || '');
+        setApiKeyMasked(Boolean(nextKey?.masked || nextKey?.partial));
+        setApiKeyEnvironment(nextKey?.environment || 'unknown');
         setSaveMessage('Primary key rotated. Refresh the API Keys page to confirm the active credential.');
       }
       setShowResetKeyConfirm(false);
@@ -259,12 +277,26 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm font-semibold text-[var(--portal-fg)]">Primary key preview</p>
                     <p className="mt-2 break-all font-mono text-sm text-[var(--portal-fg-muted)]">
-                      {apiKey ? `${apiKey.slice(0, 16)}••••••••••••` : apiKeyUnavailable ? 'Unavailable' : 'No key loaded'}
+                      {apiKey ? (apiKeyMasked ? apiKey : `${apiKey.slice(0, 16)}••••••••••••`) : apiKeyUnavailable ? 'Unavailable' : 'No key loaded'}
                     </p>
+                    {apiKey ? (
+                      <p className="mt-2 text-xs text-[var(--portal-fg-subtle)]">
+                        {apiKeyMasked
+                          ? 'Stored key records are masked. Full values are only shown once when the key is created or rotated.'
+                          : 'This preview comes from the current authenticated session.'}
+                      </p>
+                    ) : null}
                   </div>
-                  <StatusBadge tone={apiKeyUnavailable ? 'warning' : 'info'}>
-                    {apiKeyUnavailable ? 'Preview unavailable' : 'Managed'}
-                  </StatusBadge>
+                  <div className="flex flex-col items-end gap-2">
+                    <StatusBadge tone={apiKeyUnavailable ? 'warning' : 'info'}>
+                      {apiKeyUnavailable ? 'Preview unavailable' : 'Managed'}
+                    </StatusBadge>
+                    {!apiKeyUnavailable && apiKeyEnvironment !== 'unknown' ? (
+                      <StatusBadge tone={apiKeyEnvironment === 'live' ? 'production' : 'neutral'}>
+                        {apiKeyEnvironment === 'live' ? 'Live' : 'Test'}
+                      </StatusBadge>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
