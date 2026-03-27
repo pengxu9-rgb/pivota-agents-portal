@@ -203,6 +203,30 @@ export default function SettingsPage() {
     }
   };
 
+  const credentialPreviewTitle = apiKeyUnavailable
+    ? 'Primary key preview unavailable'
+    : apiKeyMasked
+      ? 'Persisted primary key preview'
+      : apiKey
+        ? 'Current session key preview'
+        : 'Primary key preview';
+
+  const credentialPreviewDetail = apiKeyUnavailable
+    ? 'Stored key metadata could not be loaded from the backend.'
+    : apiKeyMasked
+      ? 'This preview comes from persisted key inventory. The full value is not recoverable here.'
+      : apiKey
+        ? 'This preview comes from the current authenticated session only.'
+        : 'No key preview is currently available.';
+
+  const credentialSourceLabel = apiKeyUnavailable
+    ? 'Unavailable'
+    : apiKeyMasked
+      ? 'Persisted inventory'
+      : apiKey
+        ? 'Session preview'
+        : 'No preview';
+
   return (
     <div className="min-h-screen bg-transparent">
       <PageHeader
@@ -275,21 +299,20 @@ export default function SettingsPage() {
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-sm font-semibold text-[var(--portal-fg)]">Primary key preview</p>
+                    <p className="text-sm font-semibold text-[var(--portal-fg)]">{credentialPreviewTitle}</p>
                     <p className="mt-2 break-all font-mono text-sm text-[var(--portal-fg-muted)]">
                       {apiKey ? (apiKeyMasked ? apiKey : `${apiKey.slice(0, 16)}••••••••••••`) : apiKeyUnavailable ? 'Unavailable' : 'No key loaded'}
                     </p>
-                    {apiKey ? (
-                      <p className="mt-2 text-xs text-[var(--portal-fg-subtle)]">
-                        {apiKeyMasked
-                          ? 'Stored key records are masked. Full values are only shown once when the key is created or rotated.'
-                          : 'This preview comes from the current authenticated session.'}
-                      </p>
-                    ) : null}
+                    <p className="mt-2 text-xs text-[var(--portal-fg-subtle)]">
+                      {credentialPreviewDetail}
+                    </p>
+                    <p className="mt-2 text-xs text-[var(--portal-fg-subtle)]">
+                      Full key disclosure is only available when the key is created or rotated from the API Keys page.
+                    </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
-                    <StatusBadge tone={apiKeyUnavailable ? 'warning' : 'info'}>
-                      {apiKeyUnavailable ? 'Preview unavailable' : 'Managed'}
+                    <StatusBadge tone={apiKeyUnavailable ? 'warning' : apiKeyMasked ? 'neutral' : 'info'}>
+                      {credentialSourceLabel}
                     </StatusBadge>
                     {!apiKeyUnavailable && apiKeyEnvironment !== 'unknown' ? (
                       <StatusBadge tone={apiKeyEnvironment === 'live' ? 'production' : 'neutral'}>
