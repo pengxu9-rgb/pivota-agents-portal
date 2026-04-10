@@ -344,10 +344,6 @@ export default function AgentSignup() {
                 />
               </label>
 
-              <InlineNotice tone="info" title="One-time key handoff">
-                If the backend returns a new API key during registration, the portal will show it exactly once on the next screen.
-              </InlineNotice>
-
               <button
                 type="submit"
                 disabled={loading}
