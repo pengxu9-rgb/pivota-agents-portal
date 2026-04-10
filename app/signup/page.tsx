@@ -253,9 +253,6 @@ export default function AgentSignup() {
 
             <div className="mt-8">
               <h2 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--portal-fg)]">Register your agent</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
-                Create a public developer account for your production integration. Registration currently supports name, email, password, and company only.
-              </p>
             </div>
 
             <div className="mt-6 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 lg:hidden">
