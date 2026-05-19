@@ -242,11 +242,9 @@ export default function AgentSignup() {
         <section className="mx-auto flex w-full max-w-lg flex-col justify-center lg:ml-auto lg:min-h-screen lg:py-8">
           <div className="rounded-[28px] border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] p-7 shadow-[var(--portal-shadow-overlay)] sm:p-8">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface-muted)] text-[var(--portal-accent)]">
-                <Bot className="h-5 w-5" />
-              </div>
+              <span className="pv-logo pv-logo--gradient pv-logo--lg" aria-hidden="true" />
               <div>
-                <p className="text-sm font-semibold tracking-[0.01em] text-[var(--portal-fg)]">Pivota</p>
+                <p className="pv-wordmark pv-wordmark--sm">Pivota</p>
                 <p className="text-xs uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Developer Portal</p>
               </div>
             </div>

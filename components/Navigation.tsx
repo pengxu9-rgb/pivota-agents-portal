@@ -16,7 +16,6 @@ import {
   RadioTower,
   PanelLeftClose,
   PanelLeftOpen,
-  Command,
 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
 import { cx } from '@/lib/cx';
@@ -207,12 +206,10 @@ export default function Navigation() {
       <div className="border-b border-white/8 px-4 py-4">
         <div className={cx('flex items-center justify-between', collapsed ? 'justify-center' : '')}>
           <Link href="/dashboard" className={cx('flex min-w-0 items-center', collapsed ? 'justify-center' : 'gap-3')}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/5 text-[var(--portal-sidebar-fg-strong)]">
-              <Command className="h-5 w-5" />
-            </div>
+            <span className="pv-logo pv-logo--gradient pv-logo--md" aria-hidden="true" />
             {!collapsed ? (
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold tracking-[0.02em] text-[var(--portal-sidebar-fg-strong)]">Pivota</p>
+                <p className="pv-wordmark pv-wordmark--sm truncate text-[var(--portal-sidebar-fg-strong)]">Pivota</p>
                 <p className="truncate text-xs text-slate-400">Developer Portal</p>
               </div>
             ) : null}
