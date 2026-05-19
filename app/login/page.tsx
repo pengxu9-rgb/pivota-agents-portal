@@ -62,9 +62,6 @@ export default function AgentLoginPage() {
               Developer Console
             </div>
 
-            <h1 className="mt-6 text-5xl font-semibold tracking-[-0.05em] text-[var(--portal-fg)]">
-              Sign in to the Pivota Developer Portal
-            </h1>
             <p className="mt-5 max-w-lg text-base leading-7 text-[var(--portal-fg-muted)]">
               Production-ready access to API keys, usage, webhooks, orders, docs, and operational visibility for external integrations.
             </p>
@@ -105,7 +102,7 @@ export default function AgentLoginPage() {
             </div>
 
             <div className="mt-8">
-              <h2 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--portal-fg)]">Sign in</h2>
+              <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--portal-fg)]">Sign in</h1>
               <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
                 Use your developer account to manage keys, review usage, and monitor production integrations.
               </p>
