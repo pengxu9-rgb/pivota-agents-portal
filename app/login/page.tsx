@@ -91,7 +91,7 @@ export default function AgentLoginPage() {
           </div>
         </section>
 
-        <section className="mx-auto flex w-full max-w-md flex-col justify-center">
+        <section className="mx-auto flex w-full max-w-md flex-col justify-center lg:ml-0 lg:mr-auto">
           <div className="rounded-[28px] border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] p-7 shadow-[var(--portal-shadow-overlay)] sm:p-8">
             <div className="flex items-center gap-3">
               <span className="pv-logo pv-logo--gradient pv-logo--lg" aria-hidden="true" />
