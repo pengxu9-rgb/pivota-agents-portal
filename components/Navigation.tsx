@@ -209,7 +209,12 @@ export default function Navigation() {
             <span className="pv-logo pv-logo--gradient pv-logo--md" aria-hidden="true" />
             {!collapsed ? (
               <div className="min-w-0">
-                <p className="pv-wordmark pv-wordmark--sm truncate text-[var(--portal-sidebar-fg-strong)]">Pivota</p>
+                <p
+                  className="pv-wordmark pv-wordmark--sm truncate"
+                  style={{ color: 'var(--portal-sidebar-fg-strong)' }}
+                >
+                  Pivota
+                </p>
                 <p className="truncate text-xs text-slate-400">Developer Portal</p>
               </div>
             ) : null}
