@@ -828,7 +828,7 @@ class AgentApiClient {
   }
 
   async forgotPassword(email: string) {
-    const response = await this.client.post('/api/auth/forgot-password', { email });
+    const response = await this.client.post('/api/auth/forgot-password', { email, portal: 'agent' });
     return response.data;
   }
 
