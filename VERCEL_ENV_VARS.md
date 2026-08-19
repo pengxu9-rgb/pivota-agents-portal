@@ -36,3 +36,12 @@ console.log(process.env.NEXT_PUBLIC_API_URL);
 ## Note
 
 The portal now expects a branded public API hostname rather than an infrastructure hostname. Set this before deploying the cutover.
+
+## Hosted agent doors (optional)
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_COMMERCE_MCP_URL` | `https://commerce.mcp.pivota.cc` | Origin of the UCP (`/ucp/mcp`) and native (`/mcp`) commerce doors shown in Docs → Agent doors. |
+| `NEXT_PUBLIC_PUBLIC_READ_MCP_URL` | `https://mcp.pivota.cc` | Origin of the anonymous public read door. |
+
+Both fall back to their branded default when unset or when set to a `*.up.railway.app` host.

@@ -450,7 +450,7 @@ export default function DocsPage() {
 
             <div className="grid gap-6 xl:grid-cols-2">
               <SurfaceCard className="p-5">
-                <SectionHeader title="1. List the tools" description="Replace the placeholder with the key from API keys. A 200 with six tools means you are connected." />
+                <SectionHeader title="1. List the tools" description="Replace the placeholder with the key from API keys. A 200 with a tools array means you are connected." />
                 <div className="mt-5">
                   <CodePanel code={DOOR_EXAMPLES.ucpToolsList} language="curl" />
                 </div>
@@ -484,7 +484,7 @@ export default function DocsPage() {
             <SurfaceCard className="p-5">
               <SectionHeader
                 title="Buyer identity for checkout"
-                description="Search and reads need only your key. create_checkout, update_checkout, get_checkout and complete_checkout are refused with USER_AUTH_REQUIRED until the call carries a verified end user. Use OAuth: your agent registers once, then each user signs in with Pivota and you hold a per-user token."
+                description="Catalog and insights reads run on your key alone. Everything under checkout and orders — create/update/get/complete_checkout on UCP, and get_order, request_after_sales, cancel_checkout_session, create_payment_link on the native door — is refused with USER_AUTH_REQUIRED until the call carries a verified end user. Use OAuth: your agent registers once, then each user signs in with Pivota and you hold a per-user token."
               />
               <div className="mt-5 grid gap-4 xl:grid-cols-3">
                 <div className="space-y-3">
@@ -505,6 +505,9 @@ export default function DocsPage() {
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Exchange, then call with Bearer</p>
                   <CodePanel code={DOOR_EXAMPLES.oauthToken} language="curl" />
                   <CodePanel code={DOOR_EXAMPLES.bearerCall} language="curl" />
+                  <p className="text-sm leading-6 text-[var(--portal-fg-muted)]">
+                    Two headers matter beyond the token: <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">Mcp-Session-Id</code>, which must stay the same across create → update → complete for one checkout, and a client-generated <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">meta[&quot;idempotency-key&quot;]</code> on every state-changing call (Pivota never generates one — that is what makes a retry return the original result instead of a second quote). A bearer token gets you quote, update and read; <em>completing a charge</em> additionally requires payment authorization.
+                  </p>
                 </div>
               </div>
               <div className="mt-4 grid gap-3 xl:grid-cols-3">
@@ -540,10 +543,10 @@ export default function DocsPage() {
                 <SectionHeader title="Good to know" description="Behaviour you will see on the hosted doors." />
                 <div className="mt-5 space-y-3">
                   {[
-                    'Every tools/call answers HTTP 200; tool errors ride inside the JSON-RPC result (isError + error.code). Read the body, not the status.',
-                    'Anonymous tools/list on the UCP door is 401 by design. Read capabilities from /.well-known/ucp, then authenticate.',
+                    'Once authenticated, a tools/call answers HTTP 200 and tool errors ride inside the JSON-RPC result (isError + error.code). Read the body, not the status. An unauthenticated call is still a 401, and a door that is switched off answers 404.',
+                    'Anonymous tools/list on both authenticated doors is 401 by design. Read capabilities from /.well-known/ucp, then authenticate.',
                     'Long searches stream a heartbeat. Keep client read timeouts at 30 seconds or more.',
-                    'Default limits are 100 requests per minute and 10,000 per day per agent. Ask for a partner tier before launch traffic.',
+                    'Your REST control-plane key defaults to 100 requests per minute and 10,000 per day. Ask for a partner tier before launch traffic.',
                     'Treat API keys as server-only credentials. Keep webhook management, key rotation and order operations in this portal or your backend.',
                   ].map((item) => (
                     <div key={item} className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm leading-6 text-[var(--portal-fg-muted)]">

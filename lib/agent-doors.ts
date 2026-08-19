@@ -27,6 +27,10 @@ const KEY_PLACEHOLDER = 'ak_live_YOUR_KEY';
 export const UCP_RESOURCE = `${API_CONFIG.COMMERCE_MCP_BASE_URL}/ucp/mcp`;
 export const NATIVE_MCP_RESOURCE = `${API_CONFIG.COMMERCE_MCP_BASE_URL}/mcp`;
 
+// THESE LISTS GO STALE BY DESIGN. The page renders `door.tools.length`, never a hardcoded number, so a
+// stale list reads as fewer tools rather than a wrong count. Update them when a tool joins a door —
+// PIVOTA-Agent's canonicalContract (`ucpTool` for UCP, `mcp` for native) and publicReadToolSurface are the
+// sources; the live UCP set is readable unauthenticated at https://commerce.mcp.pivota.cc/.well-known/ucp.
 export const UCP_TOOLS = ['search_catalog', 'get_product', 'create_checkout', 'update_checkout', 'get_checkout', 'complete_checkout'];
 
 export const NATIVE_MCP_TOOLS = [
@@ -68,7 +72,7 @@ export const agentDoors: AgentDoor[] = [
     transport: 'MCP over HTTPS (JSON-RPC), Pivota-native tool names',
     auth: 'X-Agent-API-Key: ak_live_… — or an OAuth bearer token for checkout',
     bestFor:
-      'Agents that want the full surface: search and product reads plus the decision layer (alternatives, cross-merchant offers, reviewed intel), payment links, orders and after-sales.',
+      'Agents that want the full surface: search and product reads plus the decision layer (alternatives, cross-merchant offers, reviewed intel), payment links, orders and after-sales. Everything under checkout and orders needs a verified end user; catalog and insights reads run on the key alone.',
     tools: NATIVE_MCP_TOOLS,
     discovery: [{ label: 'Protected-resource metadata', href: `${API_CONFIG.COMMERCE_MCP_BASE_URL}/.well-known/oauth-protected-resource/mcp` }],
   },
@@ -112,7 +116,7 @@ export const DOOR_EXAMPLES = {
         query: 'niacinamide serum for sensitive skin',
         pagination: { limit: 10 },
         context: { currency: 'USD' },
-        filters: { price: { minimum: 500, maximum: 6000 }, available: true },
+        filters: { price: { min: 500, max: 6000 }, available: true },
       },
     },
   })}'`,
@@ -155,9 +159,13 @@ export const DOOR_EXAMPLES = {
   bearerCall: `curl -sS ${UCP_RESOURCE} \\
   -H "Content-Type: application/json" \\
   -H "Authorization: Bearer ACCESS_TOKEN_FOR_THIS_USER" \\
+  -H "Mcp-Session-Id: YOUR_STABLE_SESSION_ID" \\
   --data '${jsonRpc(5, 'tools/call', {
     name: 'create_checkout',
-    arguments: { meta: {}, checkout: { line_items: [{ item: { id: 'sig_PRODUCT_ID' }, quantity: 1 }] } },
+    arguments: {
+      meta: { 'idempotency-key': 'YOUR_UNIQUE_KEY' },
+      checkout: { line_items: [{ item: { id: 'sig_PRODUCT_ID' }, quantity: 1 }] },
+    },
   })}'`,
 
   localStdio: `{
