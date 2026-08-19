@@ -521,8 +521,8 @@ export default function DocsPage() {
                   </a>
                   .
                 </div>
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-800">
-                  Bringing your own user identity (your JWKS registered here, users never leave your UI) is on the roadmap. Until then, OAuth is the checkout path. Contact us if you need it for a launch.
+                <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                  Own your users? Register your token issuer under Settings → Buyer identity and send your own user token as <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">X-Agent-User-JWT</code> next to your API key — no Pivota sign-in page. OAuth stays available for agents without their own identity.
                 </div>
               </div>
             </SurfaceCard>

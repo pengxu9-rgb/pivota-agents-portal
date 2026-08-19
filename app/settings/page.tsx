@@ -10,6 +10,7 @@ import PageHeader from '@/components/portal/PageHeader';
 import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
+import BuyerIdentityIssuers from '@/components/portal/BuyerIdentityIssuers';
 import { agentApi } from '@/lib/api-client';
 
 function validatePassword(password: string): string | null {
@@ -231,7 +232,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Settings"
-        description="Account, webhook, and security settings that support your production integration."
+        description="Account, buyer identity, webhook, and security settings that support your production integration."
         badge={<StatusBadge tone="production">Production</StatusBadge>}
         actions={
           <button
@@ -443,6 +444,8 @@ export default function SettingsPage() {
             </form>
           </SurfaceCard>
         </div>
+
+        <BuyerIdentityIssuers />
       </div>
 
       <ConfirmDialog
