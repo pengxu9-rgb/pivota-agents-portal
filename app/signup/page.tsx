@@ -256,7 +256,7 @@ export default function AgentSignup() {
             <div className="mt-6 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 lg:hidden">
               <p className="text-sm font-medium text-[var(--portal-fg)]">What to expect</p>
               <p className="mt-1 text-sm leading-6 text-[var(--portal-fg-muted)]">
-                Register once per production surface, receive a one-time API key handoff when available, then continue into the portal to manage keys and operational controls.
+                Register once, receive your API key (shown a single time), then connect your agent to the hosted UCP or MCP door — or the REST API — and manage keys, usage and webhooks from the portal.
               </p>
             </div>
 

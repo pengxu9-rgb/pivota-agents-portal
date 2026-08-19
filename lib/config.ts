@@ -33,6 +33,18 @@ export function getAgentApiV1BaseUrl(): string {
   return `${getPublicApiBaseUrl()}/agent/v1`;
 }
 
+const DEFAULT_COMMERCE_MCP_BASE_URL = 'https://commerce.mcp.pivota.cc';
+const DEFAULT_PUBLIC_READ_MCP_BASE_URL = 'https://mcp.pivota.cc';
+
+// Hosted agent doors live on the commerce gateway, a different origin from the REST control plane.
+export function getCommerceMcpBaseUrl(): string {
+  return normalizeBaseUrl(process.env.NEXT_PUBLIC_COMMERCE_MCP_URL || DEFAULT_COMMERCE_MCP_BASE_URL);
+}
+
+export function getPublicReadMcpBaseUrl(): string {
+  return normalizeBaseUrl(process.env.NEXT_PUBLIC_PUBLIC_READ_MCP_URL || DEFAULT_PUBLIC_READ_MCP_BASE_URL);
+}
+
 export function getBackendDocsBaseUrl(): string {
   return `${getPublicApiBaseUrl()}/docs`;
 }
@@ -53,6 +65,12 @@ export const API_CONFIG = {
   },
   get OPENAPI_URL() {
     return getBackendOpenApiUrl();
+  },
+  get COMMERCE_MCP_BASE_URL() {
+    return getCommerceMcpBaseUrl();
+  },
+  get PUBLIC_READ_MCP_BASE_URL() {
+    return getPublicReadMcpBaseUrl();
   },
   DEFAULT_PUBLIC_API_BASE_URL,
   TIMEOUT: 30000,
