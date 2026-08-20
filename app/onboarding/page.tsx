@@ -52,8 +52,8 @@ export default function OnboardingPage() {
         {
           id: 'request',
           title: 'Send your first authenticated request',
-          description: 'Confirm that the API key and base URL work from your environment.',
-          href: '/docs?tab=quickstart',
+          description: 'Confirm the key works from your environment: tools/list on the UCP or MCP door, or a REST call.',
+          href: '/docs?tab=mcp',
           done: (metrics?.overview?.total_requests ?? 0) > 0,
         },
         {

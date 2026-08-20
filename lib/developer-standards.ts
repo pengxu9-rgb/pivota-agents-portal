@@ -2,29 +2,31 @@ export type DeveloperStandardDefinition = {
   id: string;
   label: string;
   kind: 'channel_standard' | 'protocol_layer';
-  status: 'partner_access' | 'internal_beta';
+  status: 'live' | 'partner_access' | 'internal_beta';
   audience: 'external_partners' | 'technical_partners_internal';
   availability: string;
   summary: string;
   purpose: string;
   relationToApi: string;
   contactHref?: string;
+  docsHref?: string;
 };
 
 export const developerStandards: DeveloperStandardDefinition[] = [
   {
-    id: 'google_ucp',
-    label: 'Google UCP',
+    id: 'ucp',
+    label: 'UCP (Universal Commerce Protocol)',
     kind: 'channel_standard',
-    status: 'partner_access',
+    status: 'live',
     audience: 'external_partners',
-    availability: 'Limited availability',
-    summary: 'Google UCP support is available through partner onboarding and staged rollout for approved integrations.',
+    availability: 'Self-serve with your portal API key',
+    summary:
+      'Pivota runs a hosted UCP seller door. Any UCP-speaking agent or platform can discover it from /.well-known/ucp, search and read the catalog with the key from this portal, and run checkout once a buyer is identified.',
     purpose:
-      'Use Google UCP when a partner-approved distribution or catalog standard needs to sit on top of Pivota-managed commerce flows.',
+      'Use UCP when your agent already speaks the spec or you want spec-shaped catalog and checkout responses that work the same across every UCP merchant you connect to.',
     relationToApi:
-      'Google UCP is not a default REST integration path. Keep order operations, API keys, and webhooks on the core Pivota APIs, then layer Google UCP on top when onboarding is approved.',
-    contactHref: 'mailto:contact@pivota.cc?subject=Google%20UCP%20Partner%20Access',
+      'The UCP door and the native MCP door share one executor, one catalog, and one set of money safeguards. Keep key management, webhooks, orders and analytics on the REST control plane.',
+    docsHref: '/docs?tab=mcp',
   },
   {
     id: 'acp',
