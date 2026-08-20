@@ -456,6 +456,41 @@ class AgentApiClient {
     return response.data;
   }
 
+  // ── Federated buyer identity (bring your own users) ────────────────────────
+  async getIdentityIssuers() {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+    const response = await this.client.get(`/agents/${agentId}/identity-issuers`);
+    return response.data;
+  }
+
+  async registerIdentityIssuer(payload: {
+    issuer: string;
+    jwks_uri: string;
+    audience: string;
+    algs?: string[];
+    authorized_party?: string | null;
+    required_scopes?: string[] | null;
+  }) {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+    const response = await this.client.put(`/agents/${agentId}/identity-issuers`, payload);
+    return response.data;
+  }
+
+  async disableIdentityIssuer(issuerId: number) {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw new Error('Agent ID not found');
+    }
+    const response = await this.client.delete(`/agents/${agentId}/identity-issuers/${issuerId}`);
+    return response.data;
+  }
+
   async getWebhookConfig() {
     const agentId = this.getStoredAgentId();
     if (!agentId) {
