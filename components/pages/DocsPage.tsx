@@ -16,18 +16,18 @@ import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
 import { API_CONFIG } from '@/lib/config';
 import { developerStandards } from '@/lib/developer-standards';
-import { DOOR_EXAMPLES, OAUTH_METADATA_URL, agentDoors } from '@/lib/agent-doors';
+import { DOOR_EXAMPLES, OAUTH_METADATA_URL, UCP_RESOURCE, agentDoors } from '@/lib/agent-doors';
 
 const API_BASE = API_CONFIG.AGENT_API_V1_BASE_URL;
 
 const SDK_EXAMPLES = {
   python: {
     install: 'pip install pivota-agent',
-    quickstart: `from pivota_agent import PivotaAgentClient\nimport requests\n\nAPI_BASE = "${API_BASE}"\nAPI_KEY = "YOUR_API_KEY"\nMERCHANT_ID = "merch_xxx"\n\nclient = PivotaAgentClient(api_key=API_KEY, base_url=API_BASE)\nsearch = client.search_products(query="coffee mug", merchant_id=MERCHANT_ID, limit=5)\nproduct_id = search["products"][0]["id"]\n\ncart = requests.post(\n    f"{API_BASE}/cart/validate?merchant_id={MERCHANT_ID}&shipping_country=US",\n    headers={"X-API-Key": API_KEY},\n    json=[{"product_id": product_id, "quantity": 1}],\n    timeout=30,\n)\nvariant_id = cart.json()["items"][0]["variant_id"]\n\nintent = requests.post(\n    f"{API_BASE}/checkout/intents",\n    headers={"X-API-Key": API_KEY},\n    json={\n        "items": [{\n            "product_id": product_id,\n            "variant_id": variant_id,\n            "merchant_id": MERCHANT_ID,\n            "quantity": 1,\n        }],\n        "return_url": "https://developer.pivota.cc/return",\n        "buyer_ref": "guest:YOUR_UUID",\n    },\n    timeout=30,\n)\nprint(intent.json()["checkout_url"])`,
+    quickstart: `from pivota_agent import PivotaAgentClient\nimport requests\n\nAPI_BASE = "${API_BASE}"\nAPI_KEY = "YOUR_API_KEY"\nMERCHANT_ID = "merch_xxx"\n\nclient = PivotaAgentClient(api_key=API_KEY, base_url=API_BASE)\nsearch = client.search_products(query="coffee mug", merchant_id=MERCHANT_ID, limit=5)\nproduct_id = search["products"][0]["id"]\n\ncart = requests.post(\n    f"{API_BASE}/cart/validate?merchant_id={MERCHANT_ID}&shipping_country=US",\n    headers={"X-API-Key": API_KEY},\n    json=[{"product_id": product_id, "quantity": 1}],\n    timeout=30,\n)\nvariant_id = cart.json()["items"][0]["variant_id"]\n\n# A live quote is required before checkout: it re-prices against the merchant.\nquote = requests.post(\n    f"{API_BASE}/quotes/preview",\n    headers={"X-API-Key": API_KEY},\n    json={\n        "merchant_id": MERCHANT_ID,\n        "items": [{"product_id": product_id, "variant_id": variant_id, "quantity": 1}],\n    },\n    timeout=30,\n)\nquote_id = quote.json()["quote_id"]\n\nintent = requests.post(\n    f"{API_BASE}/checkout/intents",\n    headers={"X-API-Key": API_KEY},\n    json={\n        "quote_id": quote_id,\n        "items": [{\n            "product_id": product_id,\n            "variant_id": variant_id,\n            "merchant_id": MERCHANT_ID,\n            "quantity": 1,\n        }],\n        "return_url": "https://developer.pivota.cc/return",\n        "buyer_ref": "guest:YOUR_UUID",\n    },\n    timeout=30,\n)\nprint(intent.json()["checkout_url"])`,
   },
   typescript: {
     install: 'npm install pivota-agent axios',
-    quickstart: `import axios from 'axios';\nimport { PivotaAgentClient } from 'pivota-agent';\n\nconst API_BASE = '${API_BASE}';\nconst API_KEY = 'YOUR_API_KEY';\nconst MERCHANT_ID = 'merch_xxx';\n\nconst client = new PivotaAgentClient({ apiKey: API_KEY, baseUrl: API_BASE });\nconst search = await client.searchProducts({ query: 'coffee mug', merchant_id: MERCHANT_ID, limit: 5 });\nconst productId = search.products[0].id;\n\nconst cart = await axios.post(\n  \`${API_BASE}/cart/validate?merchant_id=\${MERCHANT_ID}&shipping_country=US\`,\n  [{ product_id: productId, quantity: 1 }],\n  { headers: { 'X-API-Key': API_KEY } },\n);\n\nconst variantId = cart.data.items[0].variant_id;\n\nconst intent = await axios.post(\n  \`${API_BASE}/checkout/intents\`,\n  {\n    items: [{ product_id: productId, variant_id: variantId, merchant_id: MERCHANT_ID, quantity: 1 }],\n    return_url: 'https://developer.pivota.cc/return',\n    buyer_ref: 'guest:YOUR_UUID',\n  },\n  { headers: { 'X-API-Key': API_KEY } },\n);\n\nconsole.log(intent.data.checkout_url);`,
+    quickstart: `import axios from 'axios';\nimport { PivotaAgentClient } from 'pivota-agent';\n\nconst API_BASE = '${API_BASE}';\nconst API_KEY = 'YOUR_API_KEY';\nconst MERCHANT_ID = 'merch_xxx';\n\nconst client = new PivotaAgentClient({ apiKey: API_KEY, baseUrl: API_BASE });\nconst search = await client.searchProducts({ query: 'coffee mug', merchant_id: MERCHANT_ID, limit: 5 });\nconst productId = search.products[0].id;\n\nconst cart = await axios.post(\n  \`${API_BASE}/cart/validate?merchant_id=\${MERCHANT_ID}&shipping_country=US\`,\n  [{ product_id: productId, quantity: 1 }],\n  { headers: { 'X-API-Key': API_KEY } },\n);\n\nconst variantId = cart.data.items[0].variant_id;\n\n// A live quote is required before checkout: it re-prices against the merchant.\nconst quote = await axios.post(\n  \`${API_BASE}/quotes/preview\`,\n  { merchant_id: MERCHANT_ID, items: [{ product_id: productId, variant_id: variantId, quantity: 1 }] },\n  { headers: { 'X-API-Key': API_KEY } },\n);\n\nconst intent = await axios.post(\n  \`${API_BASE}/checkout/intents\`,\n  {\n    quote_id: quote.data.quote_id,\n    items: [{ product_id: productId, variant_id: variantId, merchant_id: MERCHANT_ID, quantity: 1 }],\n    return_url: 'https://developer.pivota.cc/return',\n    buyer_ref: 'guest:YOUR_UUID',\n  },\n  { headers: { 'X-API-Key': API_KEY } },\n);\n\nconsole.log(intent.data.checkout_url);`,
   },
 };
 
@@ -327,7 +327,7 @@ export default function DocsPage() {
               </SurfaceCard>
 
               <SurfaceCard className="p-5">
-                <SectionHeader title="SDK quickstart" description="Search, validate, then create a hosted checkout session." />
+                <SectionHeader title="SDK quickstart" description="Search, validate, quote, then create a hosted checkout session for one merchant. This is the REST lane; its quotes and checkouts do not carry over to the MCP doors." />
                 <div className="mt-5">
                   <CodePanel code={SDK_EXAMPLES[selectedLanguage].quickstart} language={selectedLanguage} />
                 </div>
@@ -446,6 +446,12 @@ export default function DocsPage() {
                   </div>
                 ))}
               </div>
+              <div className="mt-4 rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                <p className="font-semibold text-[var(--portal-fg)]">Discovery and checkout use the same endpoint.</p>
+                <p className="mt-1">
+                  Pick one door and do the whole journey there. On the UCP door, <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">search_catalog</code> and <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">get_product</code> and then <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">create_checkout</code> → <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">update_checkout</code> → <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">complete_checkout</code> are all calls to <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">{UCP_RESOURCE}</code>. A checkout started on one door cannot be continued on another, and the REST purchase lane (cart/validate → quotes/preview → checkout/intents) is a separate flow with its own quotes. Discovery works on your key alone; checkout also needs a verified end user (below).
+                </p>
+              </div>
             </SurfaceCard>
 
             <div className="grid gap-6 xl:grid-cols-2">
@@ -484,7 +490,7 @@ export default function DocsPage() {
             <SurfaceCard className="p-5">
               <SectionHeader
                 title="Buyer identity for checkout"
-                description="Catalog and insights reads run on your key alone. Everything under checkout and orders — create/update/get/complete_checkout on UCP, and get_order, request_after_sales, cancel_checkout_session, create_payment_link on the native door — is refused with USER_AUTH_REQUIRED until the call carries a verified end user. Use OAuth: your agent registers once, then each user signs in with Pivota and you hold a per-user token."
+                description="Catalog and insights reads run on your key alone. Everything under checkout and orders — create/update/get/complete_checkout on UCP, and get_order, request_after_sales, cancel_checkout_session, create_payment_link on the native door — is refused with USER_AUTH_REQUIRED until the call carries a verified end user and a verified checkout session. There are two ways to provide them. If your agent already signs in its own users, send your own user token (next section). Otherwise use Pivota OAuth: your agent registers once, then each user signs in with Pivota and you hold a per-user token."
               />
               <div className="mt-5 grid gap-4 xl:grid-cols-3">
                 <div className="space-y-3">
@@ -506,7 +512,7 @@ export default function DocsPage() {
                   <CodePanel code={DOOR_EXAMPLES.oauthToken} language="curl" />
                   <CodePanel code={DOOR_EXAMPLES.bearerCall} language="curl" />
                   <p className="text-sm leading-6 text-[var(--portal-fg-muted)]">
-                    Two headers matter beyond the token: <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">Mcp-Session-Id</code>, which must stay the same across create → update → complete for one checkout, and a client-generated <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">meta[&quot;idempotency-key&quot;]</code> on every state-changing call (Pivota never generates one — that is what makes a retry return the original result instead of a second quote). A bearer token gets you quote, update and read; <em>completing a charge</em> additionally requires payment authorization.
+                    Two things matter beyond the token: the <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">Mcp-Session-Id</code> header, which must stay the same across create → update → complete for one checkout (on the OAuth path only; your own user token carries the session as a claim instead, see below), and a client-generated <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">meta[&quot;idempotency-key&quot;]</code> on every state-changing call (Pivota never generates one — that is what makes a retry return the original result instead of a second quote). A bearer token gets you quote, update and read; <em>completing a charge</em> additionally requires payment authorization.
                   </p>
                 </div>
               </div>
@@ -522,7 +528,28 @@ export default function DocsPage() {
                   .
                 </div>
                 <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm leading-6 text-[var(--portal-fg-muted)]">
-                  Own your users? Register your token issuer under Settings → Buyer identity and send your own user token as <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">X-Agent-User-JWT</code> next to your API key — no Pivota sign-in page. OAuth stays available for agents without their own identity.
+                  Own your users? Skip OAuth: send your own user token as <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">X-Agent-User-JWT</code> next to your API key. See “Bring your own users” below.
+                </div>
+              </div>
+            </SurfaceCard>
+
+            <SurfaceCard className="p-5">
+              <SectionHeader
+                title="Bring your own users (no Pivota sign-in)"
+                description="For agents that already authenticate their own users. Register your token issuer once under Settings → Buyer identity; then every checkout call carries your API key plus a user token you sign."
+              />
+              <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                <CodePanel code={DOOR_EXAMPLES.federatedCall} language="curl" />
+                <div className="space-y-3 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                  <p>
+                    The token must carry <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">iss</code> (exactly as registered), <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">sub</code>, <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">aud</code> (<code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">{UCP_RESOURCE}</code> for the UCP door), <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">exp</code>, <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">iat</code>, and a <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">kid</code> in its header that is present in your JWKS.
+                  </p>
+                  <p>
+                    <span className="font-semibold text-[var(--portal-fg)]">Session claim (required for checkout):</span> put a stable id for this checkout in <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">sid</code> (also read: <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">session_id</code>, <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">acp_session_id</code>) and keep it identical on create, update, get and complete. Without it the call is refused with USER_AUTH_REQUIRED. On this path the <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">Mcp-Session-Id</code> header is not read.
+                  </p>
+                  <p>
+                    Send a client-generated <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">meta[&quot;idempotency-key&quot;]</code> (8+ characters) on every state-changing call. Include <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">email</code> + <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">email_verified: true</code> to have the buyer email attested.
+                  </p>
                 </div>
               </div>
             </SurfaceCard>

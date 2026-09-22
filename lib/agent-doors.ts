@@ -30,8 +30,19 @@ export const NATIVE_MCP_RESOURCE = `${API_CONFIG.COMMERCE_MCP_BASE_URL}/mcp`;
 // THESE LISTS GO STALE BY DESIGN. The page renders `door.tools.length`, never a hardcoded number, so a
 // stale list reads as fewer tools rather than a wrong count. Update them when a tool joins a door —
 // PIVOTA-Agent's canonicalContract (`ucpTool` for UCP, `mcp` for native) and publicReadToolSurface are the
-// sources; the live UCP set is readable unauthenticated at https://commerce.mcp.pivota.cc/.well-known/ucp.
-export const UCP_TOOLS = ['search_catalog', 'get_product', 'create_checkout', 'update_checkout', 'get_checkout', 'complete_checkout'];
+// sources. /.well-known/ucp (unauthenticated) lists the door's capabilities; the tool names need an authenticated tools/list.
+// get_alternatives / get_offers / get_intel carry a ucpTool (vendor cc.pivota.insights capability), so they are on the UCP door too.
+export const UCP_TOOLS = [
+  'search_catalog',
+  'get_product',
+  'get_alternatives',
+  'get_offers',
+  'get_intel',
+  'create_checkout',
+  'update_checkout',
+  'get_checkout',
+  'complete_checkout',
+];
 
 export const NATIVE_MCP_TOOLS = [
   'search_catalog',
@@ -57,8 +68,8 @@ export const agentDoors: AgentDoor[] = [
     label: 'UCP door',
     endpoint: UCP_RESOURCE,
     transport: 'MCP over HTTPS (JSON-RPC), UCP 2026-04-08 tool names and argument shapes',
-    auth: 'X-Agent-API-Key: ak_live_… — or an OAuth bearer token for checkout (see Buyer identity)',
-    bestFor: 'Agents and platforms that speak the Universal Commerce Protocol: spec-shaped catalog search, product lookup, checkout and fulfillment.',
+    auth: 'X-Agent-API-Key: ak_live_… — plus a verified end user for checkout: your own X-Agent-User-JWT, or a Pivota OAuth bearer token (see Buyer identity)',
+    bestFor: 'Agents and platforms that speak the Universal Commerce Protocol. Discovery and checkout are both on this one endpoint: spec-shaped catalog search, product lookup, the decision layer, checkout and fulfillment.',
     tools: UCP_TOOLS,
     discovery: [
       { label: 'UCP profile', href: `${API_CONFIG.COMMERCE_MCP_BASE_URL}/.well-known/ucp` },
@@ -70,7 +81,7 @@ export const agentDoors: AgentDoor[] = [
     label: 'Native MCP door',
     endpoint: NATIVE_MCP_RESOURCE,
     transport: 'MCP over HTTPS (JSON-RPC), Pivota-native tool names',
-    auth: 'X-Agent-API-Key: ak_live_… — or an OAuth bearer token for checkout',
+    auth: 'X-Agent-API-Key: ak_live_… — plus a verified end user for checkout: your own X-Agent-User-JWT, or a Pivota OAuth bearer token',
     bestFor:
       'Agents that want the full surface: search and product reads plus the decision layer (alternatives, cross-merchant offers, reviewed intel), payment links, orders and after-sales. Everything under checkout and orders needs a verified end user; catalog and insights reads run on the key alone.',
     tools: NATIVE_MCP_TOOLS,
@@ -91,7 +102,7 @@ export const agentDoors: AgentDoor[] = [
     endpoint: API_CONFIG.AGENT_API_V1_BASE_URL,
     transport: 'HTTPS / JSON',
     auth: 'X-API-Key: ak_live_…',
-    bestFor: 'Merchants you are authorized for, orders, after-sales, webhooks, usage and analytics — the operational surface behind the agent doors.',
+    bestFor: 'Merchants you are authorized for, orders, after-sales, webhooks, usage and analytics — the operational surface behind the agent doors. It also has its own per-merchant purchase lane (cart/validate → quotes/preview → checkout/intents, see SDK). That lane is separate: do not finish a checkout here for a product you quoted on an MCP door, or the reverse.',
     tools: [],
   },
 ];
@@ -161,6 +172,18 @@ export const DOOR_EXAMPLES = {
   -H "Authorization: Bearer ACCESS_TOKEN_FOR_THIS_USER" \\
   -H "Mcp-Session-Id: YOUR_STABLE_SESSION_ID" \\
   --data '${jsonRpc(5, 'tools/call', {
+    name: 'create_checkout',
+    arguments: {
+      meta: { 'idempotency-key': 'YOUR_UNIQUE_KEY' },
+      checkout: { line_items: [{ item: { id: 'sig_PRODUCT_ID' }, quantity: 1 }] },
+    },
+  })}'`,
+
+  federatedCall: `curl -sS ${UCP_RESOURCE} \\
+  -H "Content-Type: application/json" \\
+  -H "X-Agent-API-Key: ${KEY_PLACEHOLDER}" \\
+  -H "X-Agent-User-JWT: USER_TOKEN_SIGNED_BY_YOUR_ISSUER" \\
+  --data '${jsonRpc(6, 'tools/call', {
     name: 'create_checkout',
     arguments: {
       meta: { 'idempotency-key': 'YOUR_UNIQUE_KEY' },
