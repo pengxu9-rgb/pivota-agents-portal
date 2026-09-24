@@ -29,11 +29,25 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## Deploy
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Production (`developer.pivota.cc`, `agents.pivota.cc`) is the Cloud Run service `agents-portal`
+(GCP project `pivota-prod`, region `us-west1`), behind the `pivota-urlmap` load balancer. Merging does
+**not** deploy it: Vercel still builds pushes and PR previews, but it serves neither host. Deploy by hand from a clean checkout of the merged commit on `main` (the upload is the
+working tree minus `.gitignore`d paths, so uncommitted edits would ship):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+gcloud builds submit --region us-west1 --config cloudbuild.yaml --substitutions _TAG=$(git rev-parse --short HEAD) .
+```
+
+```bash
+gcloud run deploy agents-portal --region us-west1 --image us-west1-docker.pkg.dev/pivota-prod/cloud-run-source-deploy/agents-portal:<sha>
+```
+
+`NEXT_PUBLIC_API_URL` (`https://api.pivota.cc`, set as `_API_URL` in `cloudbuild.yaml`) is a Docker
+**build arg**, not a Cloud Run env var: Next.js inlines it into the client bundle and the
+`/developers/docs` rewrites at build time, so changing it on the service does nothing until a rebuild.
+`output: "standalone"` in `next.config.ts` is what produces the `server.js` the Dockerfile runs.
 
 ## Brand System
 
