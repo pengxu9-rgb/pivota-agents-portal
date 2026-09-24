@@ -15,6 +15,8 @@ const normalizePublicApiBaseUrl = (value?: string) => {
 const publicApiBaseUrl = normalizePublicApiBaseUrl(process.env.NEXT_PUBLIC_API_URL)
 
 const nextConfig: NextConfig = {
+  // Cloud Run: self-contained server bundle (.next/standalone/server.js)
+  output: "standalone",
   outputFileTracingRoot: resolve(process.cwd()),
   async rewrites() {
     return [
