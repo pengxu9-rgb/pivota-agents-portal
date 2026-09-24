@@ -867,6 +867,14 @@ class AgentApiClient {
     return response.data;
   }
 
+  async resetPassword(token: string, newPassword: string) {
+    const response = await this.client.post('/api/auth/reset-password', {
+      token,
+      new_password: newPassword,
+    });
+    return response.data;
+  }
+
   async resetApiKey() {
     const agentId = this.getStoredAgentId();
     if (!agentId) {
