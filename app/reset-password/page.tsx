@@ -7,12 +7,15 @@ import { ArrowLeft, KeyRound, Loader2 } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
 
 // Mirrors the backend's _validate_password_strength so the user sees the rule
-// before the round trip; the backend still enforces it.
+// before the round trip; the backend still enforces it. The classes follow Python's
+// isupper/islower (the Uppercase/Lowercase properties) and are a superset of
+// isdigit, so a password the backend accepts, e.g. one with an accented capital,
+// is never blocked here; anything looser is still rejected server-side.
 function validatePassword(password: string): string | null {
-  if (password.length < 8) return 'Password must be at least 8 characters long';
-  if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
-  if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
-  if (!/[0-9]/.test(password)) return 'Password must contain at least one digit';
+  if (Array.from(password).length < 8) return 'Password must be at least 8 characters long';
+  if (!/\p{Uppercase}/u.test(password)) return 'Password must contain at least one uppercase letter';
+  if (!/\p{Lowercase}/u.test(password)) return 'Password must contain at least one lowercase letter';
+  if (!/[\p{Nd}\p{No}]/u.test(password)) return 'Password must contain at least one digit';
   return null;
 }
 
@@ -55,10 +58,14 @@ function ResetPasswordForm() {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  // Only a backend rejection (bad, expired or used token) is fixed by a new link;
+  // a mismatch or weak password is fixed by retyping.
+  const [tokenRejected, setTokenRejected] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
+    setTokenRejected(false);
 
     if (!token) {
       setError('This reset link is missing its token. Request a new reset link.');
@@ -77,10 +84,14 @@ function ResetPasswordForm() {
     setSubmitting(true);
     try {
       await agentApi.resetPassword(token, newPassword);
+      // Drop any session still cached in this browser, possibly another account's,
+      // so the next sign-in starts clean.
+      agentApi.logout();
       setDone(true);
       setTimeout(() => router.push('/login'), 1500);
     } catch (requestError: any) {
       setError(describeError(requestError));
+      setTokenRejected(true);
     } finally {
       setSubmitting(false);
     }
@@ -123,10 +134,15 @@ function ResetPasswordForm() {
 
           {error && token ? (
             <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-              {error}{' '}
-              <Link href="/forgot-password" className="font-medium underline">
-                Request a new link
-              </Link>
+              {error}
+              {tokenRejected ? (
+                <>
+                  {' '}
+                  <Link href="/forgot-password" className="font-medium underline">
+                    Request a new link
+                  </Link>
+                </>
+              ) : null}
             </div>
           ) : null}
 
