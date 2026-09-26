@@ -25,8 +25,12 @@ const nextConfig: NextConfig = {
         destination: `${publicApiBaseUrl}/docs`,
       },
       {
+        // Straight to where the spec lives. The backend's /openapi.json now answers
+        // 307 with a RELATIVE `Location: /agent/docs/openapi.json`; proxied through
+        // this rewrite, the browser resolved that against developer.pivota.cc and
+        // landed on a 404 (seen 2026-09-26).
         source: "/developers/openapi.json",
-        destination: `${publicApiBaseUrl}/openapi.json`,
+        destination: `${publicApiBaseUrl}/agent/docs/openapi.json`,
       },
       {
         source: "/developers/docs/:path*",
