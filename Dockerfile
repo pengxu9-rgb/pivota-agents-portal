@@ -12,8 +12,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # NEXT_PUBLIC_API_URL is needed at BUILD time: next.config.ts computes the
 # /developers/docs rewrite destinations from it and bakes them into the routes
-# manifest, and it is inlined into the client bundle.
-ARG NEXT_PUBLIC_API_URL
+# manifest, and it is inlined into the client bundle. The default IS the production
+# value, so the deploy workflow, the PR build and a hand-run build all agree.
+ARG NEXT_PUBLIC_API_URL=https://api.pivota.cc
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
