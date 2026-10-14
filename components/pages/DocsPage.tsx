@@ -479,7 +479,7 @@ export default function DocsPage() {
               <SurfaceCard className="p-5">
                 <SectionHeader
                   title="4. Add the decision layer (native door)"
-                  description="get_intel, get_alternatives and get_offers return reviewed reasons, alternatives and cross-merchant offers for a product you already found."
+                  description="get_intel, get_alternatives and get_offers return reviewed reasons, alternatives and cross-merchant offers for a product you already found. When the buyer describes a need instead of naming a product, recommend_products returns a ranked shortlist with the reasons each one fits."
                 />
                 <div className="mt-5">
                   <CodePanel code={DOOR_EXAMPLES.mcpIntel} language="curl" />

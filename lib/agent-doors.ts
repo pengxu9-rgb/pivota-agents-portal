@@ -6,6 +6,7 @@ import { API_CONFIG } from '@/lib/config';
  * Every endpoint, header and tool name here was exercised against production with a
  * freshly issued portal key (2026-08-19): REST 200, /ucp/mcp tools/list → 6 tools,
  * /mcp tools/list → 13 tools, checkout without a buyer → USER_AUTH_REQUIRED.
+ * Re-read 2026-10-14 from an agent on the production native door: 14 tools, the 13 plus recommend_products.
  * Keep this file the single place those facts live; the docs page renders from it.
  */
 
@@ -32,6 +33,7 @@ export const NATIVE_MCP_RESOURCE = `${API_CONFIG.COMMERCE_MCP_BASE_URL}/mcp`;
 // PIVOTA-Agent's canonicalContract (`ucpTool` for UCP, `mcp` for native) and publicReadToolSurface are the
 // sources. /.well-known/ucp (unauthenticated) lists the door's capabilities; the tool names need an authenticated tools/list.
 // get_alternatives / get_offers / get_intel carry a ucpTool (vendor cc.pivota.insights capability), so they are on the UCP door too.
+// recommend_products has no ucpTool, so it is on the native door only.
 export const UCP_TOOLS = [
   'search_catalog',
   'get_product',
@@ -50,6 +52,7 @@ export const NATIVE_MCP_TOOLS = [
   'get_alternatives',
   'get_offers',
   'get_intel',
+  'recommend_products',
   'create_checkout_session',
   'update_checkout_session',
   'get_checkout_session',
@@ -83,7 +86,7 @@ export const agentDoors: AgentDoor[] = [
     transport: 'MCP over HTTPS (JSON-RPC), Pivota-native tool names',
     auth: 'X-Agent-API-Key: ak_live_… — plus a verified end user for checkout: your own X-Agent-User-JWT, or a Pivota OAuth bearer token',
     bestFor:
-      'Agents that want the full surface: search and product reads plus the decision layer (alternatives, cross-merchant offers, reviewed intel), payment links, orders and after-sales. Everything under checkout and orders needs a verified end user; catalog and insights reads run on the key alone.',
+      'Agents that want the full surface: search and product reads, recommendations for a need described in words, the decision layer (alternatives, cross-merchant offers, reviewed intel), payment links, orders and after-sales. Everything under checkout and orders needs a verified end user; catalog and insights reads run on the key alone.',
     tools: NATIVE_MCP_TOOLS,
     discovery: [{ label: 'Protected-resource metadata', href: `${API_CONFIG.COMMERCE_MCP_BASE_URL}/.well-known/oauth-protected-resource/mcp` }],
   },
