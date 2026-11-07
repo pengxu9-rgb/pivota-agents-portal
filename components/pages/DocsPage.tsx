@@ -33,7 +33,8 @@ const SDK_EXAMPLES = {
 
 const REST_EXAMPLES = {
   auth: `curl ${API_BASE}/merchants \\\n  -H "X-API-Key: YOUR_API_KEY"`,
-  orderCreate: `curl -X POST "${API_BASE}/orders/create" \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Key: YOUR_API_KEY" \\\n  -d '{\n    "merchant_id": "merch_...",\n    "customer_email": "buyer@example.com",\n    "items": [\n      {\n        "product_id": "prod_...",\n        "product_title": "Example Product",\n        "variant_id": "var_...",\n        "quantity": 1,\n        "unit_price": "19.99",\n        "subtotal": "19.99"\n      }\n    ],\n    "shipping_address": {\n      "name": "Alex Doe",\n      "address_line1": "123 Main St",\n      "city": "San Francisco",\n      "state": "CA",\n      "postal_code": "94105",\n      "country": "US"\n    }\n  }'`,
+  quotePreview: `curl -X POST "${API_BASE}/quotes/preview" \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Key: YOUR_API_KEY" \\\n  -d '{\n    "merchant_id": "merch_...",\n    "items": [{ "product_id": "prod_...", "variant_id": "var_...", "quantity": 1 }]\n  }'`,
+  orderCreate: `curl -X POST "${API_BASE}/orders/create" \\\n  -H "Content-Type: application/json" \\\n  -H "X-API-Key: YOUR_API_KEY" \\\n  -d '{\n    "quote_id": "q_...",\n    "merchant_id": "merch_...",\n    "customer_email": "buyer@example.com",\n    "items": [\n      {\n        "product_id": "prod_...",\n        "variant_id": "var_...",\n        "quantity": 1,\n        "unit_price": "19.99",\n        "subtotal": "19.99"\n      }\n    ],\n    "shipping_address": {\n      "name": "Alex Doe",\n      "address_line1": "123 Main St",\n      "city": "San Francisco",\n      "state": "CA",\n      "postal_code": "94105",\n      "country": "US"\n    }\n  }'`,
   webhookVerification: `import crypto from 'crypto';\n\nexport function verifyPivotaSignature({ rawBody, timestamp, signature, secret }) {\n  const payload = \`${'${timestamp}.${rawBody}'}\`;\n  const digest = crypto\n    .createHmac('sha256', secret)\n    .update(payload, 'utf8')\n    .digest('hex');\n\n  return signature === \`v1=\${digest}\`;\n}`,
 };
 
@@ -264,7 +265,7 @@ export default function DocsPage() {
                 {[
                   'Create a dedicated production key and keep it out of source control.',
                   'Verify the key with a simple authenticated request — the REST call on the right, or tools/list on the UCP / MCP door (Agent doors tab).',
-                  'Create your first order.',
+                  'Request a live quote (POST /quotes/preview), then create your first order with its quote_id.',
                   'Configure a webhook destination and subscribe to order and API failure events.',
                   'Send a webhook test event before promoting traffic.',
                 ].map((step, index) => (
@@ -284,6 +285,9 @@ export default function DocsPage() {
               <div className="mt-5">
                 <CodePanel code={REST_EXAMPLES.auth} language="curl" />
               </div>
+              <p className="mt-4 text-sm leading-6 text-[var(--portal-fg-muted)]">
+                This lists the merchants integrated through the Pivota merchant portal that your key can order from over REST. Most merchants are not portal-integrated: list them with <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">GET /merchants?scope=protocol</code> (one row per merchant domain and market, with its checkout routes) and buy from them on the UCP door (Agent doors tab), not the REST order call. REST search results from those merchants carry <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">merchant_id: &quot;external_seed&quot;</code>, which the order call refuses.
+              </p>
             </SurfaceCard>
           </div>
         ) : null}
@@ -362,8 +366,9 @@ export default function DocsPage() {
 
             <div className="space-y-6">
               <SurfaceCard className="p-5">
-                <SectionHeader title="Create order" description="Validate the end-to-end commerce flow before sending production traffic." />
-                <div className="mt-5">
+                <SectionHeader title="Create order" description="Every order needs a live quote first: request one, then pass its quote_id. Without it the order call returns 400 QUOTE_REQUIRED_BEFORE_PURCHASE." />
+                <div className="mt-5 space-y-4">
+                  <CodePanel code={REST_EXAMPLES.quotePreview} language="curl" />
                   <CodePanel code={REST_EXAMPLES.orderCreate} language="curl" />
                 </div>
               </SurfaceCard>
