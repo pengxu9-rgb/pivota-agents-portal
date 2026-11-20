@@ -12,8 +12,8 @@ export type V2NavItem = {
 // MCP call log exists, so it has no entry.
 export const V2_NAV_MAIN: V2NavItem[] = [
   { name: 'Home', href: '/dashboard', icon: House },
-  { name: 'Earnings', href: '/earnings', icon: Wallet },
-  { name: 'Orders', href: '/orders', icon: ShoppingCart },
+  { name: 'Earnings', href: '/earnings', icon: Wallet, aliases: ['/revenue', '/payouts', '/wallet'] },
+  { name: 'Orders', href: '/orders', icon: ShoppingCart, aliases: ['/debug-orders'] },
 ];
 
 export const V2_NAV_DEVELOPERS: V2NavItem[] = [
