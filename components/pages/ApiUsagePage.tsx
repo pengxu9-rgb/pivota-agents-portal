@@ -12,6 +12,7 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 type PageMode = 'usage' | 'analytics';
 
@@ -61,7 +62,7 @@ export default function ApiUsagePage({
       if (summaryResult.status === 'fulfilled') {
         setSummary(summaryResult.value);
       } else {
-        console.error('Failed to load usage summary:', summaryResult.reason);
+        logError('Failed to load usage summary:', summaryResult.reason);
         setSummary(null);
         nextUnavailable.push('summary metrics');
       }
@@ -69,7 +70,7 @@ export default function ApiUsagePage({
       if (timelineResult.status === 'fulfilled') {
         setTimeline(timelineResult.value?.timeline || []);
       } else {
-        console.error('Failed to load usage timeline:', timelineResult.reason);
+        logError('Failed to load usage timeline:', timelineResult.reason);
         setTimeline([]);
         nextUnavailable.push('performance timeline');
       }
@@ -77,7 +78,7 @@ export default function ApiUsagePage({
       if (analyticsResult.status === 'fulfilled') {
         setAnalytics(analyticsResult.value?.analytics ?? analyticsResult.value ?? null);
       } else {
-        console.error('Failed to load analytics rollup:', analyticsResult.reason);
+        logError('Failed to load analytics rollup:', analyticsResult.reason);
         setAnalytics(null);
         nextUnavailable.push('analytics rollup');
       }
@@ -85,7 +86,7 @@ export default function ApiUsagePage({
       if (usageResult.status === 'fulfilled') {
         setUsageLogs(usageResult.value?.logs || []);
       } else {
-        console.error('Failed to load usage logs:', usageResult.reason);
+        logError('Failed to load usage logs:', usageResult.reason);
         setUsageLogs([]);
         nextUnavailable.push('usage logs');
       }
@@ -93,7 +94,7 @@ export default function ApiUsagePage({
       if (funnelResult.status === 'fulfilled') {
         setFunnel(funnelResult.value);
       } else {
-        console.error('Failed to load funnel:', funnelResult.reason);
+        logError('Failed to load funnel:', funnelResult.reason);
         setFunnel(null);
         nextUnavailable.push('checkout flow');
       }
@@ -101,7 +102,7 @@ export default function ApiUsagePage({
       if (queryResult.status === 'fulfilled') {
         setQueryAnalytics(queryResult.value);
       } else {
-        console.error('Failed to load query analytics:', queryResult.reason);
+        logError('Failed to load query analytics:', queryResult.reason);
         setQueryAnalytics(null);
         nextUnavailable.push('query analytics');
       }

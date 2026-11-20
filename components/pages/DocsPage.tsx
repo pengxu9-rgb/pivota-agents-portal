@@ -17,6 +17,7 @@ import { agentApi } from '@/lib/api-client';
 import { API_CONFIG } from '@/lib/config';
 import { developerStandards } from '@/lib/developer-standards';
 import { DOOR_EXAMPLES, OAUTH_METADATA_URL, UCP_RESOURCE, agentDoors } from '@/lib/agent-doors';
+import { logError } from '@/lib/safe-log';
 
 const API_BASE = API_CONFIG.AGENT_API_V1_BASE_URL;
 
@@ -141,7 +142,7 @@ export default function DocsPage() {
         setIntegrationStatus(integrationResult.value);
         setIntegrationUnavailable(false);
       } else {
-        console.error('Failed to load docs integration status:', integrationResult.reason);
+        logError('Failed to load docs integration status:', integrationResult.reason);
         setIntegrationStatus(null);
         setIntegrationUnavailable(true);
       }
@@ -149,7 +150,7 @@ export default function DocsPage() {
       if (endpointsResult.status === 'fulfilled') {
         setDeveloperEndpoints(Array.isArray(endpointsResult.value?.endpoints) ? endpointsResult.value.endpoints : []);
       } else {
-        console.error('Failed to load developer endpoints:', endpointsResult.reason);
+        logError('Failed to load developer endpoints:', endpointsResult.reason);
         setDeveloperEndpoints([]);
       }
     } finally {

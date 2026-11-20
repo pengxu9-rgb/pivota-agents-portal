@@ -5,6 +5,7 @@
 
 import axios, { AxiosInstance } from 'axios';
 import { API_CONFIG } from './config';
+import { logError } from './safe-log';
 
 class AgentApiClient {
   private client: AxiosInstance;
@@ -365,7 +366,7 @@ class AgentApiClient {
         raw: data,
       };
     } catch (error) {
-      console.error('[AgentApiClient] Failed to load integration overview:', error);
+      logError('[AgentApiClient] Failed to load integration overview:', error);
       throw error;
     }
   }
@@ -577,8 +578,6 @@ class AgentApiClient {
       const response = await this.client.post('/agent/account/login', { email, password });
       const data = response.data;
       
-      console.log('✅ Agent login response:', data);
-      
       // Store tokens - backend returns: {success, token, agent, api_key}
       if (data.success && data.token) {
         localStorage.setItem('agent_token', data.token);
@@ -596,7 +595,7 @@ class AgentApiClient {
       
       return data;
     } catch (error: any) {
-      console.error('❌ Login failed:', error.response?.data || error.message);
+      logError('❌ Login failed:', error);
       throw error;
     }
   }
@@ -631,7 +630,7 @@ class AgentApiClient {
       const response = await this.client.get(`/agents/${agentId}/merchants`);
       return response.data;
     } catch (error) {
-      console.error('Failed to fetch merchant authorizations:', error);
+      logError('Failed to fetch merchant authorizations:', error);
       return { merchants: [] };
     }
   }
@@ -662,7 +661,7 @@ class AgentApiClient {
     });
     return response.data;
     } catch (error) {
-      console.error('Failed to refund order:', error);
+      logError('Failed to refund order:', error);
       throw error;
     }
   }
@@ -676,7 +675,7 @@ class AgentApiClient {
     });
     return response.data;
     } catch (error) {
-      console.error('Failed to cancel order:', error);
+      logError('Failed to cancel order:', error);
       throw error;
     }
   }
@@ -690,7 +689,7 @@ class AgentApiClient {
     });
     return response.data;
     } catch (error) {
-      console.error('Failed to track order:', error);
+      logError('Failed to track order:', error);
       throw error;
     }
   }
@@ -754,7 +753,7 @@ class AgentApiClient {
       
       return response.data;
     } catch (error: any) {
-      console.error('[AgentApiClient] Failed to create API key:', error);
+      logError('[AgentApiClient] Failed to create API key:', error);
       throw error;
     }
   }
@@ -769,7 +768,7 @@ class AgentApiClient {
       const response = await this.client.delete(`/agents/${agentId}/api-keys/${keyId}`);
       return response.data;
     } catch (error: any) {
-      console.error('[AgentApiClient] Failed to revoke API key:', error);
+      logError('[AgentApiClient] Failed to revoke API key:', error);
       throw error;
     }
   }

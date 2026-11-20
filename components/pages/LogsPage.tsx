@@ -12,6 +12,7 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 type LogTab = 'requests' | 'orders' | 'webhooks';
 
@@ -49,7 +50,7 @@ export default function LogsPage() {
       if (requestResult.status === 'fulfilled') {
         setRequestEvents(requestResult.value?.activities || []);
       } else {
-        console.error('Failed to load request events:', requestResult.reason);
+        logError('Failed to load request events:', requestResult.reason);
         setRequestEvents([]);
         nextUnavailable.push('request logs');
       }
@@ -57,7 +58,7 @@ export default function LogsPage() {
       if (orderResult.status === 'fulfilled') {
         setOrderEvents(orderResult.value?.events || []);
       } else {
-        console.error('Failed to load order events:', orderResult.reason);
+        logError('Failed to load order events:', orderResult.reason);
         setOrderEvents([]);
         nextUnavailable.push('order timeline');
       }
@@ -65,7 +66,7 @@ export default function LogsPage() {
       if (webhookResult.status === 'fulfilled') {
         setWebhookEvents(webhookResult.value?.deliveries || []);
       } else {
-        console.error('Failed to load webhook deliveries:', webhookResult.reason);
+        logError('Failed to load webhook deliveries:', webhookResult.reason);
         setWebhookEvents([]);
         nextUnavailable.push('webhook deliveries');
       }

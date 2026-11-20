@@ -22,6 +22,7 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 type DeliverySummary = {
   total: number;
@@ -168,7 +169,7 @@ export default function WebhooksPage() {
         });
         setConfigUnavailable(false);
       } else {
-        console.error('Failed to load webhook config:', configResult.reason);
+        logError('Failed to load webhook config:', configResult.reason);
         setConfig(null);
         setConfigUnavailable(true);
       }
@@ -176,7 +177,7 @@ export default function WebhooksPage() {
       if (catalogResult.status === 'fulfilled') {
         setCatalog(Array.isArray(catalogResult.value?.events) ? catalogResult.value.events : []);
       } else {
-        console.error('Failed to load webhook catalog:', catalogResult.reason);
+        logError('Failed to load webhook catalog:', catalogResult.reason);
         setCatalog([]);
       }
 
@@ -184,7 +185,7 @@ export default function WebhooksPage() {
         setDeliveries(Array.isArray(deliveriesResult.value?.deliveries) ? deliveriesResult.value.deliveries : []);
         setDeliveriesUnavailable(false);
       } else {
-        console.error('Failed to load webhook deliveries:', deliveriesResult.reason);
+        logError('Failed to load webhook deliveries:', deliveriesResult.reason);
         setDeliveries([]);
         setDeliveriesUnavailable(true);
       }

@@ -12,6 +12,7 @@ import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import BuyerIdentityIssuers from '@/components/portal/BuyerIdentityIssuers';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 function validatePassword(password: string): string | null {
   if (password.length < 8) return 'Password must be at least 8 characters long.';
@@ -77,7 +78,7 @@ export default function SettingsPage() {
         company: profileResult.value.agent.company || '',
       });
     } else if (profileResult.status === 'rejected') {
-      console.error('Failed to load profile:', profileResult.reason);
+      logError('Failed to load profile:', profileResult.reason);
       setLoadMessage('Profile data is temporarily unavailable. You can retry after the backend feed recovers.');
     }
 
@@ -93,7 +94,7 @@ export default function SettingsPage() {
       );
       setApiKeyUnavailable(false);
     } else {
-      console.error('Failed to load API key preview:', apiKeyResult.reason);
+      logError('Failed to load API key preview:', apiKeyResult.reason);
       const storedKey = localStorage.getItem('agent_api_key') || '';
       setApiKey(storedKey);
       setApiKeyMasked(false);
@@ -109,7 +110,7 @@ export default function SettingsPage() {
     if (webhookResult.status === 'fulfilled') {
       setWebhookConfig(webhookResult.value?.config ?? null);
     } else {
-      console.error('Failed to load webhook status:', webhookResult.reason);
+      logError('Failed to load webhook status:', webhookResult.reason);
       setWebhookConfig(null);
       setLoadMessage((current) =>
         current

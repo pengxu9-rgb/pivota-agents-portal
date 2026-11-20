@@ -11,6 +11,7 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 export default function EndpointsPage() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function EndpointsPage() {
       if (summaryResult.status === 'fulfilled') {
         setSummary(summaryResult.value);
       } else {
-        console.error('Failed to load endpoint summary:', summaryResult.reason);
+        logError('Failed to load endpoint summary:', summaryResult.reason);
         setSummary(null);
         nextUnavailable.push('endpoint activity');
       }
@@ -51,7 +52,7 @@ export default function EndpointsPage() {
       if (endpointsResult.status === 'fulfilled') {
         setDeveloperEndpoints(Array.isArray(endpointsResult.value?.endpoints) ? endpointsResult.value.endpoints : []);
       } else {
-        console.error('Failed to load runtime endpoint registry:', endpointsResult.reason);
+        logError('Failed to load runtime endpoint registry:', endpointsResult.reason);
         setDeveloperEndpoints([]);
         nextUnavailable.push('runtime endpoint registry');
       }

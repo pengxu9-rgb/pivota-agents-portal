@@ -8,6 +8,7 @@ import InlineNotice from '@/components/portal/InlineNotice';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 interface ApiKey {
   id: string;
@@ -61,7 +62,7 @@ export default function ApiKeyManager({
         setApiKeys(response.keys || []);
       }
     } catch (requestError: any) {
-      console.error('Failed to fetch API keys:', requestError);
+      logError('Failed to fetch API keys:', requestError);
       setError(requestError?.response?.data?.detail || requestError?.message || 'Failed to load API keys.');
     } finally {
       setLoading(false);
@@ -94,7 +95,7 @@ export default function ApiKeyManager({
         setError('API key created, but the full key was not returned by the server.');
       }
     } catch (requestError: any) {
-      console.error('Failed to create API key:', requestError);
+      logError('Failed to create API key:', requestError);
       setError(requestError?.response?.data?.detail || requestError?.message || 'Failed to create API key.');
     } finally {
       setCreating(false);
@@ -114,7 +115,7 @@ export default function ApiKeyManager({
         setKeyPendingRevocation(null);
       }
     } catch (requestError: any) {
-      console.error('Failed to revoke API key:', requestError);
+      logError('Failed to revoke API key:', requestError);
       setError(requestError?.response?.data?.detail || requestError?.message || 'Failed to revoke API key.');
     } finally {
       setRevoking(false);
