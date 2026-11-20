@@ -667,7 +667,9 @@ export default function WebhooksPage() {
                     </p>
                   ) : (
                     <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
-                      Only the last 4 characters are shown here. A full secret is shown once: when the endpoint is first saved, or right after a rotation.
+                      {supportsImmediateRotate
+                        ? 'Only the last 4 characters are shown here. A full secret is shown once: when the endpoint is first saved, or right after a rotation.'
+                        : 'Only the last 4 characters are shown here. A full secret is shown once, right after a rotation.'}
                     </p>
                   )}
                 </div>
