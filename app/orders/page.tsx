@@ -12,6 +12,7 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 const STATUS_TONES: Record<string, 'success' | 'warning' | 'critical' | 'info' | 'neutral'> = {
   completed: 'success',
@@ -83,7 +84,7 @@ export default function OrdersPage() {
       }));
       setOrders(mappedOrders);
     } catch (error: any) {
-      console.error('Failed to load orders:', error);
+      logError('Failed to load orders:', error);
       setOrders([]);
       setLoadError(getOrderErrorMessage(error));
       setLoadErrorKind(isActiveApiKeyError(error) ? 'active_key_required' : 'unavailable');
@@ -147,7 +148,7 @@ export default function OrdersPage() {
       if (eventsResult.status === 'fulfilled') {
         setDetailEvents(eventsResult.value?.events || []);
       } else {
-        console.error('Failed to load order timeline:', eventsResult.reason);
+        logError('Failed to load order timeline:', eventsResult.reason);
         setDetailEvents([]);
         nextDetailErrors.push(
           isActiveApiKeyError(eventsResult.reason)
@@ -159,7 +160,7 @@ export default function OrdersPage() {
       if (trackingResult.status === 'fulfilled') {
         setTracking(trackingResult.value || null);
       } else {
-        console.error('Failed to load order tracking:', trackingResult.reason);
+        logError('Failed to load order tracking:', trackingResult.reason);
         setTracking(null);
         nextDetailErrors.push(
           isActiveApiKeyError(trackingResult.reason)

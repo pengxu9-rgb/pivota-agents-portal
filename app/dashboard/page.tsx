@@ -25,6 +25,7 @@ import SectionHeader from '@/components/portal/SectionHeader';
 import StatusBadge from '@/components/portal/StatusBadge';
 import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
+import { logError } from '@/lib/safe-log';
 
 type WebhookConfig = {
   enabled: boolean;
@@ -136,7 +137,7 @@ export default function DashboardPage() {
       if (summaryResult.status === 'fulfilled') {
         setSummary(summaryResult.value);
       } else {
-        console.error('Failed to load summary metrics:', summaryResult.reason);
+        logError('Failed to load summary metrics:', summaryResult.reason);
         setSummary(null);
         nextUnavailable.push('summary metrics');
       }
@@ -144,7 +145,7 @@ export default function DashboardPage() {
       if (systemHealthResult.status === 'fulfilled') {
         setSystemHealth(systemHealthResult.value);
       } else {
-        console.error('Failed to load system health:', systemHealthResult.reason);
+        logError('Failed to load system health:', systemHealthResult.reason);
         setSystemHealth(null);
         nextUnavailable.push('system health');
       }
@@ -152,7 +153,7 @@ export default function DashboardPage() {
       if (activityResult.status === 'fulfilled') {
         setRecentActivity(activityResult.value?.activities || []);
       } else {
-        console.error('Failed to load recent activity:', activityResult.reason);
+        logError('Failed to load recent activity:', activityResult.reason);
         setRecentActivity([]);
         nextUnavailable.push('recent events');
       }
@@ -160,7 +161,7 @@ export default function DashboardPage() {
       if (funnelResult.status === 'fulfilled') {
         setFunnel(funnelResult.value);
       } else {
-        console.error('Failed to load checkout flow:', funnelResult.reason);
+        logError('Failed to load checkout flow:', funnelResult.reason);
         setFunnel(null);
         nextUnavailable.push('checkout flow');
       }
@@ -168,7 +169,7 @@ export default function DashboardPage() {
       if (webhookResult.status === 'fulfilled') {
         setWebhookConfig(webhookResult.value?.config ?? null);
       } else {
-        console.error('Failed to load webhook config:', webhookResult.reason);
+        logError('Failed to load webhook config:', webhookResult.reason);
         setWebhookConfig(null);
         nextUnavailable.push('webhook status');
       }
@@ -180,7 +181,7 @@ export default function DashboardPage() {
           last_activity: agentDetailsResult.value.agent.last_active || current?.last_activity,
         }));
       } else if (agentDetailsResult.status === 'rejected') {
-        console.error('Failed to load agent details:', agentDetailsResult.reason);
+        logError('Failed to load agent details:', agentDetailsResult.reason);
       }
 
       setUnavailableSources(nextUnavailable);

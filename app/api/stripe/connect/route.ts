@@ -8,11 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const authHeader = request.headers.get('authorization');
     
-    console.log('[Stripe Connect Proxy] Request received:', {
-      body,
-      hasAuth: !!authHeader,
-      authHeader: authHeader ? authHeader.substring(0, 20) + '...' : 'none'
-    });
+    console.log('[Stripe Connect Proxy] Request received:', { hasAuth: !!authHeader });
     
     if (!authHeader) {
       return NextResponse.json(
