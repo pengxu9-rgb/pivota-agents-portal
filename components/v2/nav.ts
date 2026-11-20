@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react';
-import { BookOpen, House, KeyRound, ScrollText, Settings, ShoppingCart, Webhook } from 'lucide-react';
+import { BookOpen, House, KeyRound, ScrollText, Settings, ShoppingCart, Wallet, Webhook } from 'lucide-react';
 
 export type V2NavItem = {
   name: string;
@@ -12,6 +12,7 @@ export type V2NavItem = {
 // MCP call log exists, so it has no entry.
 export const V2_NAV_MAIN: V2NavItem[] = [
   { name: 'Home', href: '/dashboard', icon: House },
+  { name: 'Earnings', href: '/earnings', icon: Wallet },
   { name: 'Orders', href: '/orders', icon: ShoppingCart },
 ];
 
