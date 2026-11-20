@@ -17,6 +17,12 @@ const publicApiBaseUrl = normalizePublicApiBaseUrl(process.env.NEXT_PUBLIC_API_U
 const nextConfig: NextConfig = {
   // Cloud Run: self-contained server bundle (.next/standalone/server.js)
   output: "standalone",
+  // Build-time flags are ALWAYS defined, so every `process.env.NEXT_PUBLIC_FEATURE_PORTAL_V2 === "true"`
+  // gate folds at build time. Left unset, Next would not inline it: the gate would survive into the
+  // bundle (shipping the v2 code, CSS and fonts) and be decided at runtime, server and client apart.
+  env: {
+    NEXT_PUBLIC_FEATURE_PORTAL_V2: process.env.NEXT_PUBLIC_FEATURE_PORTAL_V2 === "true" ? "true" : "false",
+  },
   outputFileTracingRoot: resolve(process.cwd()),
   async rewrites() {
     return [

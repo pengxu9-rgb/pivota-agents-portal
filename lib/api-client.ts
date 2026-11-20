@@ -23,6 +23,13 @@ class AgentApiClient {
       },
     });
 
+    // Local fixture backend for portal v2 screenshots. Both conditions are literal env
+    // comparisons, so `next build` (NODE_ENV=production) drops this branch and the module.
+    if (process.env.NODE_ENV !== 'production' && process.env.NEXT_PUBLIC_PORTAL_FIXTURES === '1') {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      this.client.defaults.adapter = require('./fixtures/portal-v2').fixtureAdapter;
+    }
+
     // Add auth token interceptor
     this.client.interceptors.request.use((config) => {
       const token = localStorage.getItem('agent_token');
