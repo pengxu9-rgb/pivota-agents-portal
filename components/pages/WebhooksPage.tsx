@@ -14,6 +14,7 @@ import {
   Shield,
   Webhook,
 } from 'lucide-react';
+import ConfirmDialog from '@/components/portal/ConfirmDialog';
 import EmptyState from '@/components/portal/EmptyState';
 import InlineNotice from '@/components/portal/InlineNotice';
 import MetricCard from '@/components/portal/MetricCard';
@@ -41,6 +42,10 @@ type WebhookConfig = {
   signing_secret_last4: string | null;
   pending_signing_secret_last4?: string | null;
   pending_secret_activates_at?: string | null;
+  // Present once the backend reveals the first secret (agent-webhooks first-secret fix).
+  // null = the current secret was never returned in full; absent = an older backend.
+  secret_revealed_at?: string | null;
+  rotation_activation?: 'immediate' | 'overlap';
   last_test_at: string | null;
   last_test_status: string | null;
   delivery_summary_24h: DeliverySummary;
@@ -132,7 +137,17 @@ export default function WebhooksPage() {
   const [configUnavailable, setConfigUnavailable] = useState(false);
   const [deliveriesUnavailable, setDeliveriesUnavailable] = useState(false);
   const [message, setMessage] = useState<{ tone: 'success' | 'warning' | 'critical'; title?: string; body: string } | null>(null);
-  const [newSecret, setNewSecret] = useState<{ value: string; activatesAt: string | null } | null>(null);
+  // A full signing secret lives only here, only until the page is left. It is never logged,
+  // stored or sent anywhere. `kind` picks the banner copy.
+  const [newSecret, setNewSecret] = useState<{
+    value: string;
+    activatesAt: string | null;
+    kind: 'initial' | 'immediate' | 'overlap';
+  } | null>(null);
+  // Every immediate rotation goes through a confirm. 'never-shown': the API never returned the
+  // current secret (it may still have been shared another way). 'lost': it was returned, but
+  // the developer says they don't have it.
+  const [confirmImmediateRotate, setConfirmImmediateRotate] = useState<'never-shown' | 'lost' | null>(null);
   const [copiedNewSecret, setCopiedNewSecret] = useState(false);
   const [form, setForm] = useState({
     enabled: false,
@@ -219,17 +234,30 @@ export default function WebhooksPage() {
         destination_url: form.destinationUrl.trim(),
         subscribed_events: form.subscribedEvents,
       });
-      const nextConfig = response?.config ?? null;
+      // The PUT that mints the signing secret returns it in full exactly once (also when the
+      // backend could only build a partial config). Lift it out so the config state never holds it.
+      const { signing_secret: mintedSecret, partial: _partial, ...savedConfig } = (response?.config ?? {}) as WebhookConfig & {
+        signing_secret?: string;
+        partial?: boolean;
+      };
+      const nextConfig = response?.config ? (savedConfig as WebhookConfig) : null;
       setConfig(nextConfig);
       setForm({
         enabled: Boolean(nextConfig?.enabled),
         destinationUrl: nextConfig?.destination_url || '',
         subscribedEvents: Array.isArray(nextConfig?.subscribed_events) ? nextConfig.subscribed_events : [],
       });
+      if (typeof mintedSecret === 'string' && mintedSecret) {
+        setCopiedNewSecret(false);
+        setNewSecret({ value: mintedSecret, activatesAt: null, kind: 'initial' });
+      }
       setMessage({
         tone: 'success',
         title: 'Webhook configuration saved',
-        body: 'Destination, enabled state, and event subscriptions were updated.',
+        body:
+          typeof mintedSecret === 'string' && mintedSecret
+            ? 'Your endpoint has a signing secret now. Copy it below: it is shown only once.'
+            : 'Destination, enabled state, and event subscriptions were updated.',
       });
       await loadWebhookState();
     } catch (error: any) {
@@ -265,30 +293,47 @@ export default function WebhooksPage() {
     }
   };
 
-  const handleRotateSecret = async () => {
+  const handleRotateSecret = async (activation: 'auto' | 'immediate' = 'auto') => {
     setRotatingSecret(true);
     setMessage(null);
     setCopiedNewSecret(false);
     try {
-      const response = await agentApi.rotateWebhookSigningSecret();
+      const response = await agentApi.rotateWebhookSigningSecret(activation);
+      const immediate = response?.activation === 'immediate';
       setNewSecret({
         value: response?.new_signing_secret || '',
         activatesAt: response?.activates_at || null,
+        kind: immediate ? 'immediate' : 'overlap',
       });
-      setMessage({
-        tone: 'success',
-        title: 'Signing secret rotated',
-        body: 'A new pending signing secret was generated. Copy it now and update your verifier before the overlap window ends.',
-      });
+      setMessage(
+        immediate
+          ? {
+              tone: 'success',
+              title: 'Signing secret replaced',
+              body: 'The new secret is active now, and the previous one no longer signs deliveries. Copy it and update your verifier.',
+            }
+          : {
+              tone: 'success',
+              title: 'Signing secret rotated',
+              body: 'A new pending signing secret was generated. Copy it now and update your verifier before the overlap window ends.',
+            },
+      );
       await loadWebhookState();
     } catch (error: any) {
+      const status = error?.response?.status;
       setMessage({
         tone: 'critical',
         title: 'Failed to rotate signing secret',
-        body: error?.response?.data?.detail || error?.message || 'The signing secret could not be rotated.',
+        body:
+          status === 403
+            ? 'Only the agent account itself can replace the secret immediately. Use a standard rotation, or sign in as the agent.'
+            : status === 409
+              ? 'Another rotation happened at the same time. Reload the page and try again.'
+              : error?.response?.data?.detail || error?.message || 'The signing secret could not be rotated.',
       });
     } finally {
       setRotatingSecret(false);
+      setConfirmImmediateRotate(null);
     }
   };
 
@@ -343,10 +388,18 @@ export default function WebhooksPage() {
   const subscribedCount = form.subscribedEvents.length;
   const managedReceiverUrl = config?.managed_receiver_url || null;
   const currentSecretLast4 = config?.signing_secret_last4 || null;
+  // Only an overlap rotation leaves the new secret pending. A first-save reveal or an immediate
+  // replace makes it current at once, so it must not be shown as pending.
+  const newSecretIsPending = newSecret?.kind === 'overlap';
   const pendingSecretLast4 =
-    config?.pending_signing_secret_last4 || (newSecret?.value ? newSecret.value.slice(-4) : null);
-  const pendingSecretActivatesAt = config?.pending_secret_activates_at || newSecret?.activatesAt || null;
+    config?.pending_signing_secret_last4 || (newSecretIsPending && newSecret?.value ? newSecret.value.slice(-4) : null);
+  const pendingSecretActivatesAt =
+    config?.pending_secret_activates_at || (newSecretIsPending ? newSecret?.activatesAt : null) || null;
   const formattedPendingActivation = pendingSecretActivatesAt ? new Date(pendingSecretActivatesAt).toLocaleString() : null;
+  // Feature-detect the backend's first-secret fix: an older backend sends neither field, and then
+  // none of the reveal / immediate-replace UI appears (an unknown query parameter would be ignored).
+  const supportsImmediateRotate = config?.rotation_activation === 'immediate' || config?.rotation_activation === 'overlap';
+  const secretNeverShown = supportsImmediateRotate && config?.secret_revealed_at === null && Boolean(currentSecretLast4);
 
   const availableEvents = useMemo(
     () => catalog.filter((item) => item.event_type !== 'webhook.test'),
@@ -425,10 +478,14 @@ export default function WebhooksPage() {
               {newSecret.value}
             </code>
             <p className="mt-2 text-sm">
-              It becomes active {newSecret.activatesAt ? new Date(newSecret.activatesAt).toLocaleString() : 'after the overlap window'}.
+              {newSecret.kind === 'initial'
+                ? 'This is your endpoint’s signing secret, and it already signs deliveries.'
+                : newSecret.kind === 'immediate'
+                  ? 'It is active now; the previous secret no longer signs deliveries.'
+                  : `It becomes active ${newSecret.activatesAt ? new Date(newSecret.activatesAt).toLocaleString() : 'after the overlap window'}. Until then, deliveries are still signed with the current secret.`}
             </p>
             <p className="mt-2 text-sm">
-              If you lose this value, the portal cannot reveal it again. Generate a new one by rotating the signing secret again.
+              If you lose this value, the portal cannot show it again. Replace it from the Signing secret section below.
             </p>
           </InlineNotice>
         ) : null}
@@ -610,9 +667,27 @@ export default function WebhooksPage() {
                     </p>
                   ) : (
                     <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
-                      Only the last 4 characters are shown here. The full value is only returned once when you rotate it. If it was not saved, rotate again to generate a new secret.
+                      {supportsImmediateRotate
+                        ? 'Only the last 4 characters are shown here. A full secret is shown once: when the endpoint is first saved, or right after a rotation.'
+                        : 'Only the last 4 characters are shown here. A full secret is shown once, right after a rotation.'}
                     </p>
                   )}
+                </div>
+              ) : null}
+              {secretNeverShown ? (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+                  <p className="font-semibold">Your current signing secret was never shown to you</p>
+                  <p className="mt-1">
+                    Deliveries are signed with it, but you can't verify them without it. Reveal a new secret now: it replaces the unseen one immediately.
+                  </p>
+                  <button
+                    onClick={() => setConfirmImmediateRotate('never-shown')}
+                    disabled={rotatingSecret}
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span>{rotatingSecret ? 'Revealing…' : 'Reveal a new secret now'}</span>
+                  </button>
                 </div>
               ) : null}
               <button
@@ -624,8 +699,22 @@ export default function WebhooksPage() {
                 <span>{rotatingSecret ? 'Rotating…' : 'Rotate signing secret'}</span>
               </button>
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
-                Rotating creates a new pending secret immediately, keeps the current active secret valid during the overlap window, and then promotes the new secret automatically.
+                {config?.rotation_activation === 'immediate'
+                  ? 'Rotating now replaces the current secret at once, because it was never shown.'
+                  : 'Rotating creates a new pending secret immediately, keeps the current active secret valid during the overlap window, and then promotes the new secret automatically.'}
               </div>
+              {supportsImmediateRotate && !secretNeverShown && currentSecretLast4 ? (
+                <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
+                  <p>Never received the current secret, or lost it?</p>
+                  <button
+                    onClick={() => setConfirmImmediateRotate('lost')}
+                    disabled={rotatingSecret}
+                    className="mt-2 inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg)] hover:bg-[var(--portal-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Replace it now (ends the current secret immediately)
+                  </button>
+                </div>
+              ) : null}
               <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
                 The portal never stores a re-openable copy of the full signing secret. After this page is dismissed or refreshed, only masked last-4 values remain visible.
               </div>
@@ -774,6 +863,19 @@ export default function WebhooksPage() {
           </div>
         </SurfaceCard>
       </div>
+      <ConfirmDialog
+        open={confirmImmediateRotate !== null}
+        title={confirmImmediateRotate === 'never-shown' ? 'Reveal a new signing secret now?' : 'Replace the signing secret now?'}
+        description={
+          confirmImmediateRotate === 'never-shown'
+            ? 'The portal never showed you the current secret, so it is replaced right away and you get a new one, shown once. If someone shared the current secret with you another way and you already verify with it, those checks will start rejecting deliveries.'
+            : 'The current secret stops signing deliveries right away, and you get a new one, shown once. Use this if you never received the current secret or lost it: anything still verifying with it will start rejecting deliveries.'
+        }
+        confirmLabel={confirmImmediateRotate === 'never-shown' ? 'Reveal new secret' : 'Replace now'}
+        loading={rotatingSecret}
+        onConfirm={() => void handleRotateSecret('immediate')}
+        onCancel={() => setConfirmImmediateRotate(null)}
+      />
     </div>
   );
 }

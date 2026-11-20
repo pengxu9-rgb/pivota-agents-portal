@@ -562,13 +562,24 @@ class AgentApiClient {
     return response.data;
   }
 
-  async rotateWebhookSigningSecret() {
+  /**
+   * `auto` (default): the backend decides. A secret that was never shown is replaced at once;
+   * otherwise the new one is pending for 24 h. `immediate`: the owning agent ends the current
+   * secret now. That's the recovery when a secret was never received (staff tokens get 403;
+   * a concurrent rotation gets 409). The response's `new_signing_secret` is shown once and must
+   * never be logged or stored.
+   */
+  async rotateWebhookSigningSecret(activation: 'auto' | 'immediate' = 'auto') {
     const agentId = this.getStoredAgentId();
     if (!agentId) {
       throw new Error('Agent ID not found');
     }
 
-    const response = await this.client.post(`/agents/${agentId}/webhooks/signing-secret/rotate`);
+    const response = await this.client.post(
+      `/agents/${agentId}/webhooks/signing-secret/rotate`,
+      undefined,
+      activation === 'immediate' ? { params: { activation: 'immediate' } } : undefined,
+    );
     return response.data;
   }
 
