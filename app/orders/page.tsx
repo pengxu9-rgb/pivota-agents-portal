@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Download, Package, RefreshCw, RotateCcw, Search, ShoppingCart, Truck, XCircle } from 'lucide-react';
+import { Download, KeyRound, Package, RefreshCw, RotateCcw, Search, ShoppingCart, Truck, XCircle } from 'lucide-react';
 import ConfirmDialog from '@/components/portal/ConfirmDialog';
 import EmptyState from '@/components/portal/EmptyState';
 import InlineNotice from '@/components/portal/InlineNotice';
@@ -26,6 +26,8 @@ const STATUS_TONES: Record<string, 'success' | 'warning' | 'critical' | 'info' |
 const getOrderErrorMessage = (error: any) =>
   error?.response?.data?.detail || error?.message || 'Failed to load orders.';
 
+type OrdersLoadErrorKind = 'no_api_key' | 'active_key_required' | 'unavailable';
+
 const isActiveApiKeyError = (error: any) => {
   const code = String(error?.code || '').toUpperCase();
   const detail = getOrderErrorMessage(error).toLowerCase();
@@ -47,7 +49,7 @@ export default function OrdersPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [statusMessage, setStatusMessage] = useState<{ tone: 'success' | 'critical'; text: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [loadErrorKind, setLoadErrorKind] = useState<'active_key_required' | 'unavailable' | null>(null);
+  const [loadErrorKind, setLoadErrorKind] = useState<OrdersLoadErrorKind | null>(null);
   const [pendingAction, setPendingAction] = useState<{ type: 'refund' | 'cancel'; orderId: string } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -87,7 +89,13 @@ export default function OrdersPage() {
       logError('Failed to load orders:', error);
       setOrders([]);
       setLoadError(getOrderErrorMessage(error));
-      setLoadErrorKind(isActiveApiKeyError(error) ? 'active_key_required' : 'unavailable');
+      setLoadErrorKind(
+        error?.code === 'NO_API_KEY'
+          ? 'no_api_key'
+          : isActiveApiKeyError(error)
+            ? 'active_key_required'
+            : 'unavailable',
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -223,21 +231,8 @@ export default function OrdersPage() {
           </InlineNotice>
         ) : null}
 
-        {loadError ? (
-          <InlineNotice
-            tone="warning"
-            title={loadErrorKind === 'active_key_required' ? 'Orders require an active API key' : 'Orders are temporarily unavailable'}
-            action={
-              loadErrorKind === 'active_key_required' ? (
-                <Link
-                  href="/api-keys"
-                  className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-50"
-                >
-                  Open API keys
-                </Link>
-              ) : undefined
-            }
-          >
+        {loadError && loadErrorKind === 'unavailable' ? (
+          <InlineNotice tone="warning" title="Orders are temporarily unavailable">
             {loadError}
           </InlineNotice>
         ) : null}
@@ -279,25 +274,39 @@ export default function OrdersPage() {
               <div className="space-y-3">
                 {[0, 1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
               </div>
+            ) : loadError && loadErrorKind === 'no_api_key' ? (
+              <EmptyState
+                icon={<KeyRound className="h-5 w-5" />}
+                title="No API key yet"
+                description="Orders are placed by your agent with an API key, so there is nothing to show until you create one. Create a key, connect your agent, and its orders will appear here."
+                action={
+                  <Link
+                    href="/api-keys"
+                    className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
+                  >
+                    Create an API key
+                  </Link>
+                }
+              />
+            ) : loadError && loadErrorKind === 'active_key_required' ? (
+              <EmptyState
+                icon={<KeyRound className="h-5 w-5" />}
+                title="Orders can't load in this browser yet"
+                description="You have an active API key, but this page reads orders with a key held by this browser, and signing in no longer hands one to the browser. Your agent's orders are unaffected. Resetting your primary key in Settings makes it load here, but that replaces the key your agent uses, so update your server right away if you do."
+                action={
+                  <Link
+                    href="/settings"
+                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-4 py-2.5 text-sm font-medium text-[var(--portal-fg)] hover:bg-[var(--portal-surface-muted)]"
+                  >
+                    Open Settings
+                  </Link>
+                }
+              />
             ) : loadError ? (
               <EmptyState
                 icon={<ShoppingCart className="h-5 w-5" />}
-                title={loadErrorKind === 'active_key_required' ? 'Orders require an active API key' : 'Orders unavailable'}
-                description={
-                  loadErrorKind === 'active_key_required'
-                    ? 'Orders use authenticated order APIs. Open API keys to create, rotate, or recover a usable key for this session.'
-                    : 'The orders feed could not be loaded, so the commerce operations surface is temporarily unavailable.'
-                }
-                action={
-                  loadErrorKind === 'active_key_required' ? (
-                    <Link
-                      href="/api-keys"
-                      className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
-                    >
-                      Open API keys
-                    </Link>
-                  ) : undefined
-                }
+                title="Orders unavailable"
+                description="The orders feed could not be loaded, so the commerce operations surface is temporarily unavailable."
               />
             ) : filteredOrders.length === 0 ? (
               <EmptyState

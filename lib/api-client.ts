@@ -169,12 +169,13 @@ class AgentApiClient {
         } as const;
       }
 
-      if (error?.code === 'ACTIVE_API_KEY_REQUIRED') {
-        throw error;
-      }
+      // ACTIVE_API_KEY_REQUIRED, or the key list itself failed to load: either way we cannot
+      // claim the developer has no key, so surface the real error.
+      throw error;
     }
 
-    throw this.createClientError('Orders require an active API key', 'ACTIVE_API_KEY_REQUIRED');
+    // Nothing on the server and nothing in this browser: the developer has not created a key yet.
+    throw this.createClientError('No API key yet', 'NO_API_KEY');
   }
 
   private normalizeProfile(agent: any) {
@@ -586,11 +587,6 @@ class AgentApiClient {
         if (data.api_key) {
           localStorage.setItem('agent_api_key', data.api_key);
         }
-        console.log('✅ Stored agent credentials:', {
-          agent_id: data.agent.agent_id,
-          has_token: !!data.token,
-          has_api_key: !!data.api_key
-        });
       }
       
       return data;
