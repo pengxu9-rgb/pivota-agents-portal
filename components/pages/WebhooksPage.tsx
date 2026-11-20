@@ -144,7 +144,10 @@ export default function WebhooksPage() {
     activatesAt: string | null;
     kind: 'initial' | 'immediate' | 'overlap';
   } | null>(null);
-  const [confirmImmediateRotate, setConfirmImmediateRotate] = useState(false);
+  // Every immediate rotation goes through a confirm. 'never-shown': the API never returned the
+  // current secret (it may still have been shared another way). 'lost': it was returned, but
+  // the developer says they don't have it.
+  const [confirmImmediateRotate, setConfirmImmediateRotate] = useState<'never-shown' | 'lost' | null>(null);
   const [copiedNewSecret, setCopiedNewSecret] = useState(false);
   const [form, setForm] = useState({
     enabled: false,
@@ -330,7 +333,7 @@ export default function WebhooksPage() {
       });
     } finally {
       setRotatingSecret(false);
-      setConfirmImmediateRotate(false);
+      setConfirmImmediateRotate(null);
     }
   };
 
@@ -676,7 +679,7 @@ export default function WebhooksPage() {
                     Deliveries are signed with it, but you can't verify them without it. Reveal a new secret now: it replaces the unseen one immediately.
                   </p>
                   <button
-                    onClick={() => void handleRotateSecret('immediate')}
+                    onClick={() => setConfirmImmediateRotate('never-shown')}
                     disabled={rotatingSecret}
                     className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-3 py-2 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -702,7 +705,7 @@ export default function WebhooksPage() {
                 <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4 text-sm text-[var(--portal-fg-muted)]">
                   <p>Never received the current secret, or lost it?</p>
                   <button
-                    onClick={() => setConfirmImmediateRotate(true)}
+                    onClick={() => setConfirmImmediateRotate('lost')}
                     disabled={rotatingSecret}
                     className="mt-2 inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-3 py-2 text-sm font-medium text-[var(--portal-fg)] hover:bg-[var(--portal-surface-muted)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
@@ -859,13 +862,17 @@ export default function WebhooksPage() {
         </SurfaceCard>
       </div>
       <ConfirmDialog
-        open={confirmImmediateRotate}
-        title="Replace the signing secret now?"
-        description="The current secret stops signing deliveries right away, and you get a new one, shown once. Use this if you never received the current secret or lost it: anything still verifying with it will start rejecting deliveries."
-        confirmLabel="Replace now"
+        open={confirmImmediateRotate !== null}
+        title={confirmImmediateRotate === 'never-shown' ? 'Reveal a new signing secret now?' : 'Replace the signing secret now?'}
+        description={
+          confirmImmediateRotate === 'never-shown'
+            ? 'The portal never showed you the current secret, so it is replaced right away and you get a new one, shown once. If someone shared the current secret with you another way and you already verify with it, those checks will start rejecting deliveries.'
+            : 'The current secret stops signing deliveries right away, and you get a new one, shown once. Use this if you never received the current secret or lost it: anything still verifying with it will start rejecting deliveries.'
+        }
+        confirmLabel={confirmImmediateRotate === 'never-shown' ? 'Reveal new secret' : 'Replace now'}
         loading={rotatingSecret}
         onConfirm={() => void handleRotateSecret('immediate')}
-        onCancel={() => setConfirmImmediateRotate(false)}
+        onCancel={() => setConfirmImmediateRotate(null)}
       />
     </div>
   );
