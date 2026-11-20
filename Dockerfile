@@ -15,7 +15,11 @@ COPY . .
 # manifest, and it is inlined into the client bundle. The default IS the production
 # value, so the deploy workflow, the PR build and a hand-run build all agree.
 ARG NEXT_PUBLIC_API_URL=https://api.pivota.cc
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_TELEMETRY_DISABLED=1
+# Portal v2 (the redesigned shell and pages) is a BUILD-time flag: next build inlines it,
+# so it is fixed per image. Default off; only the literal string "true" turns it on.
+ARG NEXT_PUBLIC_FEATURE_PORTAL_V2=false
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_FEATURE_PORTAL_V2=$NEXT_PUBLIC_FEATURE_PORTAL_V2
 RUN npm run build
 
 FROM node:22-slim AS runner

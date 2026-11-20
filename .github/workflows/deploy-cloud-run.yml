@@ -76,15 +76,21 @@ jobs:
       # A tag is a commit, so an image already pushed for it (a rollback, a re-run) is
       # redeployed as-is instead of rebuilt. Build args default to the production
       # values inside the Dockerfile.
+      #
+      # NEXT_PUBLIC_FEATURE_PORTAL_V2 (repository variable, default "false") is baked into
+      # the image at build time. Because an existing tag is reused, changing the variable
+      # takes effect only with the next commit on main, not on a re-run of this one.
       - name: Build and push
         env:
           TAG: ${{ steps.meta.outputs.tag }}
+          PORTAL_V2: ${{ vars.NEXT_PUBLIC_FEATURE_PORTAL_V2 || 'false' }}
         run: |
           if gcloud artifacts docker images describe "${REPO}:${TAG}" >/dev/null 2>&1; then
             echo "${REPO}:${TAG} already exists; reusing it"; exit 0
           fi
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-          docker build -t "${REPO}:${TAG}" .
+          echo "NEXT_PUBLIC_FEATURE_PORTAL_V2=${PORTAL_V2}"
+          docker build --build-arg NEXT_PUBLIC_FEATURE_PORTAL_V2="${PORTAL_V2}" -t "${REPO}:${TAG}" .
           docker push "${REPO}:${TAG}"
 
       - name: Deploy
