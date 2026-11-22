@@ -36,11 +36,15 @@
 .pv2 *,
 .pv2 *::before,
 .pv2 *::after { box-sizing: border-box; }
-/* Zero-specificity defaults (:where), so a link's own color class wins. `.pv2 a` (0,1,1) outranked
-   Tailwind's `text-white` (0,1,0), and button-styled links on the legacy pages inside the v2 shell
-   (Docs "Manage API keys") rendered accent text on an accent background. */
-:where(.pv2) a { color: var(--accent); text-decoration: none; }
-:where(.pv2) a:where(:hover) { color: var(--accent-hover); }
+/* Default link color, in Tailwind's `base` layer so any utility (`text-white` on a button-styled
+   link) wins: Tailwind v4 puts utilities in @layer utilities, and an UNLAYERED rule beats every
+   layer whatever its specificity. Unlayered, `.pv2 a` turned Docs "Manage API keys" (and every
+   button-styled legacy link inside the v2 shell) into accent text on an accent background.
+   v2's own buttons set their colors unlayered with !important and are unaffected. */
+@layer base {
+  .pv2 a { color: var(--accent); text-decoration: none; }
+  .pv2 a:hover { color: var(--accent-hover); }
+}
 .pv2 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pv2 h1, .pv2 h2, .pv2 h3, .pv2 p { margin: 0; }
 
