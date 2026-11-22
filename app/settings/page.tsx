@@ -208,7 +208,7 @@ export default function SettingsPage() {
   const credentialPreviewTitle = apiKeyUnavailable
     ? 'Primary key preview unavailable'
     : apiKeyMasked
-      ? 'Persisted primary key preview'
+      ? 'Primary key'
       : apiKey
         ? 'Current session key preview'
         : 'Primary key preview';
@@ -216,24 +216,24 @@ export default function SettingsPage() {
   const credentialPreviewDetail = apiKeyUnavailable
     ? 'Stored key metadata could not be loaded from the backend.'
     : apiKeyMasked
-      ? 'This preview comes from persisted key inventory. The full value is not recoverable here.'
+      ? 'Only the start of the key is shown. The full key was shown once, when it was created; rotate it to get a new one.'
       : apiKey
-        ? 'This preview comes from the current authenticated session only.'
+        ? 'This key is held by this browser for the current session.'
         : 'No key preview is currently available.';
 
   const credentialSourceLabel = apiKeyUnavailable
     ? 'Unavailable'
     : apiKeyMasked
-      ? 'Persisted inventory'
+      ? 'Saved'
       : apiKey
-        ? 'Session preview'
+        ? 'This session'
         : 'No preview';
 
   return (
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Settings"
-        description="Account, buyer identity, webhook, and security settings that support your production integration."
+        description="Your account, buyer identity, webhook and password."
         badge={<StatusBadge tone="production">Production</StatusBadge>}
         actions={
           <button
@@ -259,7 +259,7 @@ export default function SettingsPage() {
           </InlineNotice>
         ) : null}
 
-        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
           <SurfaceCard className="p-5">
             <SectionHeader title="Profile" description="Visible account details used across the developer portal." />
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -296,7 +296,7 @@ export default function SettingsPage() {
           </SurfaceCard>
 
           <SurfaceCard className="p-5">
-            <SectionHeader title="Credential management" description="API keys are now first-class and live outside Settings." />
+            <SectionHeader title="API keys" description="Create, rotate and revoke keys on the API keys page." />
             <div className="mt-5 space-y-4">
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
                 <div className="flex items-center justify-between gap-4">
@@ -344,9 +344,9 @@ export default function SettingsPage() {
           </SurfaceCard>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <SurfaceCard className="p-5">
-            <SectionHeader title="Webhook status" description="Webhook destinations are now managed in the dedicated delivery console." />
+            <SectionHeader title="Webhook" description="Set up and test your endpoint on the Webhooks page." />
             <div className="mt-5 space-y-3">
               <div className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
                 <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ export default function SettingsPage() {
                       : 'Webhook configuration missing'}
                   </p>
                 </div>
-                <p className="mt-2 text-sm text-[var(--portal-fg-muted)]">
+                <p className="mt-2 break-all text-sm text-[var(--portal-fg-muted)]">
                   {webhookConfig?.destination_url
                     ? webhookConfig.destination_url
                     : 'Configure a destination endpoint before you rely on asynchronous event delivery.'}
@@ -393,7 +393,7 @@ export default function SettingsPage() {
           </SurfaceCard>
 
           <SurfaceCard className="p-5">
-            <SectionHeader title="Security" description="Password rotation is still handled here until account flows are fully consolidated." />
+            <SectionHeader title="Security" description="Change your sign-in password." />
 
             {passwordError ? (
               <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

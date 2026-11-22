@@ -202,7 +202,7 @@ export default function LogsPage() {
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Logs"
-        description="Operational feeds for requests, order timeline events, and webhook deliveries."
+        description="Recent REST requests, order timeline events and webhook deliveries. MCP calls aren't logged per developer yet."
         badge={<StatusBadge tone="production">Production</StatusBadge>}
         actions={
           <button

@@ -16,7 +16,7 @@ import SurfaceCard from '@/components/portal/SurfaceCard';
 import { agentApi } from '@/lib/api-client';
 import { API_CONFIG } from '@/lib/config';
 import { developerStandards } from '@/lib/developer-standards';
-import { DOOR_EXAMPLES, OAUTH_METADATA_URL, UCP_RESOURCE, agentDoors } from '@/lib/agent-doors';
+import { DOOR_EXAMPLES, FIRST_CALL, OAUTH_METADATA_URL, UCP_RESOURCE, agentDoors } from '@/lib/agent-doors';
 import { logError } from '@/lib/safe-log';
 
 const API_BASE = API_CONFIG.AGENT_API_V1_BASE_URL;
@@ -168,11 +168,11 @@ export default function DocsPage() {
         hint: integrationUnavailable ? 'Integration status unavailable' : 'Backend connection status',
       },
       {
-        label: 'Connected merchants',
+        label: 'REST-orderable merchants',
         value: integrationUnavailable ? 'Unavailable' : integrationStatus?.connected_merchants ?? 0,
         tone: integrationUnavailable ? ('neutral' as const) : ('info' as const),
         icon: <BookOpen className="h-5 w-5" />,
-        hint: integrationUnavailable ? 'Integration status unavailable' : 'Current connected merchants',
+        hint: integrationUnavailable ? 'Integration status unavailable' : 'Portal-integrated, for the REST order call. Most merchants are on the MCP / UCP doors.',
       },
       {
         label: 'Documented endpoints',
@@ -256,19 +256,19 @@ export default function DocsPage() {
         />
 
         {selectedTab === 'quickstart' ? (
-          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <SurfaceCard className="p-5">
               <SectionHeader
                 title="Quickstart"
-                description="Five production steps from credentials to webhook-confirmed order flow."
+                description="Five steps from a key to a webhook-confirmed order, on the MCP door."
               />
               <div className="mt-5 space-y-3">
                 {[
-                  'Create a dedicated production key and keep it out of source control.',
-                  'Verify the key with a simple authenticated request — the REST call on the right, or tools/list on the UCP / MCP door (Agent doors tab).',
-                  'Request a live quote (POST /quotes/preview), then create your first order with its quote_id.',
-                  'Configure a webhook destination and subscribe to order and API failure events.',
-                  'Send a webhook test event before promoting traffic.',
+                  'Create a production key and keep it on your server, out of source control.',
+                  'Make the first call on the right: search_catalog on the MCP door. It needs only your key.',
+                  'Get live offers for a product id from search with get_offers. Offers carry the price and the merchant you check out with.',
+                  'Create and complete a checkout session (create_checkout_session, then complete_checkout_session). Checkout needs a verified end user: see Agent doors → Buyer identity.',
+                  'Add a webhook endpoint for order and refund updates, and send a test event before real traffic.',
                 ].map((step, index) => (
                   <div key={step} className="rounded-2xl border border-[var(--portal-border)] bg-[var(--portal-surface-muted)] px-4 py-4">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--portal-fg-subtle)]">Step {index + 1}</p>
@@ -280,14 +280,14 @@ export default function DocsPage() {
 
             <SurfaceCard className="p-5">
               <SectionHeader
-                title="First authenticated call"
-                description="Use this request to verify credentials and network connectivity."
+                title="First call"
+                description="The same call as Home: search the catalog across merchants with your key."
               />
               <div className="mt-5">
-                <CodePanel code={REST_EXAMPLES.auth} language="curl" />
+                <CodePanel code={FIRST_CALL} language="curl" />
               </div>
               <p className="mt-4 text-sm leading-6 text-[var(--portal-fg-muted)]">
-                This lists the merchants integrated through the Pivota merchant portal that your key can order from over REST. Most merchants are not portal-integrated: list them with <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">GET /merchants?scope=protocol</code> (one row per merchant domain and market, with its checkout routes) and buy from them on the UCP door (Agent doors tab), not the REST order call. REST search results from those merchants carry <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">merchant_id: &quot;external_seed&quot;</code>, which the order call refuses.
+                Using REST instead? <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">GET /agent/v1/merchants</code> lists the merchants integrated through the Pivota merchant portal that your key can order from over REST. Most merchants are not portal-integrated: list them with <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">GET /merchants?scope=protocol</code> (one row per merchant domain and market, with its checkout routes) and buy from them on the UCP door (Agent doors tab), not the REST order call. REST search results from those merchants carry <code className="rounded bg-white px-1.5 py-1 font-mono text-xs text-[var(--portal-fg)]">merchant_id: &quot;external_seed&quot;</code>, which the order call refuses.
               </p>
             </SurfaceCard>
           </div>
@@ -323,7 +323,7 @@ export default function DocsPage() {
               </div>
             </div>
 
-            <div className="grid gap-6 xl:grid-cols-[0.7fr_1.3fr]">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.3fr)]">
               <SurfaceCard className="p-5">
                 <SectionHeader title="Install" description="Use the supported SDK package for your runtime." />
                 <div className="mt-5">
@@ -342,7 +342,7 @@ export default function DocsPage() {
         ) : null}
 
         {selectedTab === 'api' ? (
-          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
             <SurfaceCard className="p-5">
               <SectionHeader title="REST API" description="Base URL, auth header, and the flows most teams use first." />
               <div className="mt-5 space-y-4">
@@ -560,7 +560,7 @@ export default function DocsPage() {
               </div>
             </SurfaceCard>
 
-            <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
               <SurfaceCard className="p-5">
                 <SectionHeader title="Local MCP (stdio)" description="For desktop MCP clients that spawn a local process. Same key, same catalog, fewer tools than the hosted doors." />
                 <div className="mt-5">
@@ -593,7 +593,7 @@ export default function DocsPage() {
         ) : null}
 
         {selectedTab === 'standards' ? (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
             <SurfaceCard className="p-5">
               <SectionHeader
                 title="Standards & protocols"
@@ -695,7 +695,7 @@ export default function DocsPage() {
         ) : null}
 
         {selectedTab === 'reference' ? (
-          <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <SurfaceCard className="p-5">
               <SectionHeader title="Webhook event catalog" description="Core events prioritized for order flow and operational failure visibility." />
               <div className="mt-5 space-y-3">

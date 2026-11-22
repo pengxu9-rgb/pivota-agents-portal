@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Check } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
-import { NATIVE_MCP_RESOURCE } from '@/lib/agent-doors';
+import { FIRST_CALL } from '@/lib/agent-doors';
 import { Badge, CopyButton, EmptyState, PageHeader } from '../ui';
 import { useSignedIn } from '../useSignedIn';
 
@@ -13,15 +13,6 @@ import { useSignedIn } from '../useSignedIn';
  * yet, so the activity card is an honest "not available yet", and only the checklist steps
  * the portal can actually see (a key exists, a webhook endpoint exists) are ticked.
  */
-
-// Native MCP door; same header and door the docs examples were verified with. It must send
-// Content-Type: application/json (build-readiness review).
-export const FIRST_CALL = `curl -sS ${NATIVE_MCP_RESOURCE} \\
-  -H "Content-Type: application/json" \\
-  -H "X-Agent-API-Key: $PIVOTA_API_KEY" \\
-  --data '{"jsonrpc":"2.0","id":1,"method":"tools/call",
-    "params":{"name":"search_catalog",
-      "arguments":{"query":"vitamin c serum"}}}'`;
 
 type Known = boolean | null; // null = couldn't tell
 
