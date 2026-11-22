@@ -3,7 +3,7 @@
 import React from 'react';
 import { Plus, X } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
-import { formatDateTimeUtc, formatRelative, parseUtc } from '@/lib/v2/time';
+import { formatDateTimeSecondsUtc, formatDateTimeUtc, formatRelative, parseUtc } from '@/lib/v2/time';
 import { Badge, CopyButton, EmptyState, Modal, Notice, PageHeader, SkeletonRows, errorMessage } from '../ui';
 import { useSignedIn } from '../useSignedIn';
 
@@ -66,10 +66,26 @@ function attemptsCell(delivery: Delivery, now: number) {
   return String(delivery.attempt_count || 1);
 }
 
+/** Date and time: a time alone read as "today" for deliveries weeks old. */
 function timeCell(value: string | null) {
-  const date = parseUtc(value);
-  if (!date) return '—';
-  return date.toISOString().slice(11, 19);
+  return formatDateTimeSecondsUtc(value);
+}
+
+/** The 24 h summary has no last delivery when nothing was delivered in 24 h; the list still knows
+ * the newest delivered one, so the tile shows that instead of "—". */
+export function lastDeliveredAt(summary: Summary | undefined, deliveries: Delivery[]) {
+  if (summary?.last_delivery_at) return summary.last_delivery_at;
+  let newest: Date | null = null;
+  let newestRaw: string | null = null;
+  for (const delivery of deliveries) {
+    if (delivery.status !== 'delivered') continue;
+    const date = parseUtc(delivery.created_at);
+    if (date && (!newest || date > newest)) {
+      newest = date;
+      newestRaw = delivery.created_at;
+    }
+  }
+  return newestRaw;
 }
 
 export default function WebhooksPage() {
@@ -269,7 +285,7 @@ export default function WebhooksPage() {
             <div className="pv2-card pv2-stat"><div className="pv2-stat-label">Delivered · 24h</div><div className="pv2-stat-value">{deliveredRate(summary)}</div></div>
             <div className="pv2-card pv2-stat"><div className="pv2-stat-label">Retrying now</div><div className="pv2-stat-value">{summary?.retrying ?? 0}</div></div>
             <div className="pv2-card pv2-stat"><div className="pv2-stat-label">Gave up · 24h</div><div className="pv2-stat-value">{summary?.failed ?? 0}</div></div>
-            <div className="pv2-card pv2-stat"><div className="pv2-stat-label">Last delivery</div><div className="pv2-stat-value">{summary?.last_delivery_at ? formatRelative(summary.last_delivery_at, now) : '—'}</div></div>
+            <div className="pv2-card pv2-stat"><div className="pv2-stat-label">Last delivery</div><div className="pv2-stat-value">{lastDeliveredAt(summary, deliveries) ? formatRelative(lastDeliveredAt(summary, deliveries), now) : '—'}</div></div>
           </div>
 
           <div className="pv2-grid-2">

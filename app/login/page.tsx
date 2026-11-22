@@ -5,8 +5,29 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ArrowRight, Command, KeyRound, Loader2, ScrollText, Webhook } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
+import { PORTAL_V2_ENABLED } from '@/lib/features';
 
-const consoleHighlights = [
+// v2 describes what the portal does today: no per-developer API log or latency view exists yet
+// (Home and Logs say so), so the v2 copy doesn't promise one.
+const v2Highlights = [
+  {
+    title: 'Connect your agent',
+    description: 'Create a production key, make your first call to the MCP door, and get live offers and checkout across merchants.',
+    icon: Command,
+  },
+  {
+    title: 'Keys and webhooks',
+    description: 'Manage API keys and a signed webhook endpoint for order and refund updates.',
+    icon: KeyRound,
+  },
+  {
+    title: 'Earnings, early access',
+    description: "Orders your agent sends earn a share of the net commission Pivota receives, once a merchant's program is live.",
+    icon: ScrollText,
+  },
+];
+
+const legacyHighlights = [
   {
     title: 'Production overview',
     description: 'Check API activity, recent events, latency, and attention items from one place.',
@@ -23,6 +44,8 @@ const consoleHighlights = [
     icon: ScrollText,
   },
 ];
+
+const consoleHighlights = PORTAL_V2_ENABLED ? v2Highlights : legacyHighlights;
 
 export default function AgentLoginPage() {
   const router = useRouter();
@@ -63,7 +86,9 @@ export default function AgentLoginPage() {
             </div>
 
             <p className="mt-5 max-w-lg text-base leading-7 text-[var(--portal-fg-muted)]">
-              Production-ready access to API keys, usage, webhooks, orders, docs, and operational visibility for external integrations.
+              {PORTAL_V2_ENABLED
+                ? 'Connect your agent to Pivota: search products across merchants, get live offers, and check out.'
+                : 'Production-ready access to API keys, usage, webhooks, orders, docs, and operational visibility for external integrations.'}
             </p>
 
             <div className="mt-10 grid gap-4">
@@ -104,7 +129,9 @@ export default function AgentLoginPage() {
             <div className="mt-8">
               <h1 className="text-3xl font-semibold tracking-[-0.04em] text-[var(--portal-fg)]">Sign in</h1>
               <p className="mt-2 text-sm leading-6 text-[var(--portal-fg-muted)]">
-                Use your developer account to manage keys, review usage, and monitor production integrations.
+                {PORTAL_V2_ENABLED
+                  ? 'Use your developer account to manage keys, webhooks and earnings.'
+                  : 'Use your developer account to manage keys, review usage, and monitor production integrations.'}
               </p>
             </div>
 

@@ -371,9 +371,14 @@ export default function SettingsPage() {
                     <StatusBadge tone="info">
                       {Array.isArray(webhookConfig?.subscribed_events) ? webhookConfig.subscribed_events.length : 0} subscribed events
                     </StatusBadge>
-                    <StatusBadge tone={webhookConfig?.delivery_summary_24h?.failed > 0 || webhookConfig?.delivery_summary_24h?.retrying > 0 ? 'warning' : 'success'}>
-                      {webhookConfig?.delivery_summary_24h?.success_rate ?? 0}% success rate
-                    </StatusBadge>
+                    {/* The backend reports 0.0 for zero deliveries: that is "nothing sent", not a failure rate. */}
+                    {webhookConfig?.delivery_summary_24h?.total ? (
+                      <StatusBadge tone={webhookConfig?.delivery_summary_24h?.failed > 0 || webhookConfig?.delivery_summary_24h?.retrying > 0 ? 'warning' : 'success'}>
+                        {webhookConfig.delivery_summary_24h.success_rate}% delivered · 24 h
+                      </StatusBadge>
+                    ) : (
+                      <StatusBadge tone="neutral">No deliveries in 24 h</StatusBadge>
+                    )}
                   </div>
                 ) : null}
               </div>
