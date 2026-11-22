@@ -27,6 +27,22 @@ const dateTimeFmt = new Intl.DateTimeFormat('en-US', {
   timeZone: 'UTC',
 });
 
+const dateTimeSecondsFmt = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+  timeZone: 'UTC',
+});
+
+/** "Oct 22, 03:39:07" (UTC, no suffix: for tables headed "Times in UTC"). */
+export function formatDateTimeSecondsUtc(value: unknown, fallback = '—') {
+  const date = parseUtc(value);
+  return date ? dateTimeSecondsFmt.format(date) : fallback;
+}
+
 /** "Nov 12, 2026" (UTC). */
 export function formatDateUtc(value: unknown, fallback = '—') {
   const date = parseUtc(value);
