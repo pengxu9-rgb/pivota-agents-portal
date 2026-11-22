@@ -4,6 +4,7 @@ import React from 'react';
 import { Plus, X } from 'lucide-react';
 import { agentApi } from '@/lib/api-client';
 import { formatDateTimeSecondsUtc, formatDateTimeUtc, formatRelative, parseUtc } from '@/lib/v2/time';
+import { deliveredRate } from '@/lib/webhook-summary';
 import { Badge, CopyButton, EmptyState, Modal, Notice, PageHeader, SkeletonRows, errorMessage } from '../ui';
 import { useSignedIn } from '../useSignedIn';
 
@@ -46,11 +47,6 @@ type Delivery = {
   last_error: string | null;
 };
 
-/** "96.4%", or "—" when nothing was delivered (the backend reports 0.0 for zero deliveries). */
-export function deliveredRate(summary?: Summary) {
-  if (!summary || !summary.total) return '—';
-  return `${(Math.round(summary.success_rate * 10) / 10).toFixed(1)}%`;
-}
 
 function ResultBadge({ delivery }: { delivery: Delivery }) {
   if (delivery.status === 'delivered') return <Badge tone="ok">{delivery.http_status ? `${delivery.http_status} OK` : 'Delivered'}</Badge>;

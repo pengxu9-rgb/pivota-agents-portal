@@ -13,6 +13,7 @@ import SurfaceCard from '@/components/portal/SurfaceCard';
 import BuyerIdentityIssuers from '@/components/portal/BuyerIdentityIssuers';
 import { agentApi } from '@/lib/api-client';
 import { logError } from '@/lib/safe-log';
+import { deliveredRate } from '@/lib/webhook-summary';
 
 function validatePassword(password: string): string | null {
   if (password.length < 8) return 'Password must be at least 8 characters long.';
@@ -374,7 +375,9 @@ export default function SettingsPage() {
                     {/* The backend reports 0.0 for zero deliveries: that is "nothing sent", not a failure rate. */}
                     {webhookConfig?.delivery_summary_24h?.total ? (
                       <StatusBadge tone={webhookConfig?.delivery_summary_24h?.failed > 0 || webhookConfig?.delivery_summary_24h?.retrying > 0 ? 'warning' : 'success'}>
-                        {webhookConfig.delivery_summary_24h.success_rate}% delivered · 24 h
+                        {deliveredRate(webhookConfig.delivery_summary_24h) === '—'
+                          ? `${webhookConfig.delivery_summary_24h.total} sent · 24 h`
+                          : `${deliveredRate(webhookConfig.delivery_summary_24h)} delivered · 24 h`}
                       </StatusBadge>
                     ) : (
                       <StatusBadge tone="neutral">No deliveries in 24 h</StatusBadge>
