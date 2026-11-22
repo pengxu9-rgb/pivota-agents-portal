@@ -263,7 +263,7 @@ export default function ApiKeyManager({
                         <span>
                           Created {key.created_at ? new Date(key.created_at).toLocaleDateString() : 'Date unavailable'}
                         </span>
-                        <span>Last used {key.last_used ? key.last_used : 'Never'}</span>
+                        <span>Last used {key.last_used ? key.last_used : 'none recorded'}</span>
                         <span>{key.usage_count} requests tracked</span>
                         {key.source === 'session' ? <span>Current authenticated session</span> : null}
                       </div>

@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Download, KeyRound, Package, RefreshCw, RotateCcw, Search, ShoppingCart, Truck, XCircle } from 'lucide-react';
+import { Download, Package, RefreshCw, RotateCcw, Search, ShoppingCart, Truck, XCircle } from 'lucide-react';
 import ConfirmDialog from '@/components/portal/ConfirmDialog';
 import EmptyState from '@/components/portal/EmptyState';
 import InlineNotice from '@/components/portal/InlineNotice';
@@ -26,7 +25,9 @@ const STATUS_TONES: Record<string, 'success' | 'warning' | 'critical' | 'info' |
 const getOrderErrorMessage = (error: any) =>
   error?.response?.data?.detail || error?.message || 'Failed to load orders.';
 
-type OrdersLoadErrorKind = 'no_api_key' | 'active_key_required' | 'unavailable';
+// The list reads with the portal session (GET /agents/{agent_id}/orders), so it no longer fails
+// for want of an API key held by this browser.
+type OrdersLoadErrorKind = 'unavailable';
 
 const isActiveApiKeyError = (error: any) => {
   const code = String(error?.code || '').toUpperCase();
@@ -89,13 +90,7 @@ export default function OrdersPage() {
       logError('Failed to load orders:', error);
       setOrders([]);
       setLoadError(getOrderErrorMessage(error));
-      setLoadErrorKind(
-        error?.code === 'NO_API_KEY'
-          ? 'no_api_key'
-          : isActiveApiKeyError(error)
-            ? 'active_key_required'
-            : 'unavailable',
-      );
+      setLoadErrorKind('unavailable');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -128,8 +123,9 @@ export default function OrdersPage() {
     } catch (error: any) {
       setStatusMessage({
         tone: 'critical',
-        text:
-          pendingAction.type === 'refund'
+        text: isActiveApiKeyError(error)
+          ? `${pendingAction.type === 'refund' ? 'Refunds' : 'Cancels'} run with your agent's API key, which this browser doesn't hold. Call POST /agent/v1/orders/${pendingAction.orderId}/${pendingAction.type} from your server.`
+          : pendingAction.type === 'refund'
             ? `Refund failed: ${error.response?.data?.detail || error.message}`
             : `Cancel failed: ${error.response?.data?.detail || error.message}`,
       });
@@ -158,11 +154,7 @@ export default function OrdersPage() {
       } else {
         logError('Failed to load order timeline:', eventsResult.reason);
         setDetailEvents([]);
-        nextDetailErrors.push(
-          isActiveApiKeyError(eventsResult.reason)
-            ? 'Order timeline requires an active API key.'
-            : 'Order timeline is temporarily unavailable.',
-        );
+        nextDetailErrors.push('Order timeline is temporarily unavailable.');
       }
 
       if (trackingResult.status === 'fulfilled') {
@@ -172,7 +164,7 @@ export default function OrdersPage() {
         setTracking(null);
         nextDetailErrors.push(
           isActiveApiKeyError(trackingResult.reason)
-            ? 'Tracking details require an active API key.'
+            ? "Tracking isn't shown here yet: it reads with your agent's API key. Your agent can fetch it with GET /agent/v1/orders/{order_id}/track."
             : 'Tracking details are temporarily unavailable.',
         );
       }
@@ -274,34 +266,6 @@ export default function OrdersPage() {
               <div className="space-y-3">
                 {[0, 1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-2xl bg-slate-100" />)}
               </div>
-            ) : loadError && loadErrorKind === 'no_api_key' ? (
-              <EmptyState
-                icon={<KeyRound className="h-5 w-5" />}
-                title="No API key yet"
-                description="Orders are placed by your agent with an API key, so there is nothing to show until you create one. Create a key, connect your agent, and its orders will appear here."
-                action={
-                  <Link
-                    href="/api-keys"
-                    className="inline-flex items-center gap-2 rounded-xl bg-[var(--portal-accent)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--portal-accent-strong)]"
-                  >
-                    Create an API key
-                  </Link>
-                }
-              />
-            ) : loadError && loadErrorKind === 'active_key_required' ? (
-              <EmptyState
-                icon={<KeyRound className="h-5 w-5" />}
-                title="Orders can't load in this browser yet"
-                description="You have an active API key, but this page reads orders with a key held by this browser, and signing in no longer hands one to the browser. Your agent's orders are unaffected. Resetting your primary key in Settings makes it load here, but that replaces the key your agent uses, so update your server right away if you do."
-                action={
-                  <Link
-                    href="/settings"
-                    className="inline-flex items-center gap-2 rounded-xl border border-[var(--portal-border-strong)] bg-[var(--portal-surface)] px-4 py-2.5 text-sm font-medium text-[var(--portal-fg)] hover:bg-[var(--portal-surface-muted)]"
-                  >
-                    Open Settings
-                  </Link>
-                }
-              />
             ) : loadError ? (
               <EmptyState
                 icon={<ShoppingCart className="h-5 w-5" />}

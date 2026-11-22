@@ -82,6 +82,14 @@ class AgentApiClient {
     return localStorage.getItem('agent_id');
   }
 
+  private requireStoredAgentId() {
+    const agentId = this.getStoredAgentId();
+    if (!agentId) {
+      throw this.createClientError('Sign in again to load orders.', 'AGENT_ID_MISSING');
+    }
+    return agentId;
+  }
+
   private getStoredPrimaryApiKey() {
     if (typeof window === 'undefined') {
       return null;
@@ -445,16 +453,17 @@ class AgentApiClient {
     return response.data;
   }
 
+  /**
+   * Order timeline, read with the portal session (GET /agents/{agent_id}/orders/events): the
+   * browser never holds the agent's API key, so the key route failed for every developer.
+   */
   async getOrderEvents(limit: number = 50, orderId?: string) {
-    const { apiKey } = await this.resolveOperationalApiKey();
+    const agentId = this.requireStoredAgentId();
 
-    const response = await this.client.get('/agent/v1/orders/events', {
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId)}/orders/events`, {
       params: {
         limit,
         ...(orderId ? { order_id: orderId } : {}),
-      },
-      headers: {
-        'X-API-Key': apiKey,
       },
     });
     return response.data;
@@ -654,14 +663,12 @@ class AgentApiClient {
     return { connections: [] };
   }
 
+  /** The agent's orders, read with the portal session (GET /agents/{agent_id}/orders). */
   async getOrders(limit: number = 50) {
-    const { apiKey } = await this.resolveOperationalApiKey();
+    const agentId = this.requireStoredAgentId();
 
-    const response = await this.client.get('/agent/v1/orders', {
+    const response = await this.client.get(`/agents/${encodeURIComponent(agentId)}/orders`, {
       params: { limit },
-      headers: {
-        'X-API-Key': apiKey,
-      },
     });
     return response.data.orders || [];
   }

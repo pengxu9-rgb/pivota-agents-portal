@@ -206,7 +206,9 @@ export default function KeysPage() {
                       </td>
                       <td className="pv2-mono pv2-muted">{keyPrefix(record.key)}</td>
                       <td><EnvironmentBadge environment={record.environment} /></td>
-                      <td className={record.last_used ? undefined : 'pv2-muted'}>{record.last_used || 'Never'}</td>
+                      {/* Pivota began recording key use in November 2026 (pivota-backend agent-auth stamp): a key with
+                          no recorded use may still have been used before then, so it reads "None recorded", never "Never". */}
+                      <td className={record.last_used ? undefined : 'pv2-muted'}>{record.last_used || 'None recorded'}</td>
                       <td className="pv2-muted">{formatDateUtc(record.created_at)}</td>
                       <td className="pv2-r">
                         {revoked ? null : record.source === 'session' ? (
@@ -232,6 +234,10 @@ export default function KeysPage() {
           Production keys (<span className="pv2-mono">ak_live_…</span>) place real orders with merchants. A real test mode is still being
           built, so new keys are always production keys. Older keys marked Sandbox (<span className="pv2-mono">ak_test_…</span>) aren't
           isolated from live traffic yet.
+        </div>
+        <div className="pv2-muted">
+          Last used is recorded from November 2026, to within about five minutes. A key with no recorded use may have been used before
+          then, so check your server before you revoke one.
         </div>
       </section>
 
