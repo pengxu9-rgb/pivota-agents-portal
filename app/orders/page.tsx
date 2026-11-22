@@ -202,7 +202,7 @@ export default function OrdersPage() {
     <div className="min-h-screen bg-transparent">
       <PageHeader
         title="Orders"
-        description="Review commerce flow results, refunds, and pending operations without mixing them into the Overview."
+        description="Orders your agent placed, with their payment status, timeline and refunds."
         badge={<StatusBadge tone="production">Production</StatusBadge>}
         actions={
           <>
@@ -306,7 +306,7 @@ export default function OrdersPage() {
               <EmptyState
                 icon={<ShoppingCart className="h-5 w-5" />}
                 title="Orders unavailable"
-                description="The orders feed could not be loaded, so the commerce operations surface is temporarily unavailable."
+                description="Your orders couldn't be loaded. Try Refresh in a minute."
               />
             ) : filteredOrders.length === 0 ? (
               <EmptyState

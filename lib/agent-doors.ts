@@ -28,6 +28,16 @@ const KEY_PLACEHOLDER = 'ak_live_YOUR_KEY';
 export const UCP_RESOURCE = `${API_CONFIG.COMMERCE_MCP_BASE_URL}/ucp/mcp`;
 export const NATIVE_MCP_RESOURCE = `${API_CONFIG.COMMERCE_MCP_BASE_URL}/mcp`;
 
+/** The first call Home and Docs → Quickstart both show: search_catalog on the native MCP door, with
+ * the header the door was verified with. It must send Content-Type: application/json
+ * (build-readiness review). */
+export const FIRST_CALL = `curl -sS ${NATIVE_MCP_RESOURCE} \\
+  -H "Content-Type: application/json" \\
+  -H "X-Agent-API-Key: $PIVOTA_API_KEY" \\
+  --data '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+    "params":{"name":"search_catalog",
+      "arguments":{"query":"vitamin c serum"}}}'`;
+
 // THESE LISTS GO STALE BY DESIGN. The page renders `door.tools.length`, never a hardcoded number, so a
 // stale list reads as fewer tools rather than a wrong count. Update them when a tool joins a door —
 // PIVOTA-Agent's canonicalContract (`ucpTool` for UCP, `mcp` for native) and publicReadToolSurface are the
