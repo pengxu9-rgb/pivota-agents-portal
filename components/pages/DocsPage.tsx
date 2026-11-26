@@ -579,6 +579,7 @@ export default function DocsPage() {
                     'Once authenticated, a tools/call answers HTTP 200 and tool errors ride inside the JSON-RPC result (isError + error.code). Read the body, not the status. An unauthenticated call is still a 401, and a door that is switched off answers 404.',
                     'Anonymous tools/list on both authenticated doors is 401 by design. Read capabilities from /.well-known/ucp, then authenticate.',
                     'Long searches stream a heartbeat. Keep client read timeouts at 30 seconds or more.',
+                    "Buyer pages your tools return (checkout links, payment links, approval pages) can ask for a card, a 3-D Secure check or a passkey. In a mobile app, open them in an in-app browser tab (SFSafariViewController on iOS, Chrome Custom Tabs on Android) or the system browser, not an embedded WebView: an embedded WebView often can't run passkeys and may leave the buyer no way back.",
                     'Your REST control-plane key defaults to 100 requests per minute and 10,000 per day. Ask for a partner tier before launch traffic.',
                     'Treat API keys as server-only credentials. Keep webhook management, key rotation and order operations in this portal or your backend.',
                   ].map((item) => (
